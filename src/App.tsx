@@ -3,11 +3,10 @@ import { AuthProvider } from './contexts/AuthContext';
 import { BackofficeLayout } from './backoffice/layouts/BackofficeLayout';
 import { Login } from './backoffice/pages/Login'; // IMPORTAR AQUI
 import { Products } from './backoffice/pages/Products';
+import { Users } from './backoffice/pages/Users';
 
 // Placeholders (ainda vamos criar estes)
 const Dashboard = () => <div className="p-8"><h1>Dashboard</h1><p>Bem-vindo ao painel.</p></div>;
-const ProdutosList = () => <div className="p-8"><h1>Produtos</h1></div>;
-const UsuariosList = () => <div className="p-8"><h1>Usuários</h1></div>;
 
 function App() {
   return (
@@ -21,7 +20,7 @@ function App() {
           <Route path="/backoffice" element={<BackofficeLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="produtos" element={<Products />} />
-            <Route path="usuarios" element={<UsuariosList />} />
+            <Route path="usuarios" element={<Users />} />
           </Route>
 
           <Route path="/" element={<Navigate to="/login" replace />} />
