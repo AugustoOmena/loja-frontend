@@ -1,14 +1,21 @@
-import type { Product } from '../types';
+import type { Product, PaginatedResponse, ProductFilters } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const productService = {
-  getAll: async (): Promise<Product[]> => {
-    const response = await fetch(`${API_URL}/produtos`);
+  getAll: async (filters: ProductFilters): Promise<PaginatedResponse<Product>> => {
+    const params = new URLSearchParams();
+    params.append('page', filters.page.toString());
+    params.append('limit', filters.limit.toString());
+    if (filters.name) params.append('name', filters.name);
+    if (filters.min_price) params.append('min_price', filters.min_price);
+    if (filters.max_price) params.append('max_price', filters.max_price);
+    if (filters.size) params.append('size', filters.size);
+
+    const response = await fetch(`${API_URL}/produtos?${params.toString()}`);
     if (!response.ok) throw new Error('Erro ao buscar produtos');
     return response.json();
   },
-
   create: async (product: Omit<Product, 'id'>) => {
     const response = await fetch(`${API_URL}/produtos`, {
       method: 'POST',
