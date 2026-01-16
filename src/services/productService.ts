@@ -11,6 +11,7 @@ export const productService = {
     if (filters.min_price) params.append('min_price', filters.min_price);
     if (filters.max_price) params.append('max_price', filters.max_price);
     if (filters.size) params.append('size', filters.size);
+    if (filters.sort) params.append('sort', filters.sort);
 
     const response = await fetch(`${API_URL}/produtos?${params.toString()}`);
     if (!response.ok) throw new Error('Erro ao buscar produtos');
@@ -44,5 +45,13 @@ export const productService = {
     });
     if (!response.ok) throw new Error('Erro ao deletar produto');
     return response.json();
+  },
+
+  getAllForExport: async (): Promise<Product[]> => {
+    // Pedimos um limite alto (ex: 1000) para trazer tudo de uma vez
+    const response = await fetch(`${API_URL}/produtos?limit=1000&page=1`);
+    if (!response.ok) throw new Error('Erro ao baixar dados para exportação');
+    const json = await response.json();
+    return json.data; // Retorna apenas a lista pura
   }
 };

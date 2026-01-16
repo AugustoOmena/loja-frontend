@@ -4,6 +4,7 @@ export interface Product {
   description?: string;
   price: number;
   size: string | null;
+  quantity: number;
   created_at?: string;
 }
 
@@ -23,6 +24,7 @@ export interface ProductFilters {
   min_price?: string;
   max_price?: string;
   size?: string;
+  sort?: string;
 }
 
 export interface UserProfile {
@@ -30,4 +32,12 @@ export interface UserProfile {
   email: string;
   role: 'user' | 'admin';
   created_at?: string;
+}
+
+export interface UserFilters {
+  page: number;
+  limit: number;
+  email?: string;
+  role?: string;
+  sort?: string;
 }

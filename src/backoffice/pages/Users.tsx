@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit, Trash2, X, Save, Shield, ShieldAlert } from 'lucide-react';
+import { Search, Edit, Trash2, X, Save, Shield, ShieldAlert, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { userService } from '../../services/userService';
-import type { UserProfile } from '../../types';
+import type { UserProfile, UserFilters } from '../../types';
 
 export const Users = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Filtros
+  const [filters, setFilters] = useState<UserFilters>({
+    page: 1, limit: 10, email: '', role: '', sort: 'newest'
+  });
   
-  // Controle do Modal
+  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({ email: '', role: 'user' });
@@ -17,21 +22,23 @@ export const Users = () => {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const data = await userService.getAll();
-      setUsers(data);
+      const response = await userService.getAll(filters);
+      setUsers(response.data);
+      setTotalCount(response.count);
     } catch (error) {
       alert('Erro ao carregar usuários');
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  useEffect(() => { loadUsers(); }, [filters]);
 
-  // 2. Abrir Modal de Edição
+  // Handlers
+  const handleFilterChange = (key: keyof UserFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+  };
+
   const handleOpenModal = (user: UserProfile) => {
     setCurrentUser(user);
     setFormData({
@@ -41,20 +48,16 @@ export const Users = () => {
     setIsModalOpen(true);
   };
 
-  // 3. Salvar (Apenas Update neste caso)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
-
     try {
       const payload: UserProfile = {
         id: currentUser.id,
-        email: formData.email, // O email é apenas visual aqui, o login não muda
+        email: formData.email,
         role: formData.role as 'user' | 'admin'
       };
-
       await userService.update(payload);
-      
       setIsModalOpen(false);
       loadUsers();
     } catch (error) {
@@ -62,7 +65,6 @@ export const Users = () => {
     }
   };
 
-  // 4. Deletar
   const handleDelete = async (id: string) => {
     if (confirm('ATENÇÃO: Isso removerá os dados do perfil. Deseja continuar?')) {
       try {
@@ -74,28 +76,54 @@ export const Users = () => {
     }
   };
 
-  // Filtro
-  const filteredUsers = users.filter(u => 
-    (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const totalPages = Math.ceil(totalCount / filters.limit);
 
   return (
     <div style={styles.container}>
-      {/* --- HEADER --- */}
       <div style={styles.header}>
-        <h1 style={styles.title}>Gerenciar Usuários</h1>
-        {/* Botão Novo removido pois usuários devem se cadastrar via Auth */}
+        <h1 style={styles.title}>Usuários ({totalCount})</h1>
       </div>
 
-      <div style={styles.filterBar}>
-        <div style={styles.searchWrapper}>
-          <Search size={18} color="#64748b" />
-          <input 
-            placeholder="Buscar por e-mail..." 
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            style={styles.searchInput}
-          />
+      {/* --- FILTROS --- */}
+      <div style={styles.filterContainer}>
+        <div style={styles.filterRow}>
+          
+          {/* Busca Email */}
+          <div style={styles.searchWrapper}>
+            <Search size={18} color="#64748b" />
+            <input 
+              placeholder="Buscar e-mail..." 
+              value={filters.email}
+              onChange={e => handleFilterChange('email', e.target.value)}
+              style={styles.searchInput}
+            />
+          </div>
+
+          {/* Filtro Role */}
+          <select 
+            value={filters.role || ''}
+            onChange={e => handleFilterChange('role', e.target.value)}
+            style={styles.filterSelect}
+          >
+            <option value="">Todas Permissões</option>
+            <option value="admin">Admin</option>
+            <option value="user">Usuário</option>
+            {/* Se você adicionar Backoffice no futuro, ele aparece aqui */}
+          </select>
+
+          {/* Ordenação */}
+          <div style={{position: 'relative', display: 'flex', alignItems: 'center'}}>
+            <ArrowUpDown size={16} color="#64748b" style={{position: 'absolute', left: '10px', pointerEvents: 'none'}} />
+            <select 
+              value={filters.sort || 'newest'} 
+              onChange={e => handleFilterChange('sort', e.target.value)} 
+              style={{...styles.filterSelect, paddingLeft: '32px', minWidth: '180px'}}
+            >
+              <option value="newest">Mais Recentes</option>
+              <option value="role_asc">Permissão (A-Z)</option>
+              <option value="role_desc">Permissão (Z-A)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -114,7 +142,7 @@ export const Users = () => {
           <tbody>
             {loading ? (
               <tr><td colSpan={5} style={styles.tdCenter}>Carregando...</td></tr>
-            ) : filteredUsers.map(user => (
+            ) : users.map(user => (
               <tr key={user.id} style={styles.tableRow}>
                 <td style={{...styles.td, fontSize: '12px', color: '#94a3b8'}}>
                   {user.id.slice(0, 8)}...
@@ -131,26 +159,40 @@ export const Users = () => {
                    {user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-'}
                 </td>
                 <td style={styles.tdAction}>
-                <button 
-                    onClick={() => handleOpenModal(user)} 
-                    style={styles.iconButton}
-                    title="Editar Permissões" 
-                >
+                  <button onClick={() => handleOpenModal(user)} style={styles.iconButton} title="Editar Permissões">
                     <Edit size={18} color="#0284c7" />
-                </button>
-
-                <button 
-                    onClick={() => handleDelete(user.id)} 
-                    style={styles.iconButton}
-                    title="Remover Perfil"
-                >
+                  </button>
+                  <button onClick={() => handleDelete(user.id)} style={styles.iconButton} title="Remover Perfil">
                     <Trash2 size={18} color="#ef4444" />
-                </button>
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* --- PAGINAÇÃO --- */}
+      <div style={styles.pagination}>
+        <span style={{color: '#64748b', fontSize: '14px'}}>
+          Página <b>{filters.page}</b> de <b>{totalPages || 1}</b>
+        </span>
+        <div style={{display: 'flex', gap: '5px'}}>
+          <button 
+            disabled={filters.page === 1}
+            onClick={() => setFilters(p => ({...p, page: p.page - 1}))}
+            style={filters.page === 1 ? styles.pageButtonDisabled : styles.pageButton}
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button 
+            disabled={filters.page >= totalPages}
+            onClick={() => setFilters(p => ({...p, page: p.page + 1}))}
+            style={filters.page >= totalPages ? styles.pageButtonDisabled : styles.pageButton}
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
       </div>
 
       {/* --- MODAL --- */}
@@ -163,12 +205,9 @@ export const Users = () => {
             </div>
             
             <form onSubmit={handleSave} style={styles.form}>
-              
               <div style={styles.alertBox}>
                 <ShieldAlert size={20} />
-                <span style={{fontSize: '13px'}}>
-                  Alterar o e-mail aqui não altera o login do usuário, apenas o registro visual.
-                </span>
+                <span style={{fontSize: '13px'}}>Alteração apenas visual. Login não afetado.</span>
               </div>
 
               <div style={styles.formGroup}>
@@ -194,9 +233,7 @@ export const Users = () => {
 
               <div style={styles.modalFooter}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={styles.secondaryButton}>Cancelar</button>
-                <button type="submit" style={styles.primaryButton}>
-                  <Save size={18} /> Salvar Permissões
-                </button>
+                <button type="submit" style={styles.primaryButton}><Save size={18} /> Salvar</button>
               </div>
             </form>
           </div>
@@ -206,7 +243,7 @@ export const Users = () => {
   );
 };
 
-// Estilos Reutilizados (Copie e cole ou mova para um arquivo compartilhado depois)
+// Reutilizei exatamente os mesmos estilos para manter padrão
 const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
@@ -215,9 +252,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   secondaryButton: { backgroundColor: '#fff', color: '#64748b', border: '1px solid #cbd5e1', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' },
   iconButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '5px' },
   closeButton: { background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' },
-  filterBar: { marginBottom: '20px', display: 'flex', gap: '15px' },
-  searchWrapper: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'white', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1, maxWidth: '400px' },
-  searchInput: { border: 'none', outline: 'none', width: '100%', fontSize: '15px' },
+  
+  // Filtros
+  filterContainer: { marginBottom: '20px', backgroundColor: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' },
+  filterRow: { display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' },
+  searchWrapper: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#f8fafc', padding: '10px 15px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 2, minWidth: '200px' },
+  searchInput: { border: 'none', outline: 'none', width: '100%', background: 'transparent', fontSize: '14px' },
+  filterSelect: { padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '150px', fontSize: '14px' },
+
   tableContainer: { backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
   tableHeadRow: { backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' },
@@ -228,11 +270,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   tdCenter: { padding: '30px', textAlign: 'center', color: '#64748b' },
   tdAction: { padding: '15px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '10px' },
   
-  // Badges Específicos
   badgeAdmin: { display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', width: 'fit-content' },
   badgeUser: { backgroundColor: '#f1f5f9', color: '#475569', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' },
 
-  // Modal
+  pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' },
+  pageButton: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', border: '1px solid #cbd5e1', backgroundColor: 'white', borderRadius: '6px', cursor: 'pointer', color: '#334155' },
+  pageButtonDisabled: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', border: '1px solid #e2e8f0', backgroundColor: '#f1f5f9', borderRadius: '6px', cursor: 'not-allowed', color: '#cbd5e1' },
+
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: 'white', padding: '30px', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },

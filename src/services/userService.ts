@@ -1,10 +1,18 @@
-import type { UserProfile } from '../types';
+import type { UserProfile, UserFilters, PaginatedResponse } from '../types'; // Importe PaginatedResponse
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const userService = {
-  getAll: async (): Promise<UserProfile[]> => {
-    const response = await fetch(`${API_URL}/usuarios`);
+  getAll: async (filters: UserFilters): Promise<PaginatedResponse<UserProfile>> => {
+    const params = new URLSearchParams();
+    params.append('page', filters.page.toString());
+    params.append('limit', filters.limit.toString());
+    
+    if (filters.email) params.append('email', filters.email);
+    if (filters.role) params.append('role', filters.role);
+    if (filters.sort) params.append('sort', filters.sort);
+
+    const response = await fetch(`${API_URL}/usuarios?${params.toString()}`);
     if (!response.ok) throw new Error('Erro ao buscar usuários');
     return response.json();
   },
