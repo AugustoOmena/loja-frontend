@@ -77,3 +77,5 @@ export default defineConfig([
 Executei até aqui
 
 npm install react-router-dom @supabase/supabase-js lucide-react
+
+npm install @tanstack/react-query

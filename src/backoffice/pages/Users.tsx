@@ -2,92 +2,79 @@ import { useState, useEffect } from 'react';
 import { Search, Edit, Trash2, X, Save, Shield, ShieldAlert, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { userService } from '../../services/userService';
 import type { UserProfile, UserFilters } from '../../types';
-import { useDebounce } from '../../hooks/useDebounce'; // <--- IMPORT
+import { useDebounce } from '../../hooks/useDebounce';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 export const Users = () => {
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
+  const queryClient = useQueryClient();
 
-  // 1. Estado API
-  const [filters, setFilters] = useState<UserFilters>({
-    page: 1, limit: 10, email: '', role: '', sort: 'newest'
-  });
-
-  // 2. Estado Local (Input)
+  // Estados
+  const [filters, setFilters] = useState<UserFilters>({ page: 1, limit: 10, email: '', role: '', sort: 'newest' });
   const [localEmail, setLocalEmail] = useState('');
-
-  // 3. Debounce
   const debouncedEmail = useDebounce(localEmail, 500);
 
-  // 4. Sincronização
-  useEffect(() => {
-    setFilters(prev => ({ ...prev, email: debouncedEmail, page: 1 }));
-  }, [debouncedEmail]);
+  useEffect(() => { setFilters(p => ({ ...p, email: debouncedEmail, page: 1 })); }, [debouncedEmail]);
 
+  // --- REACT QUERY ---
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['users', filters],
+    queryFn: () => userService.getAll(filters),
+    placeholderData: keepPreviousData,
+  });
 
+  const users = data?.data || [];
+  const totalCount = data?.count || 0;
+  const totalPages = Math.ceil(totalCount / filters.limit);
+
+  // Mutações
+  const updateMutation = useMutation({
+    mutationFn: userService.update,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setIsModalOpen(false);
+    },
+    onError: () => alert('Erro ao atualizar')
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: userService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: () => alert('Erro ao deletar')
+  });
+
+  // --- UI ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({ email: '', role: 'user' });
 
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await userService.getAll(filters);
-      setUsers(response.data);
-      setTotalCount(response.count);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadUsers(); }, [filters]);
-
-  // Handler para Selects (Sem debounce)
   const handleSelectChange = (key: keyof UserFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
   const handleOpenModal = (user: UserProfile) => {
     setCurrentUser(user);
-    setFormData({
-      email: user.email,
-      role: user.role
-    });
+    setFormData({ email: user.email, role: user.role });
     setIsModalOpen(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
-    try {
-      const payload: UserProfile = {
-        id: currentUser.id,
-        email: formData.email,
-        role: formData.role as 'user' | 'admin'
-      };
-      await userService.update(payload);
-      setIsModalOpen(false);
-      loadUsers();
-    } catch (error) {
-      alert('Erro ao salvar');
-    }
+    const payload: UserProfile = {
+      id: currentUser.id,
+      email: formData.email,
+      role: formData.role as 'user' | 'admin'
+    };
+    updateMutation.mutate(payload);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (confirm('ATENÇÃO: Isso removerá os dados do perfil. Deseja continuar?')) {
-      try {
-        await userService.delete(id);
-        loadUsers();
-      } catch (error) {
-        alert('Erro ao deletar');
-      }
+      deleteMutation.mutate(id);
     }
   };
 
-  const totalPages = Math.ceil(totalCount / filters.limit);
+  if (isError) return <div style={styles.container}>Erro ao carregar usuários.</div>;
 
   return (
     <div style={styles.container}>
@@ -97,38 +84,17 @@ export const Users = () => {
 
       <div style={styles.filterContainer}>
         <div style={styles.filterRow}>
-          
-          {/* BUSCA EMAIL (Local State) */}
           <div style={styles.searchWrapper}>
             <Search size={18} color="#64748b" />
-            <input 
-              placeholder="Buscar e-mail..." 
-              value={localEmail}
-              onChange={e => setLocalEmail(e.target.value)} // Atualiza local
-              style={styles.searchInput}
-            />
+            <input placeholder="Buscar e-mail..." value={localEmail} onChange={e => setLocalEmail(e.target.value)} style={styles.searchInput} />
           </div>
-
-          <select 
-            value={filters.role || ''}
-            onChange={e => handleSelectChange('role', e.target.value)}
-            style={styles.filterSelect}
-          >
-            <option value="">Todas Permissões</option>
-            <option value="admin">Admin</option>
-            <option value="user">Usuário</option>
+          <select value={filters.role || ''} onChange={e => handleSelectChange('role', e.target.value)} style={styles.filterSelect}>
+            <option value="">Todas Permissões</option><option value="admin">Admin</option><option value="user">Usuário</option>
           </select>
-
           <div style={{position: 'relative', display: 'flex', alignItems: 'center'}}>
             <ArrowUpDown size={16} color="#64748b" style={{position: 'absolute', left: '10px', pointerEvents: 'none'}} />
-            <select 
-              value={filters.sort || 'newest'} 
-              onChange={e => handleSelectChange('sort', e.target.value)} 
-              style={{...styles.filterSelect, paddingLeft: '32px', minWidth: '180px'}}
-            >
-              <option value="newest">Mais Recentes</option>
-              <option value="role_asc">Permissão (A-Z)</option>
-              <option value="role_desc">Permissão (Z-A)</option>
+            <select value={filters.sort || 'newest'} onChange={e => handleSelectChange('sort', e.target.value)} style={{...styles.filterSelect, paddingLeft: '32px', minWidth: '180px'}}>
+              <option value="newest">Recentes</option><option value="role_asc">Permissão A-Z</option><option value="role_desc">Permissão Z-A</option>
             </select>
           </div>
         </div>
@@ -138,39 +104,23 @@ export const Users = () => {
         <table style={styles.table}>
           <thead>
             <tr style={styles.tableHeadRow}>
-              <th style={styles.th}>ID</th>
-              <th style={styles.th}>Email</th>
-              <th style={styles.th}>Permissão</th>
-              <th style={styles.th}>Criado em</th>
-              <th style={styles.thAction}>Ações</th>
+              <th style={styles.th}>ID</th><th style={styles.th}>Email</th><th style={styles.th}>Permissão</th><th style={styles.th}>Criado em</th><th style={styles.thAction}>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {isLoading ? (
               <tr><td colSpan={5} style={styles.tdCenter}>Carregando...</td></tr>
             ) : users.map(user => (
               <tr key={user.id} style={styles.tableRow}>
-                <td style={{...styles.td, fontSize: '12px', color: '#94a3b8'}}>
-                  {user.id.slice(0, 8)}...
-                </td>
+                <td style={{...styles.td, fontSize: '12px', color: '#94a3b8'}}>{user.id.slice(0, 8)}...</td>
                 <td style={styles.td}><b>{user.email}</b></td>
                 <td style={styles.td}>
-                  {user.role === 'admin' ? (
-                    <span style={styles.badgeAdmin}><Shield size={12}/> Admin</span>
-                  ) : (
-                    <span style={styles.badgeUser}>Usuário</span>
-                  )}
+                  {user.role === 'admin' ? <span style={styles.badgeAdmin}><Shield size={12}/> Admin</span> : <span style={styles.badgeUser}>Usuário</span>}
                 </td>
-                <td style={styles.td}>
-                   {user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-'}
-                </td>
+                <td style={styles.td}>{user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '-'}</td>
                 <td style={styles.tdAction}>
-                  <button onClick={() => handleOpenModal(user)} style={styles.iconButton} title="Editar Permissões">
-                    <Edit size={18} color="#0284c7" />
-                  </button>
-                  <button onClick={() => handleDelete(user.id)} style={styles.iconButton} title="Remover Perfil">
-                    <Trash2 size={18} color="#ef4444" />
-                  </button>
+                  <button onClick={() => handleOpenModal(user)} style={styles.iconButton}><Edit size={18} color="#0284c7" /></button>
+                  <button onClick={() => handleDelete(user.id)} style={styles.iconButton}><Trash2 size={18} color="#ef4444" /></button>
                 </td>
               </tr>
             ))}
@@ -179,24 +129,10 @@ export const Users = () => {
       </div>
 
       <div style={styles.pagination}>
-        <span style={{color: '#64748b', fontSize: '14px'}}>
-          Página <b>{filters.page}</b> de <b>{totalPages || 1}</b>
-        </span>
+        <span style={{color: '#64748b', fontSize: '14px'}}>Pág <b>{filters.page}</b> de <b>{totalPages || 1}</b></span>
         <div style={{display: 'flex', gap: '5px'}}>
-          <button 
-            disabled={filters.page === 1}
-            onClick={() => setFilters(p => ({...p, page: p.page - 1}))}
-            style={filters.page === 1 ? styles.pageButtonDisabled : styles.pageButton}
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <button 
-            disabled={filters.page >= totalPages}
-            onClick={() => setFilters(p => ({...p, page: p.page + 1}))}
-            style={filters.page >= totalPages ? styles.pageButtonDisabled : styles.pageButton}
-          >
-            <ChevronRight size={20} />
-          </button>
+          <button disabled={filters.page === 1} onClick={() => setFilters(p => ({...p, page: p.page - 1}))} style={filters.page === 1 ? styles.pageButtonDisabled : styles.pageButton}><ChevronLeft size={20} /></button>
+          <button disabled={filters.page >= totalPages} onClick={() => setFilters(p => ({...p, page: p.page + 1}))} style={filters.page >= totalPages ? styles.pageButtonDisabled : styles.pageButton}><ChevronRight size={20} /></button>
         </div>
       </div>
 
@@ -207,26 +143,13 @@ export const Users = () => {
               <h2 style={styles.modalTitle}>Editar Usuário</h2>
               <button onClick={() => setIsModalOpen(false)} style={styles.closeButton}><X size={24} /></button>
             </div>
-            
             <form onSubmit={handleSave} style={styles.form}>
-              <div style={styles.alertBox}>
-                <ShieldAlert size={20} />
-                <span style={{fontSize: '13px'}}>Alteração apenas visual. Login não afetado.</span>
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>E-mail (Visual)</label>
-                <input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={styles.input} />
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nível de Acesso</label>
-                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} style={styles.input}>
-                  <option value="user">Usuário Comum</option>
-                  <option value="admin">Administrador</option>
-                </select>
-              </div>
+              <div style={styles.alertBox}><ShieldAlert size={20} /><span style={{fontSize: '13px'}}>Alteração apenas visual.</span></div>
+              <div style={styles.formGroup}><label style={styles.label}>E-mail</label><input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={styles.input} /></div>
+              <div style={styles.formGroup}><label style={styles.label}>Nível</label><select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} style={styles.input}><option value="user">Usuário</option><option value="admin">Admin</option></select></div>
               <div style={styles.modalFooter}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={styles.secondaryButton}>Cancelar</button>
-                <button type="submit" style={styles.primaryButton}><Save size={18} /> Salvar</button>
+                <button type="submit" style={styles.primaryButton} disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Salvando...' : 'Salvar'}</button>
               </div>
             </form>
           </div>
@@ -236,7 +159,7 @@ export const Users = () => {
   );
 };
 
-// Estilos Reutilizados (Mantidos para consistência)
+// ... Estilos mantidos iguais ...
 const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
