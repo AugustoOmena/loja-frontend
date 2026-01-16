@@ -1,4 +1,4 @@
-:root {
+/* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -24,9 +24,6 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
   min-height: 100vh;
 }
 
@@ -65,4 +62,60 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+} */
+/* RESET BÁSICO */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+
+  /* defaults (light) */
+  --bg: #f8fafc;
+  --bg-elevated: #ffffff;
+  --text: #0f172a;
+  --border: #e2e8f0;
+  --input-bg: #ffffff;
+  --input-text: #0f172a;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --bg-elevated: #020617;
+    --text: #e5e7eb;
+    --border: #334155;
+    --input-bg: #020617;
+    --input-text: #e5e7eb;
+
+    color-scheme: dark;
+  }
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+input,
+select,
+textarea {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+input::placeholder {
+  color: #94a3b8;
 }
