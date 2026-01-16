@@ -2,23 +2,34 @@ import { useState, useEffect } from 'react';
 import { Search, Edit, Trash2, X, Save, Shield, ShieldAlert, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { userService } from '../../services/userService';
 import type { UserProfile, UserFilters } from '../../types';
+import { useDebounce } from '../../hooks/useDebounce'; // <--- IMPORT
 
 export const Users = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Filtros
+  // 1. Estado API
   const [filters, setFilters] = useState<UserFilters>({
     page: 1, limit: 10, email: '', role: '', sort: 'newest'
   });
-  
-  // Modal
+
+  // 2. Estado Local (Input)
+  const [localEmail, setLocalEmail] = useState('');
+
+  // 3. Debounce
+  const debouncedEmail = useDebounce(localEmail, 500);
+
+  // 4. Sincronização
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, email: debouncedEmail, page: 1 }));
+  }, [debouncedEmail]);
+
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({ email: '', role: 'user' });
 
-  // 1. Carregar Usuários
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -26,7 +37,7 @@ export const Users = () => {
       setUsers(response.data);
       setTotalCount(response.count);
     } catch (error) {
-      alert('Erro ao carregar usuários');
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -34,8 +45,8 @@ export const Users = () => {
 
   useEffect(() => { loadUsers(); }, [filters]);
 
-  // Handlers
-  const handleFilterChange = (key: keyof UserFilters, value: string) => {
+  // Handler para Selects (Sem debounce)
+  const handleSelectChange = (key: keyof UserFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
@@ -84,39 +95,35 @@ export const Users = () => {
         <h1 style={styles.title}>Usuários ({totalCount})</h1>
       </div>
 
-      {/* --- FILTROS --- */}
       <div style={styles.filterContainer}>
         <div style={styles.filterRow}>
           
-          {/* Busca Email */}
+          {/* BUSCA EMAIL (Local State) */}
           <div style={styles.searchWrapper}>
             <Search size={18} color="#64748b" />
             <input 
               placeholder="Buscar e-mail..." 
-              value={filters.email}
-              onChange={e => handleFilterChange('email', e.target.value)}
+              value={localEmail}
+              onChange={e => setLocalEmail(e.target.value)} // Atualiza local
               style={styles.searchInput}
             />
           </div>
 
-          {/* Filtro Role */}
           <select 
             value={filters.role || ''}
-            onChange={e => handleFilterChange('role', e.target.value)}
+            onChange={e => handleSelectChange('role', e.target.value)}
             style={styles.filterSelect}
           >
             <option value="">Todas Permissões</option>
             <option value="admin">Admin</option>
             <option value="user">Usuário</option>
-            {/* Se você adicionar Backoffice no futuro, ele aparece aqui */}
           </select>
 
-          {/* Ordenação */}
           <div style={{position: 'relative', display: 'flex', alignItems: 'center'}}>
             <ArrowUpDown size={16} color="#64748b" style={{position: 'absolute', left: '10px', pointerEvents: 'none'}} />
             <select 
               value={filters.sort || 'newest'} 
-              onChange={e => handleFilterChange('sort', e.target.value)} 
+              onChange={e => handleSelectChange('sort', e.target.value)} 
               style={{...styles.filterSelect, paddingLeft: '32px', minWidth: '180px'}}
             >
               <option value="newest">Mais Recentes</option>
@@ -127,7 +134,6 @@ export const Users = () => {
         </div>
       </div>
 
-      {/* --- TABELA --- */}
       <div style={styles.tableContainer}>
         <table style={styles.table}>
           <thead>
@@ -172,7 +178,6 @@ export const Users = () => {
         </table>
       </div>
 
-      {/* --- PAGINAÇÃO --- */}
       <div style={styles.pagination}>
         <span style={{color: '#64748b', fontSize: '14px'}}>
           Página <b>{filters.page}</b> de <b>{totalPages || 1}</b>
@@ -195,7 +200,6 @@ export const Users = () => {
         </div>
       </div>
 
-      {/* --- MODAL --- */}
       {isModalOpen && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -209,28 +213,17 @@ export const Users = () => {
                 <ShieldAlert size={20} />
                 <span style={{fontSize: '13px'}}>Alteração apenas visual. Login não afetado.</span>
               </div>
-
               <div style={styles.formGroup}>
                 <label style={styles.label}>E-mail (Visual)</label>
-                <input 
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
-                  style={styles.input} 
-                />
+                <input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={styles.input} />
               </div>
-
               <div style={styles.formGroup}>
                 <label style={styles.label}>Nível de Acesso</label>
-                <select 
-                  value={formData.role}
-                  onChange={e => setFormData({...formData, role: e.target.value})}
-                  style={styles.input}
-                >
+                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} style={styles.input}>
                   <option value="user">Usuário Comum</option>
                   <option value="admin">Administrador</option>
                 </select>
               </div>
-
               <div style={styles.modalFooter}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={styles.secondaryButton}>Cancelar</button>
                 <button type="submit" style={styles.primaryButton}><Save size={18} /> Salvar</button>
@@ -243,7 +236,7 @@ export const Users = () => {
   );
 };
 
-// Reutilizei exatamente os mesmos estilos para manter padrão
+// Estilos Reutilizados (Mantidos para consistência)
 const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
@@ -252,14 +245,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   secondaryButton: { backgroundColor: '#fff', color: '#64748b', border: '1px solid #cbd5e1', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' },
   iconButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '5px' },
   closeButton: { background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' },
-  
-  // Filtros
   filterContainer: { marginBottom: '20px', backgroundColor: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' },
   filterRow: { display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' },
   searchWrapper: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#f8fafc', padding: '10px 15px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 2, minWidth: '200px' },
   searchInput: { border: 'none', outline: 'none', width: '100%', background: 'transparent', fontSize: '14px' },
   filterSelect: { padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '150px', fontSize: '14px' },
-
   tableContainer: { backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
   tableHeadRow: { backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' },
@@ -269,14 +259,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   td: { padding: '15px', fontSize: '15px', color: '#334155' },
   tdCenter: { padding: '30px', textAlign: 'center', color: '#64748b' },
   tdAction: { padding: '15px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '10px' },
-  
   badgeAdmin: { display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#dcfce7', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', width: 'fit-content' },
   badgeUser: { backgroundColor: '#f1f5f9', color: '#475569', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' },
-
   pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' },
   pageButton: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', border: '1px solid #cbd5e1', backgroundColor: 'white', borderRadius: '6px', cursor: 'pointer', color: '#334155' },
   pageButtonDisabled: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', border: '1px solid #e2e8f0', backgroundColor: '#f1f5f9', borderRadius: '6px', cursor: 'not-allowed', color: '#cbd5e1' },
-
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modalContent: { backgroundColor: 'white', padding: '30px', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },

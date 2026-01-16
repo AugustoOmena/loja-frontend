@@ -2,21 +2,48 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X, Save, ChevronLeft, ChevronRight, FileSpreadsheet, Package, ArrowUpDown } from 'lucide-react';
 import { productService } from '../../services/productService';
 import type { Product, ProductFilters } from '../../types';
+import { useDebounce } from '../../hooks/useDebounce'; // <--- IMPORTE O HOOK
 
 export const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Filtro inicial agora tem 'sort'
+  // 1. Estado da API (Filtros Reais)
   const [filters, setFilters] = useState<ProductFilters>({
     page: 1, limit: 10, name: '', min_price: '', max_price: '', size: '', sort: 'newest'
   });
-  
+
+  // 2. Estados Locais (Inputs de Texto) - Para a digitação ser fluida
+  const [localName, setLocalName] = useState('');
+  const [localMinPrice, setLocalMinPrice] = useState('');
+  const [localMaxPrice, setLocalMaxPrice] = useState('');
+
+  // 3. Versões Debounced (Só atualizam após 500ms)
+  const debouncedName = useDebounce(localName, 500);
+  const debouncedMinPrice = useDebounce(localMinPrice, 500);
+  const debouncedMaxPrice = useDebounce(localMaxPrice, 500);
+
+  // 4. Sincroniza o Debounce com o Filtro da API
+  // Quando o usuário para de digitar, atualizamos o 'filters', que dispara o loadProducts
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, name: debouncedName, page: 1 }));
+  }, [debouncedName]);
+
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, min_price: debouncedMinPrice, page: 1 }));
+  }, [debouncedMinPrice]);
+
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, max_price: debouncedMaxPrice, page: 1 }));
+  }, [debouncedMaxPrice]);
+
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', price: '', size: '', quantity: '0' });
 
+  // A chamada da API continua dependendo apenas de 'filters'
   const loadProducts = async () => {
     setLoading(true);
     try {
@@ -24,7 +51,8 @@ export const Products = () => {
       setProducts(response.data);
       setTotalCount(response.count);
     } catch (error) {
-      alert('Erro ao carregar produtos');
+      console.error(error);
+      // alert('Erro ao carregar produtos'); // Comentei para não ficar pipocando se der erro no typing
     } finally {
       setLoading(false);
     }
@@ -56,7 +84,8 @@ export const Products = () => {
     }
   };
 
-  const handleFilterChange = (key: keyof ProductFilters, value: string) => {
+  // Handler para Selects (Tamanho/Sort) - Estes não precisam de debounce
+  const handleSelectChange = (key: keyof ProductFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
   };
 
@@ -126,31 +155,47 @@ export const Products = () => {
       <div style={styles.filterContainer}>
         <div style={styles.filterRow}>
           
-          {/* BUSCA POR NOME */}
+          {/* BUSCA NOME (Usa state local) */}
           <div style={styles.searchWrapper}>
             <Search size={18} color="#64748b" />
-            <input placeholder="Buscar nome..." value={filters.name} onChange={e => handleFilterChange('name', e.target.value)} style={styles.searchInput} />
+            <input 
+              placeholder="Buscar nome..." 
+              value={localName} 
+              onChange={e => setLocalName(e.target.value)} // Atualiza localmente
+              style={styles.searchInput} 
+            />
           </div>
 
-          {/* FILTRO PREÇO */}
+          {/* PREÇO (Usa state local) */}
           <div style={styles.inputGroupRow}>
-            <input placeholder="Preço Min" type="number" value={filters.min_price} onChange={e => handleFilterChange('min_price', e.target.value)} style={styles.filterInput} />
+            <input 
+              placeholder="Preço Min" 
+              type="number" 
+              value={localMinPrice} 
+              onChange={e => setLocalMinPrice(e.target.value)} 
+              style={styles.filterInput} 
+            />
             <span style={{color: '#94a3b8'}}>-</span>
-            <input placeholder="Preço Max" type="number" value={filters.max_price} onChange={e => handleFilterChange('max_price', e.target.value)} style={styles.filterInput} />
+            <input 
+              placeholder="Preço Max" 
+              type="number" 
+              value={localMaxPrice} 
+              onChange={e => setLocalMaxPrice(e.target.value)} 
+              style={styles.filterInput} 
+            />
           </div>
 
-          {/* FILTRO TAMANHO */}
-          <select value={filters.size || ''} onChange={e => handleFilterChange('size', e.target.value)} style={styles.filterSelect}>
+          {/* SELECTS (Usa direto o filters, sem debounce) */}
+          <select value={filters.size || ''} onChange={e => handleSelectChange('size', e.target.value)} style={styles.filterSelect}>
             <option value="">Tam. (Todos)</option>
             <option value="P">P</option><option value="M">M</option><option value="G">G</option><option value="GG">GG</option>
           </select>
 
-          {/* NOVO: ORDENAÇÃO POR ESTOQUE */}
           <div style={{position: 'relative', display: 'flex', alignItems: 'center'}}>
             <ArrowUpDown size={16} color="#64748b" style={{position: 'absolute', left: '10px', pointerEvents: 'none'}} />
             <select 
               value={filters.sort || 'newest'} 
-              onChange={e => handleFilterChange('sort', e.target.value)} 
+              onChange={e => handleSelectChange('sort', e.target.value)} 
               style={{...styles.filterSelect, paddingLeft: '32px', minWidth: '160px'}}
             >
               <option value="newest">Mais Recentes</option>
@@ -162,6 +207,7 @@ export const Products = () => {
         </div>
       </div>
 
+      {/* Tabela, Paginação e Modal mantêm-se iguais */}
       <div style={styles.tableContainer}>
         <table style={styles.table}>
           <thead>
@@ -216,7 +262,6 @@ export const Products = () => {
               <h2 style={styles.modalTitle}>{currentProduct ? 'Editar' : 'Novo'}</h2>
               <button onClick={() => setIsModalOpen(false)} style={styles.closeButton}><X size={24} /></button>
             </div>
-            
             <form onSubmit={handleSave} style={styles.form}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Nome</label>
@@ -254,7 +299,7 @@ export const Products = () => {
   );
 };
 
-// Mantive os mesmos estilos
+// Estilos
 const styles: { [key: string]: React.CSSProperties } = {
   container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
