@@ -81,6 +81,7 @@ body {
   --bg: #f8fafc;
   --bg-elevated: #ffffff;
   --text: #0f172a;
+  --muted: #64748b;
   --border: #e2e8f0;
   --input-bg: #ffffff;
   --input-text: #0f172a;
@@ -93,6 +94,7 @@ body {
     --bg: #0f172a;
     --bg-elevated: #020617;
     --text: #e5e7eb;
+    --muted: #94a3b8;
     --border: #334155;
     --input-bg: #020617;
     --input-text: #e5e7eb;
