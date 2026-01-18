@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import type { User } from "@supabase/supabase-js";
 import {
   Package,
   User,
@@ -12,7 +13,7 @@ import { authService, supabase } from "../../services/authService";
 export const ClientLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
