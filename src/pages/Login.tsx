@@ -45,9 +45,11 @@ export const Login = () => {
         await authService.signIn(email, password);
         navigate("/");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Traduz e define o erro
-      setErrorMessage(translateError(error.message));
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      setErrorMessage(translateError(message));
     } finally {
       setLoading(false);
     }
@@ -56,7 +58,7 @@ export const Login = () => {
   const handleGoogleLogin = async () => {
     try {
       await authService.signInWithGoogle();
-    } catch (error) {
+    } catch {
       setErrorMessage("Erro ao conectar com Google.");
     }
   };
