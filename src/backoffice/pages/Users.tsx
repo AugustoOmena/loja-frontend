@@ -77,7 +77,7 @@ export const Users = () => {
 
   const handleOpenModal = (user: UserProfile) => {
     setCurrentUser(user);
-    setFormData({ email: user.email, role: user.role });
+    setFormData({ email: user.email ?? "", role: user.role ?? "user" });
     setIsModalOpen(true);
   };
 

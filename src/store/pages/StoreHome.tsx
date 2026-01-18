@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { productService } from "../../services/productService";
+import type { Product } from "../../types";
 import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
 import { supabase } from "../../services/authService";
 
@@ -323,7 +324,7 @@ export const StoreHome = () => {
           ) : (
             <>
               <div className="store-grid">
-                {allProducts.map((product: any) => (
+                {allProducts.map((product: Product) => (
                   <div
                     key={product.id}
                     style={styles.productCard}
