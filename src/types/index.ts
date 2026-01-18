@@ -32,9 +32,9 @@ export interface ProductFilters {
 
 export interface UserProfile {
   id: string;
-  email: string;
-  role: 'user' | 'admin';
-  created_at?: string;
+  email: string | null;
+  role: string | null;
+  created_at?: string | null;
 }
 
 export interface UserFilters {
@@ -44,3 +44,4 @@ export interface UserFilters {
   role?: string;
   sort?: string;
 }
+

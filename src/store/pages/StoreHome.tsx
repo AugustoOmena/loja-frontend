@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import type { User } from "@supabase/supabase-js";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
   Search,
   ShoppingCart,
@@ -23,7 +23,7 @@ export const StoreHome = () => {
   // 1. Estado do Input (O que o usuário está digitando agora)
   const [searchTermInput, setSearchTermInput] = useState("");
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
 
   // 2. Filtros Ativos (O que realmente está sendo buscado na API)
   const [filters, setFilters] = useState({
