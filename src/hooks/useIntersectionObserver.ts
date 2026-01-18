@@ -12,7 +12,7 @@ export function useIntersectionObserver(
     const observer = new IntersectionObserver((entries) => {
       // Se o elemento ficou visível na tela...
       if (entries[0].isIntersecting) {
-        callback(); // Chama a função de carregar mais
+        callback();
       }
     }, { threshold: 0.5 }); // 50% visível
 
