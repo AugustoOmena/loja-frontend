@@ -53,5 +53,36 @@ export const productService = {
     if (!response.ok) throw new Error('Erro ao baixar dados para exportação');
     const json = await response.json();
     return json.data; // Retorna apenas a lista pura
-  }
+  },
+  getInfinite: async ({ pageParam = 1, filters }: { pageParam: number, filters: any }) => {
+    const params = new URLSearchParams();
+    params.append('page', pageParam.toString());
+    params.append('limit', '10');
+    
+    if (filters.search) params.append('name', filters.search);
+    if (filters.min_price) params.append('min_price', filters.min_price);
+    if (filters.max_price) params.append('max_price', filters.max_price);
+    if (filters.sort) params.append('sort', filters.sort);
+    
+    // --- CORREÇÃO: ADICIONANDO CATEGORIA ---
+    if (filters.category) params.append('category', filters.category);
+
+    const response = await fetch(`${API_URL}/produtos?${params.toString()}`);
+    if (!response.ok) throw new Error('Erro ao buscar produtos');
+    return response.json();
+  },
+  getById: async (id: number): Promise<Product | null> => {
+    const response = await fetch(`${API_URL}/produtos?id=${id}`);
+    if (!response.ok) throw new Error('Erro ao buscar produto');
+    
+    const json = await response.json();
+    
+    // A API sempre retorna uma lista "data": [ ... ]. 
+    // Se tiver algo, retornamos o primeiro item (índice 0).
+    if (json.data && json.data.length > 0) {
+      return json.data[0];
+    }
+    
+    return null;
+  },
 };

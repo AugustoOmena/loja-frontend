@@ -4,6 +4,8 @@ export interface Product {
   description?: string;
   price: number;
   size: string | null;
+  category: string;
+  images: string[];
   quantity: number;
   created_at?: string;
 }
@@ -25,6 +27,7 @@ export interface ProductFilters {
   max_price?: string;
   size?: string;
   sort?: string;
+  category?: string;
 }
 
 export interface UserProfile {

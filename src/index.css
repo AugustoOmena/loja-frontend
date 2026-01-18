@@ -121,3 +121,43 @@ textarea {
 input::placeholder {
   color: #94a3b8;
 }
+
+
+/* --- LOJA: GRID DE PRODUTOS --- */
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Mobile: 2 por linha */
+  gap: 10px;
+  padding-bottom: 80px; /* Espaço para o menu inferior no mobile */
+}
+
+@media (min-width: 768px) {
+  .store-grid {
+    grid-template-columns: repeat(4, 1fr); /* Tablet: 4 por linha */
+    gap: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .store-grid {
+    grid-template-columns: repeat(5, 1fr); /* PC: 5 por linha */
+  }
+}
+
+/* --- UTILITÁRIOS DE VISIBILIDADE --- */
+.mobile-only { display: flex; }
+.desktop-only { display: none; }
+
+@media (min-width: 768px) {
+  .mobile-only { display: none !important; }
+  .desktop-only { display: block !important; }
+}
+
+/* --- SCROLL HORIZONTAL (CATEGORIAS) --- */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
