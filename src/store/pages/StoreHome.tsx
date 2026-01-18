@@ -63,12 +63,6 @@ export const StoreHome = () => {
     setFilters((prev) => ({ ...prev, name: searchTermInput }));
   };
 
-  // Filtra ao clicar nas pílulas de categoria
-  const handleCategoryClick = (cat: string) => {
-    const value = cat === "Tudo" ? "" : cat.toLowerCase();
-    setFilters((prev) => ({ ...prev, category: value }));
-  };
-
   // --- REACT QUERY (INFINITE SCROLL) ---
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteQuery({

@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import type { User, Session } from '@supabase/supabase-js';import { supabase } from '../services/supabase';
+import { createContext, useContext, useEffect, useState } from "react";
+import type { User, Session } from "@supabase/supabase-js";
+import { supabase } from "../services/supabase";
 
 interface AuthContextType {
   session: Session | null;
@@ -27,7 +28,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // 2. Escuta mudanças (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) fetchUserRole(session.user.id);
@@ -43,15 +46,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Busca a role na tabela 'profiles' que criamos
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
         .single();
-      
+
       if (data) setRole(data.role);
     } catch (error) {
-      console.error('Erro ao buscar role:', error);
+      console.error("Erro ao buscar role:", error);
     } finally {
       setLoading(false);
     }
