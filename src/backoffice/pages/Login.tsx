@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../services/supabase";
 import { Lock, User, ArrowRight } from "lucide-react";
 
-export const Login = () => {
+export const LoginBackoffice = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -161,3 +161,51 @@ input::placeholder {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* --- REGRA DE OURO DA RESPONSIVIDADE --- */
+
+/* Por padrão (Celular), Desktop some */
+.desktop-only {
+  display: none !important;
+}
+.mobile-only {
+  display: flex !important;
+}
+
+/* Quando a tela for maior que 768px (Tablet/PC), inverte */
+@media (min-width: 768px) {
+  .desktop-only {
+    display: flex !important; /* Ou block, dependendo do contexto */
+  }
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Ajustes de Scroll */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Grid de Produtos */
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding-bottom: 20px;
+}
+@media (min-width: 768px) {
+  .store-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+}
+@media (min-width: 1024px) {
+  .store-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
