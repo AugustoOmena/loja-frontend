@@ -47,12 +47,14 @@ export const LoginBackoffice = () => {
           navigate("/backoffice");
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Erro desconhecido";
       setError(
-        err.message === "Invalid login credentials"
+        errorMessage === "Credenciais de login inválidas"
           ? "E-mail ou senha incorretos."
-          : err.message || "Erro ao fazer login.",
+          : errorMessage,
       );
     } finally {
       setLoading(false);
