@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Search,
   Edit,
@@ -34,9 +34,10 @@ export const Users = () => {
   const [localEmail, setLocalEmail] = useState("");
   const debouncedEmail = useDebounce(localEmail, 500);
 
-  useEffect(() => {
-    setFilters((p) => ({ ...p, email: debouncedEmail, page: 1 }));
-  }, [debouncedEmail]);
+  // Sincroniza email debounced e reseta página (Pattern: Adjusting state during render)
+  if (filters.email !== debouncedEmail) {
+    setFilters({ ...filters, email: debouncedEmail, page: 1 });
+  }
 
   // --- REACT QUERY ---
   const { data, isLoading, isError } = useQuery({
