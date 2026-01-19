@@ -6,6 +6,7 @@ import { BackofficeLayout } from "./backoffice/layouts/BackofficeLayout";
 import { LoginBackoffice } from "./backoffice/pages/Login";
 import { Products } from "./backoffice/pages/Products";
 import { Users } from "./backoffice/pages/Users";
+import { Dashboard } from "./backoffice/pages/Dashboard";
 
 // Loja (Páginas Públicas)
 import { StoreHome } from "./store/pages/StoreHome";
@@ -22,14 +23,6 @@ import { MyData } from "./store/pages/client/MyData";
 // Contextos e Componentes Globais (Carrinho)
 import { CartProvider } from "./contexts/CartContext";
 import { CartDrawer } from "./components/CartDrawer";
-
-// Placeholder Dashboard Backoffice
-const Dashboard = () => (
-  <div className="p-8">
-    <h1>Dashboard</h1>
-    <p>Bem-vindo ao painel administrativo.</p>
-  </div>
-);
 
 function App() {
   return (
@@ -58,6 +51,7 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="produtos" element={<Products />} />
               <Route path="usuarios" element={<Users />} />
+              <Route path="dashboard" element={<Dashboard />} />
             </Route>
             <Route path="backoffice/login" element={<LoginBackoffice />} />
             {/* --- ÁREA DO CLIENTE (Protegida) --- */}
