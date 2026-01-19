@@ -16,10 +16,13 @@ import { productService } from "../../services/productService";
 import type { Product } from "../../types";
 import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
 import { supabase } from "../../services/authService";
+import { useCart } from "../../contexts/CartContext";
 
 export const StoreHome = () => {
   // --- ESTADOS ---
   const navigate = useNavigate();
+
+  const { setIsCartOpen, cartCount } = useCart(); // 2. Pegue as funções
 
   // 1. Estado do Input (O que o usuário está digitando agora)
   const [searchTermInput, setSearchTermInput] = useState("");
@@ -241,10 +244,19 @@ export const StoreHome = () => {
               )}
 
               {/* CARRINHO (DESKTOP) - Fica ao lado do perfil */}
-              <div style={{ cursor: "pointer", position: "relative" }}>
+              <div
+                className="desktop-only"
+                style={{
+                  marginLeft: "15px",
+                  cursor: "pointer",
+                  position: "relative",
+                }}
+                onClick={() => setIsCartOpen(true)}
+              >
                 <ShoppingCart size={24} color="#333" />
-                {/* Badge opcional */}
-                {/* <span style={styles.cartBadge}>2</span> */}
+                {cartCount > 0 && (
+                  <span style={styles.cartBadge}>{cartCount}</span>
+                )}
               </div>
             </div>
             {/* FIM DO BLOCO DIREITO */}
@@ -437,8 +449,13 @@ export const StoreHome = () => {
           <Filter size={22} />
           <span>Categorias</span>
         </button>
-        <button style={styles.navItem}>
-          <ShoppingCart size={22} />
+        <button style={styles.navItem} onClick={() => setIsCartOpen(true)}>
+          <div style={{ position: "relative" }}>
+            <ShoppingCart size={22} color="#888" />
+            {cartCount > 0 && (
+              <span style={styles.cartBadgeMobile}>{cartCount}</span>
+            )}
+          </div>
           <span>Carrinho</span>
         </button>
         <button style={styles.navItem} onClick={handleProfileClick}>

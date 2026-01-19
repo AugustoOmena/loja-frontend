@@ -8,25 +8,30 @@ import {
   Loader2,
   Image as ImageIcon,
 } from "lucide-react";
-import { productService } from "../../services/productService"; // <--- Agora importamos e usamos!
+import { productService } from "../../services/productService";
+import { useCart } from "../../contexts/CartContext";
 
 export const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // --- REACT QUERY CORRIGIDO ---
+  // Hooks do Carrinho e Estado Local
+  const { addToCart } = useCart();
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null); // Agora será usado!
+
+  // --- REACT QUERY ---
   const {
     data: product,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["product", id], // A chave muda conforme o ID muda
+    queryKey: ["product", id],
     queryFn: () => {
       if (!id) throw new Error("ID inválido");
-      return productService.getById(Number(id)); // Chama o serviço real
+      return productService.getById(Number(id));
     },
-    enabled: !!id, // Só roda se tiver ID
+    enabled: !!id,
   });
 
   if (isLoading)
@@ -56,10 +61,21 @@ export const ProductDetails = () => {
       </div>
     );
 
-  // Lógica da imagem principal
+  // Lógica da imagem principal (Selecionada ou a primeira da lista)
   const mainImage =
     selectedImage ||
     (product.images && product.images.length > 0 ? product.images[0] : null);
+
+  // --- FUNÇÃO ADICIONAR AO CARRINHO ---
+  const handleAddToCart = () => {
+    if (!product) return;
+
+    // Prioriza o tamanho que o usuário clicou.
+    // Se não clicou, tenta usar o do banco. Se não tiver, vai como "Único".
+    const sizeToAdd = selectedSize || product.size || "Único";
+
+    addToCart(product, sizeToAdd);
+  };
 
   return (
     <div
@@ -93,7 +109,7 @@ export const ProductDetails = () => {
           gap: "40px",
         }}
       >
-        {/* --- COLUNA 1: GALERIA --- */}
+        {/* --- COLUNA 1: GALERIA DE IMAGENS --- */}
         <div>
           {/* Imagem Grande */}
           <div
@@ -120,7 +136,7 @@ export const ProductDetails = () => {
             )}
           </div>
 
-          {/* Miniaturas */}
+          {/* Carrossel de Miniaturas */}
           {product.images && product.images.length > 0 && (
             <div
               style={{
@@ -153,7 +169,7 @@ export const ProductDetails = () => {
           )}
         </div>
 
-        {/* --- COLUNA 2: INFO --- */}
+        {/* --- COLUNA 2: INFORMAÇÕES DO PRODUTO --- */}
         <div>
           <h1
             style={{
@@ -210,39 +226,49 @@ export const ProductDetails = () => {
             {product.description || "Sem descrição detalhada."}
           </div>
 
-          {product.size && (
-            <div style={{ margin: "25px 0" }}>
-              <span
-                style={{
-                  fontWeight: "600",
-                  display: "block",
-                  marginBottom: "10px",
-                  color: "#334155",
-                }}
-              >
-                Tamanho:
-              </span>
-              <div style={{ display: "flex", gap: "10px" }}>
-                {/* Exibe o tamanho do produto como selecionado */}
-                <button
-                  style={{
-                    padding: "10px 25px",
-                    border: "2px solid #1e293b",
-                    backgroundColor: "white",
-                    borderRadius: "6px",
-                    fontWeight: "bold",
-                    color: "#1e293b",
-                  }}
-                >
-                  {product.size}
-                </button>
-              </div>
+          {/* SELEÇÃO DE TAMANHO */}
+          <div style={{ margin: "25px 0" }}>
+            <span
+              style={{
+                fontWeight: "600",
+                display: "block",
+                marginBottom: "10px",
+                color: "#334155",
+              }}
+            >
+              Tamanho: {selectedSize || product.size || ""}
+            </span>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              {/* Opções de Tamanho Interativas */}
+              {["P", "M", "G", "GG"].map((s) => {
+                const isActive = selectedSize === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setSelectedSize(s)}
+                    style={{
+                      padding: "10px 20px",
+                      border: isActive ? "2px solid #ff4747" : "1px solid #ddd",
+                      backgroundColor: isActive ? "#fff1f2" : "white",
+                      borderRadius: "6px",
+                      fontWeight: isActive ? "bold" : "normal",
+                      color: isActive ? "#ff4747" : "#333",
+                      cursor: "pointer",
+                      transition: "0.2s",
+                    }}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
 
+          {/* BOTÃO DE AÇÃO */}
           <div style={{ marginTop: "30px" }}>
             {(product.quantity || 0) > 0 ? (
               <button
+                onClick={handleAddToCart}
                 style={{
                   width: "100%",
                   backgroundColor: "#ff4747",
@@ -258,7 +284,14 @@ export const ProductDetails = () => {
                   gap: "10px",
                   cursor: "pointer",
                   boxShadow: "0 4px 15px rgba(255, 71, 71, 0.3)",
+                  transition: "transform 0.1s",
                 }}
+                onMouseDown={(e) =>
+                  (e.currentTarget.style.transform = "scale(0.98)")
+                }
+                onMouseUp={(e) =>
+                  (e.currentTarget.style.transform = "scale(1)")
+                }
               >
                 <ShoppingCart size={20} /> Adicionar ao Carrinho
               </button>

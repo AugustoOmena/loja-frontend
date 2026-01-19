@@ -1,75 +1,73 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import type { User, Session } from "@supabase/supabase-js";
-import { supabase } from "../services/supabase";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "../services/supabaseClient"; // <--- Importando a instância única
 
 interface AuthContextType {
-  session: Session | null;
   user: User | null;
-  role: string | null;
+  session: Session | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // 1. Verifica sessão ativa ao carregar
+    // 1. Verifica sessão inicial ao carregar a página
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchUserRole(session.user.id);
-      else setLoading(false);
+      checkAdmin(session?.user);
+      setLoading(false);
     });
 
-    // 2. Escuta mudanças (login/logout)
+    // 2. Escuta mudanças de estado (Login, Logout, Retorno do Google)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth State Changed:", _event); // Debug
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchUserRole(session.user.id);
-      else {
-        setRole(null);
-        setLoading(false);
-      }
+      checkAdmin(session?.user);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Busca a role na tabela 'profiles' que criamos
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .single();
-
-      if (data) setRole(data.role);
-    } catch (error) {
-      console.error("Erro ao buscar role:", error);
-    } finally {
-      setLoading(false);
+  // Função auxiliar para verificar se é admin
+  const checkAdmin = (user: User | null | undefined) => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    // Verifica metadados ou email específico
+    // Exemplo: se o email for o seu, é admin
+    const email = user.email || "";
+    // Substitua pelo seu email real de admin ou lógica de role do banco
+    if (email === "augusto.n.omena@gmail.com") {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
     }
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
-
   return (
-    <AuthContext.Provider value={{ session, user, role, loading, signOut }}>
-      {children}
+    <AuthContext.Provider value={{ user, session, loading, isAdmin }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
