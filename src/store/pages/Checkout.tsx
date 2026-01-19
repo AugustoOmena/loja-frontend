@@ -10,7 +10,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../services/authService";
+import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 
 // --- INTERFACES ---
@@ -258,7 +258,6 @@ export const Checkout = () => {
           const detectedId = await fetchPaymentMethodInfo(
             mpRef.current,
             firstSix,
-            transactionAmount,
           );
           if (detectedId) finalPaymentMethodId = detectedId;
         }

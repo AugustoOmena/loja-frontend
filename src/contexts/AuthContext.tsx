@@ -1,12 +1,7 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "../services/supabaseClient"; // <--- Importando a instância única
+import { createContext, useContext, useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import type { User, Session } from "@supabase/supabase-js";
+import { supabase } from "../services/supabaseClient";
 
 interface AuthContextType {
   user: User | null;
@@ -23,45 +18,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    // 1. Verifica sessão inicial ao carregar a página
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      checkAdmin(session?.user);
+  // Função que verifica no banco se é admin
+  const checkUserRole = async (currentUser: User | null) => {
+    if (!currentUser) {
+      setIsAdmin(false);
       setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (error || !data) {
+        console.error("Erro ao verificar role:", error);
+        setIsAdmin(false);
+      } else {
+        // Verifica se a role é 'admin'
+        setIsAdmin(data.role === "admin");
+      }
+    } catch (err) {
+      setIsAdmin(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // 1. Sessão Inicial
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      // Verifica a role no banco
+      checkUserRole(data.session?.user ?? null);
     });
 
-    // 2. Escuta mudanças de estado (Login, Logout, Retorno do Google)
+    // 2. Listener de Mudanças
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth State Changed:", _event); // Debug
-      setSession(session);
-      setUser(session?.user ?? null);
-      checkAdmin(session?.user);
-      setLoading(false);
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      // Se deslogou, reseta. Se logou, verifica.
+      if (!newSession?.user) {
+        setIsAdmin(false);
+        setLoading(false);
+      } else {
+        checkUserRole(newSession.user);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  // Função auxiliar para verificar se é admin
-  const checkAdmin = (user: User | null | undefined) => {
-    if (!user) {
-      setIsAdmin(false);
-      return;
-    }
-    // Verifica metadados ou email específico
-    // Exemplo: se o email for o seu, é admin
-    const email = user.email || "";
-    // Substitua pelo seu email real de admin ou lógica de role do banco
-    if (email === "augusto.n.omena@gmail.com") {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
-    }
-  };
 
   return (
     <AuthContext.Provider value={{ user, session, loading, isAdmin }}>

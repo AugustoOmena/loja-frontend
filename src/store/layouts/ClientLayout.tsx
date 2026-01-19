@@ -8,7 +8,8 @@ import {
   ChevronLeft,
   LayoutDashboard,
 } from "lucide-react";
-import { authService, supabase } from "../../services/authService";
+import { authService } from "../../services/authService"; // Se precisar de login/logout
+import { supabase } from "../../services/supabaseClient"; // Para todo o resto (queries, auth check direto)
 
 export const ClientLayout = () => {
   const navigate = useNavigate();

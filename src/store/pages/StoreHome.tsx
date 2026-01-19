@@ -15,7 +15,7 @@ import {
 import { productService } from "../../services/productService";
 import type { Product } from "../../types";
 import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
-import { supabase } from "../../services/authService";
+import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 
 export const StoreHome = () => {

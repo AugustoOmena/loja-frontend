@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../services/supabase";
-import { Lock, User, ArrowRight } from "lucide-react";
+import { supabase } from "../../services/supabaseClient"; // Seu Singleton
+import {
+  Lock,
+  Mail,
+  Loader2,
+  AlertCircle,
+  ArrowRight,
+  User,
+} from "lucide-react";
 
 export const LoginBackoffice = () => {
   const navigate = useNavigate();
@@ -16,7 +23,7 @@ export const LoginBackoffice = () => {
     setError(null);
 
     try {
-      // 1. Tenta Login (Auth)
+      // 1. Auth do Supabase
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
           email,
@@ -26,7 +33,7 @@ export const LoginBackoffice = () => {
       if (authError) throw authError;
 
       if (authData.user) {
-        // 2. Verifica se é Admin (Banco)
+        // 2. Verificação de Role no banco (Tabela profiles)
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("role")
@@ -34,28 +41,25 @@ export const LoginBackoffice = () => {
           .single();
 
         if (profileError) {
-          // Se der erro ao buscar perfil, assume que algo está errado
+          console.error("Erro perfil:", profileError);
           throw new Error("Erro ao verificar permissões.");
         }
 
-        if (profileData.role !== "admin") {
-          // É usuário, mas não admin. Expulsa.
+        if (profileData?.role !== "admin") {
           await supabase.auth.signOut();
-          setError("Acesso restrito a administradores.");
+          setError("Acesso negado: Conta sem privilégios de administrador.");
         } else {
-          // Sucesso total
-          navigate("/backoffice");
+          navigate("/backoffice/produtos");
         }
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error(err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro desconhecido";
-      setError(
-        errorMessage === "Credenciais de login inválidas"
-          ? "E-mail ou senha incorretos."
-          : errorMessage,
-      );
+      const msg = err.message || "";
+      if (msg.includes("Invalid login credentials")) {
+        setError("E-mail ou senha incorretos.");
+      } else {
+        setError(msg || "Erro desconhecido ao tentar logar.");
+      }
     } finally {
       setLoading(false);
     }
@@ -64,36 +68,46 @@ export const LoginBackoffice = () => {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
+        {/* Cabeçalho */}
         <div style={styles.header}>
           <div style={styles.iconContainer}>
-            <Lock size={32} color="#fff" />
+            <Lock size={32} color="#6366f1" /> {/* Ícone Roxo Indigo */}
           </div>
           <h1 style={styles.title}>Backoffice</h1>
-          <p style={styles.subtitle}>Acesso Administrativo</p>
+          <p style={styles.subtitle}>Acesso Administrativo Seguro</p>
         </div>
 
-        <form onSubmit={handleLogin} style={styles.form}>
-          {error && <div style={styles.error}>{error}</div>}
+        {/* Mensagem de Erro */}
+        {error && (
+          <div style={styles.errorContainer}>
+            <AlertCircle size={18} />
+            <span>{error}</span>
+          </div>
+        )}
 
+        <form onSubmit={handleLogin} style={styles.form}>
+          {/* Input Email */}
           <div style={styles.inputGroup}>
-            <label style={styles.label}>E-mail</label>
+            <label style={styles.label}>E-MAIL CORPORATIVO</label>
             <div style={styles.inputWrapper}>
-              <User size={20} color="#94a3b8" />
+              <Mail size={20} color="#64748b" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={styles.input}
-                placeholder="admin@exemplo.com"
+                placeholder="admin@lojaomena.com"
+                disabled={loading}
               />
             </div>
           </div>
 
+          {/* Input Senha */}
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Senha</label>
+            <label style={styles.label}>SENHA DE ACESSO</label>
             <div style={styles.inputWrapper}>
-              <Lock size={20} color="#94a3b8" />
+              <Lock size={20} color="#64748b" />
               <input
                 type="password"
                 required
@@ -101,121 +115,191 @@ export const LoginBackoffice = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 style={styles.input}
                 placeholder="••••••••"
+                disabled={loading}
               />
             </div>
           </div>
 
+          {/* Botão */}
           <button
             type="submit"
             disabled={loading}
             style={loading ? styles.buttonDisabled : styles.button}
+            onMouseOver={(e) =>
+              !loading &&
+              (e.currentTarget.style.backgroundColor = styles.buttonHover
+                .backgroundColor as string)
+            }
+            onMouseOut={(e) =>
+              !loading &&
+              (e.currentTarget.style.backgroundColor = styles.button
+                .backgroundColor as string)
+            }
           >
             {loading ? (
-              "Verificando..."
+              <>
+                <Loader2
+                  size={20}
+                  style={{ animation: "spin 1s linear infinite" }}
+                />
+                Verificando...
+              </>
             ) : (
               <>
-                Entrar <ArrowRight size={18} />
+                Acessar Painel <ArrowRight size={18} />
               </>
             )}
           </button>
         </form>
+
+        <div style={styles.footer}>
+          <a href="/" style={styles.link}>
+            ← Voltar para a Loja
+          </a>
+        </div>
       </div>
     </div>
   );
 };
 
-// Estilos simples (CSS-in-JS)
+// --- ESTILOS VISUAIS (CSS-in-JS) ---
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
+    minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: "100vh",
-    backgroundColor: "var(--bg)",
-    fontFamily: "sans-serif",
+    backgroundColor: "#0f172a", // Slate 900 (Fundo escuro)
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+    padding: "20px",
   },
   card: {
-    backgroundColor: "var(--bg-elevated)",
+    backgroundColor: "#1e293b", // Slate 800 (Cartão mais claro)
     padding: "40px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+    borderRadius: "16px",
+    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
     width: "100%",
-    maxWidth: "400px",
+    maxWidth: "420px",
+    border: "1px solid #334155",
   },
-  header: { textAlign: "center" as const, marginBottom: "30px" },
+  header: {
+    textAlign: "center",
+    marginBottom: "32px",
+  },
   iconContainer: {
-    width: "60px",
-    height: "60px",
+    width: "64px",
+    height: "64px",
     backgroundColor: "#0f172a",
     borderRadius: "50%",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    margin: "0 auto 15px",
+    margin: "0 auto 16px",
+    boxShadow: "inset 0 2px 4px 0 rgba(0, 0, 0, 0.3)",
   },
   title: {
     fontSize: "24px",
-    fontWeight: "bold",
-    color: "var(--text)",
+    fontWeight: "700",
+    color: "#f8fafc", // Texto branco
+    margin: "0 0 8px 0",
+  },
+  subtitle: {
+    fontSize: "14px",
+    color: "#94a3b8", // Texto cinza
     margin: 0,
   },
-  subtitle: { color: "var(--muted)", marginTop: "5px" },
-  form: { display: "flex", flexDirection: "column", gap: "20px" },
-  inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
-  label: { fontSize: "14px", fontWeight: "500", color: "var(--text)" },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+  },
+  inputGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  label: {
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#cbd5e1",
+    letterSpacing: "0.05em",
+  },
   inputWrapper: {
     display: "flex",
     alignItems: "center",
-    gap: "10px",
-    padding: "10px 15px",
-    border: "1px solid #e2e8f0",
+    gap: "12px",
+    padding: "12px 16px",
+    backgroundColor: "#0f172a", // Fundo do input escuro
+    border: "1px solid #334155",
     borderRadius: "8px",
-    backgroundColor: "var(--input-bg)",
+    transition: "border-color 0.2s",
   },
   input: {
+    flex: 1,
+    background: "transparent",
     border: "none",
     outline: "none",
-    background: "transparent",
-    flex: 1,
-    fontSize: "16px",
+    color: "#fff",
+    fontSize: "15px",
   },
   button: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "10px",
-    padding: "12px",
-    backgroundColor: "#0f172a",
+    width: "100%",
+    padding: "14px",
+    backgroundColor: "#4f46e5", // Indigo 600
     color: "white",
     border: "none",
     borderRadius: "8px",
     fontSize: "16px",
-    fontWeight: "bold",
+    fontWeight: "600",
     cursor: "pointer",
+    transition: "background-color 0.2s, transform 0.1s",
     marginTop: "10px",
-    transition: "background 0.2s",
+  },
+  buttonHover: {
+    backgroundColor: "#4338ca", // Indigo 700
   },
   buttonDisabled: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "10px",
-    padding: "12px",
-    backgroundColor: "#94a3b8",
-    color: "white",
+    width: "100%",
+    padding: "14px",
+    backgroundColor: "#334155",
+    color: "#94a3b8",
     border: "none",
     borderRadius: "8px",
     fontSize: "16px",
-    fontWeight: "bold",
+    fontWeight: "600",
     cursor: "not-allowed",
     marginTop: "10px",
   },
-  error: {
-    padding: "10px",
-    backgroundColor: "#fef2f2",
+  errorContainer: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)", // Vermelho transparente
+    border: "1px solid rgba(239, 68, 68, 0.2)",
     color: "#ef4444",
-    borderRadius: "6px",
+    padding: "12px",
+    borderRadius: "8px",
     fontSize: "14px",
-    textAlign: "center" as const,
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "20px",
+  },
+  footer: {
+    marginTop: "32px",
+    textAlign: "center",
+    borderTop: "1px solid #334155",
+    paddingTop: "20px",
+  },
+  link: {
+    color: "#64748b",
+    textDecoration: "none",
+    fontSize: "13px",
+    transition: "color 0.2s",
   },
 };

@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react"; // Correção do import type
 
-// Interface para o que vem do banco de dados (produto cru)
 interface ProductInput {
   id?: number;
   name: string;
@@ -21,7 +20,7 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: ProductInput, size: string | null) => void; // Tipo corrigido
+  addToCart: (product: ProductInput, size: string | null) => void;
   removeFromCart: (id: number) => void;
   updateQuantity: (id: number, delta: number) => void;
   clearCart: () => void;
@@ -34,14 +33,15 @@ interface CartContextType {
 const CartContext = createContext<CartContextType>({} as CartContextType);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  useEffect(() => {
+  // --- CORREÇÃO: Lazy Initialization (Carrega do localStorage direto no useState) ---
+  const [items, setItems] = useState<CartItem[]>(() => {
     const saved = localStorage.getItem("@loja-omena:cart");
-    if (saved) setItems(JSON.parse(saved));
-  }, []);
+    return saved ? JSON.parse(saved) : [];
+  });
 
+  // Salva no LocalStorage sempre que 'items' mudar
   useEffect(() => {
     localStorage.setItem("@loja-omena:cart", JSON.stringify(items));
   }, [items]);
@@ -61,7 +61,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return [
         ...prev,
         {
-          id: product.id!, // Assumindo que id existe
+          id: product.id!,
           name: product.name,
           price: product.price,
           image: product.images?.[0] || "",
