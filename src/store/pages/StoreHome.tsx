@@ -99,7 +99,7 @@ export const StoreHome = () => {
   const allProducts = data?.pages.flatMap((page) => page.data) || [];
 
   // --- ESTILOS DINÂMICOS ---
-  const styles: Record<string, CSSProperties> = {
+  const styles = {
     // Wrapper Geral
     pageWrapper: {
       backgroundColor: colors.bg,
@@ -242,11 +242,11 @@ export const StoreHome = () => {
       marginBottom: "4px",
       display: "-webkit-box",
       WebkitLineClamp: 2,
-      WebkitBoxOrient: "vertical",
+      WebkitBoxOrient: "vertical" as any,
       overflow: "hidden",
       lineHeight: "1.4",
       height: "36px",
-    },
+    } as CSSProperties,
     priceRow: {
       display: "flex",
       alignItems: "baseline",
