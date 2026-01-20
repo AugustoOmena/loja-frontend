@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 
 // Backoffice
 import { BackofficeLayout } from "./backoffice/layouts/BackofficeLayout";
@@ -26,47 +27,48 @@ import { CartDrawer } from "./components/CartDrawer";
 
 function App() {
   return (
-    // 1. Auth envolve tudo (para saber se tem usuário logado)
-    <AuthProvider>
-      {/* 2. CartProvider envolve a navegação (para o carrinho funcionar em qualquer página) */}
-      <CartProvider>
-        <BrowserRouter>
-          {/* 3. O CartDrawer fica AQUI. Ele precisa estar dentro do BrowserRouter 
+    <ThemeProvider>
+      <AuthProvider>
+        {/* 2. CartProvider envolve a navegação (para o carrinho funcionar em qualquer página) */}
+        <CartProvider>
+          <BrowserRouter>
+            {/* 3. O CartDrawer fica AQUI. Ele precisa estar dentro do BrowserRouter 
                  para navegar, mas fora do Routes para flutuar por cima de tudo. */}
-          <CartDrawer />
+            <CartDrawer />
 
-          <Routes>
-            {/* --- LOJA PÚBLICA --- */}
-            <Route path="/" element={<StoreHome />} />
-            <Route path="/produto/:id" element={<ProductDetails />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/minha-conta" element={<UserProfile />} />{" "}
-            {/* Rota legada, pode manter ou remover */}
-            {/* NOVA ROTA DE CHECKOUT */}
-            <Route path="/checkout" element={<Checkout />} />
-            {/* Rota de retorno do Google (Opcional, mas boa prática) */}
-            <Route path="/auth/callback" element={<Navigate to="/" />} />
-            {/* --- BACKOFFICE (Protegido) --- */}
-            <Route path="/backoffice" element={<BackofficeLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="produtos" element={<Products />} />
-              <Route path="usuarios" element={<Users />} />
-              <Route path="dashboard" element={<Dashboard />} />
-            </Route>
-            <Route path="backoffice/login" element={<LoginBackoffice />} />
-            {/* --- ÁREA DO CLIENTE (Protegida) --- */}
-            <Route path="/minha-conta" element={<ClientLayout />}>
-              {/* Se entrar só em /minha-conta, joga para /pedidos */}
-              <Route index element={<Navigate to="/minha-conta/pedidos" />} />
+            <Routes>
+              {/* --- LOJA PÚBLICA --- */}
+              <Route path="/" element={<StoreHome />} />
+              <Route path="/produto/:id" element={<ProductDetails />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/minha-conta" element={<UserProfile />} />{" "}
+              {/* Rota legada, pode manter ou remover */}
+              {/* NOVA ROTA DE CHECKOUT */}
+              <Route path="/checkout" element={<Checkout />} />
+              {/* Rota de retorno do Google (Opcional, mas boa prática) */}
+              <Route path="/auth/callback" element={<Navigate to="/" />} />
+              <Route path="/backoffice" element={<BackofficeLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="produtos" element={<Products />} />
+                <Route path="usuarios" element={<Users />} />
+                <Route path="dashboard" element={<Dashboard />} />
+              </Route>
+              <Route path="backoffice/login" element={<LoginBackoffice />} />
+              {/* --- BACKOFFICE (Protegido) --- */}
+              {/* --- ÁREA DO CLIENTE (Protegida) --- */}
+              <Route path="/minha-conta" element={<ClientLayout />}>
+                {/* Se entrar só em /minha-conta, joga para /pedidos */}
+                <Route index element={<Navigate to="/minha-conta/pedidos" />} />
 
-              <Route path="pedidos" element={<MyOrders />} />
-              <Route path="dados" element={<MyData />} />
-              <Route path="dashboard" element={<MyOrders />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </CartProvider>
-    </AuthProvider>
+                <Route path="pedidos" element={<MyOrders />} />
+                <Route path="dados" element={<MyData />} />
+                <Route path="dashboard" element={<MyOrders />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </CartProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

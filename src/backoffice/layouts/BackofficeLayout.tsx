@@ -1,37 +1,35 @@
 import { useEffect } from "react";
-import { Outlet, Link, useNavigate } from "react-router-dom";
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   ShoppingBag,
   Users,
   LogOut,
   Loader2,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import { authService } from "../../services/authService"; // <--- Importante!
+import { useTheme } from "../../contexts/ThemeContext"; // <--- Importe o tema
+import { authService } from "../../services/authService";
 
 export const BackofficeLayout = () => {
-  // O hook novo retorna isAdmin (booleano) e NÃO retorna signOut
   const { user, isAdmin, loading } = useAuth();
+  const { theme, toggleTheme, colors } = useTheme(); // Hook do tema
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Proteção de Rota
   useEffect(() => {
-    // Só verifica quando terminar de carregar
     if (!loading) {
       if (!user) {
         navigate("/backoffice/login");
       } else if (!isAdmin) {
-        alert("Acesso negado. Apenas administradores.");
-        // Usamos o serviço para deslogar
-        authService.signOut().then(() => {
-          navigate("/backoffice/login");
-        });
+        alert("Acesso negado.");
+        authService.signOut().then(() => navigate("/backoffice/login"));
       }
     }
   }, [user, isAdmin, loading, navigate]);
 
-  // Tela de Loading (Essencial para não dar "falso negativo" na permissão)
   if (loading) {
     return (
       <div
@@ -45,78 +43,128 @@ export const BackofficeLayout = () => {
         }}
       >
         <Loader2 className="animate-spin" />
-        <span style={{ marginLeft: 10 }}>Verificando permissões...</span>
+        <span style={{ marginLeft: 10 }}>Carregando...</span>
       </div>
     );
   }
 
-  // Se passou do loading e não é admin/user, o useEffect vai redirecionar.
-  // Retornamos null para não piscar a tela.
   if (!user || !isAdmin) return null;
 
   return (
+    // CONTAINER PRINCIPAL: Ocupa 100% da tela e não deixa rolar a página inteira
     <div
-      style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}
+      style={{
+        display: "flex",
+        height: "100vh",
+        overflow: "hidden",
+        fontFamily: "sans-serif",
+      }}
     >
-      {/* Sidebar */}
+      {/* SIDEBAR: Fixa, cor escura sempre (como você pediu) */}
       <aside
         style={{
           width: "250px",
-          background: "#1e293b",
+          background: "#0f172a", // Slate 900 Fixo
           color: "white",
-          padding: "20px",
           display: "flex",
           flexDirection: "column",
+          flexShrink: 0, // Garante que não encolha
         }}
       >
-        <h2
-          style={{
-            marginBottom: "30px",
-            fontSize: "1.5rem",
-            fontWeight: "bold",
-          }}
-        >
-          Admin Loja
-        </h2>
+        <div style={{ padding: "20px", borderBottom: "1px solid #1e293b" }}>
+          <h2
+            style={{
+              fontSize: "1.2rem",
+              fontWeight: "bold",
+              letterSpacing: "1px",
+            }}
+          >
+            LOJA
+          </h2>
+          <p style={{ fontSize: "12px", color: "#64748b" }}>Admin Panel</p>
+        </div>
 
         <nav
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "10px",
+            gap: "5px",
             flex: 1,
+            padding: "20px 10px",
+            overflowY: "auto",
           }}
         >
-          <Link to="/backoffice/dashboard" style={linkStyle}>
-            <LayoutDashboard size={20} /> Dashboard
-          </Link>
-          <Link to="/backoffice/produtos" style={linkStyle}>
-            <ShoppingBag size={20} /> Produtos
-          </Link>
-          <Link to="/backoffice/usuarios" style={linkStyle}>
-            <Users size={20} /> Usuários
-          </Link>
+          <NavLink
+            to="/backoffice/dashboard"
+            icon={<LayoutDashboard size={20} />}
+            label="Dashboard"
+            currentPath={location.pathname}
+          />
+          <NavLink
+            to="/backoffice/produtos"
+            icon={<ShoppingBag size={20} />}
+            label="Produtos"
+            currentPath={location.pathname}
+          />
+          <NavLink
+            to="/backoffice/usuarios"
+            icon={<Users size={20} />}
+            label="Usuários"
+            currentPath={location.pathname}
+          />
         </nav>
 
+        {/* ÁREA INFERIOR: Botão Tema + Logout */}
         <div
           style={{
-            marginTop: "auto",
-            paddingTop: "20px",
-            borderTop: "1px solid #334155",
+            padding: "20px",
+            borderTop: "1px solid #1e293b",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
           }}
         >
+          {/* Botão de Tema */}
+          <button
+            onClick={toggleTheme}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "10px",
+              background: "#1e293b",
+              border: "none",
+              borderRadius: "8px",
+              color: "#94a3b8",
+              cursor: "pointer",
+              transition: "0.2s",
+            }}
+          >
+            {theme === "dark" ? (
+              <Sun size={18} color="#fbbf24" />
+            ) : (
+              <Moon size={18} />
+            )}
+            <span style={{ fontSize: "14px" }}>
+              Modo {theme === "dark" ? "Claro" : "Escuro"}
+            </span>
+          </button>
+
           <button
             onClick={async () => {
               await authService.signOut();
               navigate("/backoffice/login");
             }}
             style={{
-              ...linkStyle,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "10px",
               background: "transparent",
               border: "none",
               cursor: "pointer",
               color: "#f87171",
-              width: "100%",
+              fontSize: "14px",
             }}
           >
             <LogOut size={20} /> Sair
@@ -124,21 +172,44 @@ export const BackofficeLayout = () => {
         </div>
       </aside>
 
-      {/* Área Principal */}
-      <main style={{ flex: 1, padding: "40px", background: "#f1f5f9" }}>
+      {/* ÁREA PRINCIPAL: Aqui acontece a mágica do scroll independente */}
+      <main
+        style={{
+          flex: 1,
+          background: colors.bg, // Usa a cor do tema dinâmico
+          overflowY: "auto", // <--- SÓ ISSO AQUI ROLA AGORA
+          padding: "30px",
+          transition: "background-color 0.3s", // Transição suave
+        }}
+      >
         <Outlet />
       </main>
     </div>
   );
 };
 
-const linkStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  color: "#cbd5e1",
-  textDecoration: "none",
-  padding: "10px",
-  borderRadius: "5px",
-  fontSize: "14px",
+// Componente auxiliar para link ativo
+const NavLink = ({ to, icon, label, currentPath }: any) => {
+  const isActive = currentPath === to;
+  return (
+    <Link
+      to={to}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        color: isActive ? "white" : "#94a3b8",
+        textDecoration: "none",
+        padding: "12px 15px",
+        borderRadius: "8px",
+        fontSize: "14px",
+        background: isActive ? "#6366f1" : "transparent", // Indigo se ativo
+        fontWeight: isActive ? "600" : "400",
+        transition: "0.2s",
+      }}
+    >
+      {icon}
+      {label}
+    </Link>
+  );
 };

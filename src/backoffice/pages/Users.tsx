@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  Loader2, // Adicionei para ficar bonito igual aos outros
 } from "lucide-react";
 import { userService } from "../../services/userService";
 import type { UserProfile, UserFilters } from "../../types";
@@ -19,8 +20,10 @@ import {
   useQueryClient,
   keepPreviousData,
 } from "@tanstack/react-query";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export const Users = () => {
+  const { colors, theme } = useTheme();
   const queryClient = useQueryClient();
 
   // Estados
@@ -34,7 +37,7 @@ export const Users = () => {
   const [localEmail, setLocalEmail] = useState("");
   const debouncedEmail = useDebounce(localEmail, 500);
 
-  // Sincroniza email debounced e reseta página (Pattern: Adjusting state during render)
+  // Sincroniza email debounced
   if (filters.email !== debouncedEmail) {
     setFilters({ ...filters, email: debouncedEmail, page: 1 });
   }
@@ -100,8 +103,270 @@ export const Users = () => {
     }
   };
 
+  // --- 3. ESTILOS DINÂMICOS ---
+  const styles = {
+    container: {
+      padding: "20px",
+      maxWidth: "1200px",
+      margin: "0 auto",
+      fontFamily: "sans-serif",
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "25px",
+    },
+    title: {
+      fontSize: "24px",
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    // Botões
+    primaryButton: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      backgroundColor: theme === "dark" ? "#6366f1" : "#0f172a",
+      color: "white",
+      border: "none",
+      padding: "10px 20px",
+      borderRadius: "6px",
+      cursor: "pointer",
+      fontWeight: "500",
+    },
+    secondaryButton: {
+      backgroundColor: colors.card,
+      color: colors.muted,
+      border: `1px solid ${colors.border}`,
+      padding: "10px 20px",
+      borderRadius: "6px",
+      cursor: "pointer",
+      fontWeight: "500",
+    },
+    iconButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "5px",
+    },
+    closeButton: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: colors.muted,
+    },
+    // Filtros
+    filterContainer: {
+      marginBottom: "20px",
+      backgroundColor: colors.card,
+      padding: "15px",
+      borderRadius: "8px",
+      border: `1px solid ${colors.border}`,
+    },
+    filterRow: {
+      display: "flex",
+      gap: "15px",
+      flexWrap: "wrap" as const,
+      alignItems: "center",
+    },
+    searchWrapper: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc",
+      padding: "10px 15px",
+      borderRadius: "6px",
+      border: `1px solid ${colors.border}`,
+      flex: 2,
+      minWidth: "200px",
+    },
+    searchInput: {
+      border: "none",
+      outline: "none",
+      width: "100%",
+      background: "transparent",
+      fontSize: "14px",
+      color: colors.text,
+    },
+    filterSelect: {
+      padding: "10px",
+      borderRadius: "6px",
+      border: `1px solid ${colors.border}`,
+      minWidth: "150px",
+      fontSize: "14px",
+      backgroundColor: theme === "dark" ? "#0f172a" : "white",
+      color: colors.text,
+    },
+    // Tabela
+    tableContainer: {
+      backgroundColor: colors.card,
+      borderRadius: "8px",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+      overflow: "hidden",
+      border: `1px solid ${colors.border}`,
+    },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse" as const,
+      textAlign: "left" as const,
+    },
+    tableHeadRow: {
+      backgroundColor: theme === "dark" ? "#1e293b" : "#f8fafc",
+      borderBottom: `1px solid ${colors.border}`,
+    },
+    th: {
+      padding: "15px",
+      fontSize: "14px",
+      fontWeight: "600",
+      color: colors.muted,
+    },
+    thAction: {
+      padding: "15px",
+      fontSize: "14px",
+      fontWeight: "600",
+      color: colors.muted,
+      textAlign: "right" as const,
+    },
+    tableRow: { borderBottom: `1px solid ${colors.border}` },
+    td: { padding: "15px", fontSize: "15px", color: colors.text },
+    tdCenter: { padding: "30px", textAlign: "center", color: colors.muted },
+    tdAction: {
+      padding: "15px",
+      textAlign: "right" as const,
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "10px",
+    },
+    // Badges (Adaptados para Dark Mode)
+    badgeAdmin: {
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      backgroundColor: theme === "dark" ? "rgba(22, 163, 74, 0.2)" : "#dcfce7",
+      color: theme === "dark" ? "#4ade80" : "#166534",
+      padding: "4px 10px",
+      borderRadius: "12px",
+      fontSize: "12px",
+      fontWeight: "bold",
+      width: "fit-content",
+    },
+    badgeUser: {
+      backgroundColor:
+        theme === "dark" ? "rgba(148, 163, 184, 0.2)" : "#f1f5f9",
+      color: theme === "dark" ? "#cbd5e1" : "#475569",
+      padding: "4px 10px",
+      borderRadius: "12px",
+      fontSize: "12px",
+      fontWeight: "bold",
+      width: "fit-content", // Adicionado para consistência
+    },
+    // Paginação
+    pagination: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: "20px",
+    },
+    pageButton: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "36px",
+      height: "36px",
+      border: `1px solid ${colors.border}`,
+      backgroundColor: colors.card,
+      borderRadius: "6px",
+      cursor: "pointer",
+      color: colors.text,
+    },
+    pageButtonDisabled: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "36px",
+      height: "36px",
+      border: `1px solid ${colors.border}`,
+      backgroundColor: theme === "dark" ? "#1e293b" : "#f8fafc",
+      borderRadius: "6px",
+      cursor: "not-allowed",
+      color: colors.muted,
+    },
+    // Modal
+    modalOverlay: {
+      position: "fixed" as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000,
+    },
+    modalContent: {
+      backgroundColor: colors.card,
+      padding: "30px",
+      borderRadius: "12px",
+      width: "100%",
+      maxWidth: "500px",
+      boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+      border: `1px solid ${colors.border}`,
+      color: colors.text,
+    },
+    modalHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "20px",
+    },
+    modalTitle: {
+      fontSize: "20px",
+      fontWeight: "bold",
+      color: colors.text,
+      margin: 0,
+    },
+    form: { display: "flex", flexDirection: "column" as const, gap: "20px" },
+    formGroup: {
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "8px",
+    },
+    label: { fontSize: "14px", fontWeight: "500", color: colors.text },
+    input: {
+      padding: "10px",
+      border: `1px solid ${colors.border}`,
+      borderRadius: "6px",
+      fontSize: "15px",
+      outline: "none",
+      backgroundColor: theme === "dark" ? "#0f172a" : "white",
+      color: colors.text,
+    },
+    modalFooter: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "10px",
+      marginTop: "10px",
+    },
+    alertBox: {
+      display: "flex",
+      gap: "10px",
+      backgroundColor: theme === "dark" ? "rgba(234, 179, 8, 0.1)" : "#fffbeb",
+      color: theme === "dark" ? "#facc15" : "#b45309",
+      padding: "10px",
+      borderRadius: "6px",
+      border: `1px solid ${theme === "dark" ? "#854d0e" : "#fcd34d"}`,
+    },
+  };
+
   if (isError)
-    return <div style={styles.container}>Erro ao carregar usuários.</div>;
+    return (
+      <div style={{ padding: "20px", color: colors.text }}>
+        Erro ao carregar usuários.
+      </div>
+    );
 
   return (
     <div style={styles.container}>
@@ -112,7 +377,7 @@ export const Users = () => {
       <div style={styles.filterContainer}>
         <div style={styles.filterRow}>
           <div style={styles.searchWrapper}>
-            <Search size={18} style={{ color: "var(--muted)" }} />
+            <Search size={18} color={colors.muted} />
             <input
               placeholder="Buscar e-mail..."
               value={localEmail}
@@ -138,11 +403,11 @@ export const Users = () => {
           >
             <ArrowUpDown
               size={16}
+              color={colors.muted}
               style={{
                 position: "absolute",
                 left: "10px",
                 pointerEvents: "none",
-                color: "var(--muted)",
               }}
             />
             <select
@@ -177,6 +442,10 @@ export const Users = () => {
             {isLoading ? (
               <tr>
                 <td colSpan={5} style={styles.tdCenter}>
+                  <Loader2
+                    className="animate-spin"
+                    style={{ margin: "0 auto" }}
+                  />{" "}
                   Carregando...
                 </td>
               </tr>
@@ -187,7 +456,8 @@ export const Users = () => {
                     style={{
                       ...styles.td,
                       fontSize: "12px",
-                      color: "var(--muted)",
+                      color: colors.muted,
+                      fontFamily: "monospace",
                     }}
                   >
                     {user.id.slice(0, 8)}...
@@ -231,7 +501,7 @@ export const Users = () => {
       </div>
 
       <div style={styles.pagination}>
-        <span style={{ color: "var(--muted)", fontSize: "14px" }}>
+        <span style={{ color: colors.muted, fontSize: "14px" }}>
           Pág <b>{filters.page}</b> de <b>{totalPages || 1}</b>
         </span>
         <div style={{ display: "flex", gap: "5px" }}>
@@ -274,7 +544,7 @@ export const Users = () => {
               <div style={styles.alertBox}>
                 <ShieldAlert size={20} />
                 <span style={{ fontSize: "13px" }}>
-                  Alteração apenas visual.
+                  Alteração apenas visual (Exemplo).
                 </span>
               </div>
               <div style={styles.formGroup}>
@@ -322,228 +592,4 @@ export const Users = () => {
       )}
     </div>
   );
-};
-
-// ... Estilos mantidos iguais ...
-const styles: { [key: string]: React.CSSProperties } = {
-  container: { padding: "20px", maxWidth: "1200px", margin: "0 auto" },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "25px",
-  },
-  title: { fontSize: "24px", fontWeight: "bold", color: "var(--text)" },
-  primaryButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    backgroundColor: "#0f172a",
-    color: "white",
-    border: "none",
-    padding: "10px 20px",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "500",
-  },
-  secondaryButton: {
-    backgroundColor: "var(--bg-elevated)",
-    color: "var(--muted)",
-    border: "1px solid #cbd5e1",
-    padding: "10px 20px",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "500",
-  },
-  iconButton: {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: "5px",
-  },
-  closeButton: {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    color: "var(--muted)",
-  },
-  filterContainer: {
-    marginBottom: "20px",
-    backgroundColor: "var(--bg-elevated)",
-    padding: "15px",
-    borderRadius: "8px",
-    border: "1px solid #e2e8f0",
-  },
-  filterRow: {
-    display: "flex",
-    gap: "15px",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  searchWrapper: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    backgroundColor: "var(--input-bg)",
-    padding: "10px 15px",
-    borderRadius: "6px",
-    border: "1px solid #e2e8f0",
-    flex: 2,
-    minWidth: "200px",
-  },
-  searchInput: {
-    border: "none",
-    outline: "none",
-    width: "100%",
-    background: "transparent",
-    fontSize: "14px",
-  },
-  filterSelect: {
-    padding: "10px",
-    borderRadius: "6px",
-    border: "1px solid #e2e8f0",
-    minWidth: "150px",
-    fontSize: "14px",
-  },
-  tableContainer: {
-    backgroundColor: "var(--bg-elevated)",
-    borderRadius: "8px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    overflow: "hidden",
-  },
-  table: { width: "100%", borderCollapse: "collapse", textAlign: "left" },
-  tableHeadRow: {
-    backgroundColor: "var(--bg-elevated)",
-    borderBottom: "1px solid #e2e8f0",
-  },
-  th: {
-    padding: "15px",
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "var(--muted)",
-  },
-  thAction: {
-    padding: "15px",
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "var(--muted)",
-    textAlign: "right",
-  },
-  tableRow: { borderBottom: "1px solid #f1f5f9" },
-  td: { padding: "15px", fontSize: "15px", color: "var(--text)" },
-  tdCenter: { padding: "30px", textAlign: "center", color: "var(--muted)" },
-  tdAction: {
-    padding: "15px",
-    textAlign: "right",
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "10px",
-  },
-  badgeAdmin: {
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-    backgroundColor: "#dcfce7",
-    color: "#166534",
-    padding: "4px 10px",
-    borderRadius: "12px",
-    fontSize: "12px",
-    fontWeight: "bold",
-    width: "fit-content",
-  },
-  badgeUser: {
-    backgroundColor: "#f1f5f9",
-    color: "#475569",
-    padding: "4px 10px",
-    borderRadius: "12px",
-    fontSize: "12px",
-    fontWeight: "bold",
-  },
-  pagination: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: "20px",
-  },
-  pageButton: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "36px",
-    height: "36px",
-    border: "1px solid #cbd5e1",
-    backgroundColor: "var(--bg-elevated)",
-    borderRadius: "6px",
-    cursor: "pointer",
-    color: "var(--text)",
-  },
-  pageButtonDisabled: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "36px",
-    height: "36px",
-    border: "1px solid #e2e8f0",
-    backgroundColor: "var(--bg)",
-    borderRadius: "6px",
-    cursor: "not-allowed",
-    color: "#cbd5e1",
-  },
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-  },
-  modalContent: {
-    backgroundColor: "var(--bg-elevated)",
-    padding: "30px",
-    borderRadius: "12px",
-    width: "100%",
-    maxWidth: "500px",
-    boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  modalTitle: {
-    fontSize: "20px",
-    fontWeight: "bold",
-    color: "var(--text)",
-    margin: 0,
-  },
-  form: { display: "flex", flexDirection: "column", gap: "20px" },
-  formGroup: { display: "flex", flexDirection: "column", gap: "8px" },
-  label: { fontSize: "14px", fontWeight: "500", color: "var(--text)" },
-  input: {
-    padding: "10px",
-    border: "1px solid #e2e8f0",
-    borderRadius: "6px",
-    fontSize: "15px",
-    outline: "none",
-  },
-  modalFooter: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "10px",
-    marginTop: "10px",
-  },
-  alertBox: {
-    display: "flex",
-    gap: "10px",
-    backgroundColor: "#fffbeb",
-    color: "#b45309",
-    padding: "10px",
-    borderRadius: "6px",
-    border: "1px solid #fcd34d",
-  },
 };
