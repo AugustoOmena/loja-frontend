@@ -19,13 +19,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType>({} as ThemeContextType);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  // 1. Tenta pegar do localStorage ou usa a preferência do sistema
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("@loja-omena:theme");
     if (saved) return saved as Theme;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
+
+    // MUDANÇA AQUI: Ignoramos o window.matchMedia e retornamos 'light' fixo
+    // return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return "light";
   });
 
   useEffect(() => {
@@ -36,22 +36,21 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  // 2. Definição das Cores para facilitar o uso nos estilos inline
   const colors =
     theme === "light"
       ? {
-          bg: "#f1f5f9", // Fundo Claro (Slate 100)
-          card: "#ffffff", // Card Branco
-          text: "#1e293b", // Texto Escuro
-          muted: "#64748b", // Texto Cinza
-          border: "#e2e8f0", // Borda Clara
+          bg: "#f8fafc", // Fundo Claro (Slate 50) - Mais moderno que fff
+          card: "#ffffff", // Branco puro
+          text: "#1e293b", // Slate 800
+          muted: "#64748b", // Slate 500
+          border: "#e2e8f0", // Slate 200
         }
       : {
-          bg: "#0f172a", // Fundo Escuro (Slate 900)
-          card: "#1e293b", // Card Escuro (Slate 800)
-          text: "#f8fafc", // Texto Claro
-          muted: "#94a3b8", // Texto Cinza Claro
-          border: "#334155", // Borda Escura
+          bg: "#0f172a", // Slate 900
+          card: "#1e293b", // Slate 800
+          text: "#f8fafc", // Slate 50
+          muted: "#94a3b8", // Slate 400
+          border: "#334155", // Slate 700
         };
 
   return (

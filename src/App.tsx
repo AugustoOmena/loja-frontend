@@ -1,68 +1,82 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { CartProvider } from "./contexts/CartContext";
 
-// Backoffice
+// --- COMPONENTES GLOBAIS ---
+import { CartDrawer } from "./components/CartDrawer";
+
+// --- LAYOUTS ---
 import { BackofficeLayout } from "./backoffice/layouts/BackofficeLayout";
+import { ClientLayout } from "./store/layouts/ClientLayout"; // O layout com o Menu Bottom
+
+// --- PÁGINAS DO BACKOFFICE ---
 import { LoginBackoffice } from "./backoffice/pages/Login";
 import { Products } from "./backoffice/pages/Products";
 import { Users } from "./backoffice/pages/Users";
 import { Dashboard } from "./backoffice/pages/Dashboard";
 
-// Loja (Páginas Públicas)
+// --- PÁGINAS DA LOJA (PÚBLICAS/CLIENTE) ---
 import { StoreHome } from "./store/pages/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
-import { UserProfile } from "./store/pages/UserProfile";
 import { Login } from "./pages/Login";
-import { Checkout } from "./store/pages/Checkout"; // <--- NOVA ROTA
+import { Checkout } from "./store/pages/Checkout";
 
-// Área do Cliente
-import { ClientLayout } from "./store/layouts/ClientLayout";
-import { MyOrders } from "./store/pages/client/MyOrders";
-import { MyData } from "./store/pages/client/MyData";
-
-// Contextos e Componentes Globais (Carrinho)
-import { CartProvider } from "./contexts/CartContext";
-import { CartDrawer } from "./components/CartDrawer";
+// --- NOVAS PÁGINAS DA ÁREA DO CLIENTE (QUE CRIAMOS AGORA) ---
+import { Profile } from "./store/pages/client/Profile"; // A nova tela "Minha Conta"
+import { OrderList } from "./store/pages/client/OrderList"; // A tela de lista de pedidos
+import { Settings } from "./store/pages/client/Settings"; // A tela de configurações
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        {/* 2. CartProvider envolve a navegação (para o carrinho funcionar em qualquer página) */}
         <CartProvider>
           <BrowserRouter>
-            {/* 3. O CartDrawer fica AQUI. Ele precisa estar dentro do BrowserRouter 
-                 para navegar, mas fora do Routes para flutuar por cima de tudo. */}
+            {/* O CartDrawer flutua sobre tudo */}
             <CartDrawer />
 
             <Routes>
-              {/* --- LOJA PÚBLICA --- */}
-              <Route path="/" element={<StoreHome />} />
-              <Route path="/produto/:id" element={<ProductDetails />} />
+              {/* ====================================================
+                  GRUPO 1: PÁGINAS COM MENU BOTTOM (ClientLayout)
+                  (Início, Categorias, Carrinho*, Minha Conta)
+              ==================================================== */}
+              <Route path="/" element={<ClientLayout />}>
+                <Route index element={<StoreHome />} />
+
+                {/* Agora /minha-conta aponta para a nova tela PROFILE */}
+                <Route path="minha-conta" element={<Profile />} />
+
+                {/* Se tiver rota de categoria/busca no futuro, coloque aqui */}
+              </Route>
+
+              {/* ====================================================
+                  GRUPO 2: PÁGINAS TELA CHEIA (SEM MENU BOTTOM)
+              ==================================================== */}
+
+              {/* Login e Detalhes */}
               <Route path="/login" element={<Login />} />
-              <Route path="/minha-conta" element={<UserProfile />} />{" "}
-              {/* Rota legada, pode manter ou remover */}
-              {/* NOVA ROTA DE CHECKOUT */}
+              <Route path="/produto/:id" element={<ProductDetails />} />
+
+              {/* Checkout e Callback */}
               <Route path="/checkout" element={<Checkout />} />
-              {/* Rota de retorno do Google (Opcional, mas boa prática) */}
               <Route path="/auth/callback" element={<Navigate to="/" />} />
+
+              {/* Telas Internas do Cliente (Sub-telas do Minha Conta) */}
+              {/* O :type captura 'pagamento', 'envio', etc. */}
+              <Route path="/pedidos/:type" element={<OrderList />} />
+              <Route path="/configuracoes" element={<Settings />} />
+
+              {/* ====================================================
+                  GRUPO 3: BACKOFFICE
+              ==================================================== */}
+              <Route path="/backoffice/login" element={<LoginBackoffice />} />
+
               <Route path="/backoffice" element={<BackofficeLayout />}>
-                <Route index element={<Dashboard />} />
+                <Route index element={<Navigate to="dashboard" />} />
+                <Route path="dashboard" element={<Dashboard />} />
                 <Route path="produtos" element={<Products />} />
                 <Route path="usuarios" element={<Users />} />
-                <Route path="dashboard" element={<Dashboard />} />
-              </Route>
-              <Route path="backoffice/login" element={<LoginBackoffice />} />
-              {/* --- BACKOFFICE (Protegido) --- */}
-              {/* --- ÁREA DO CLIENTE (Protegida) --- */}
-              <Route path="/minha-conta" element={<ClientLayout />}>
-                {/* Se entrar só em /minha-conta, joga para /pedidos */}
-                <Route index element={<Navigate to="/minha-conta/pedidos" />} />
-
-                <Route path="pedidos" element={<MyOrders />} />
-                <Route path="dados" element={<MyData />} />
-                <Route path="dashboard" element={<MyOrders />} />
               </Route>
             </Routes>
           </BrowserRouter>

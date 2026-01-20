@@ -265,7 +265,7 @@ export const Checkout = () => {
 
         // Redireciona após 3 segundos
         setTimeout(() => {
-          navigate("/minha-conta/pedidos");
+          navigate("/minha-conta");
         }, 3000);
       } else {
         setFormError(
