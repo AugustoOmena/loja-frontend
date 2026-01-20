@@ -23,7 +23,7 @@ import { Login } from "./pages/Login";
 import { Checkout } from "./store/pages/Checkout";
 
 // --- NOVAS PÁGINAS DA ÁREA DO CLIENTE (QUE CRIAMOS AGORA) ---
-import { Profile } from "./store/pages/client/Profile"; // A nova tela "Minha Conta"
+import { Profile } from "./store/pages/client/profile"; // A nova tela "Minha Conta"
 import { OrderList } from "./store/pages/client/OrderList"; // A tela de lista de pedidos
 import { Settings } from "./store/pages/client/Settings"; // A tela de configurações
 

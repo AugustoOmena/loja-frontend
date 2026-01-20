@@ -91,20 +91,40 @@ export const Profile = () => {
   ];
 
   const styles = {
+    // Container Principal (Fundo da página)
     container: {
       minHeight: "100vh",
       backgroundColor: colors.bg,
       fontFamily: "sans-serif",
       paddingBottom: "80px",
     },
-    header: {
+
+    // Header Wrapper (Fundo Azul Total)
+    headerWrapper: {
       backgroundColor: theme === "dark" ? "#1e293b" : "#0f172a",
-      padding: "30px 20px 60px 20px",
+      width: "100%",
+      display: "flex",
+      justifyContent: "center", // Centraliza o conteúdo interno
+    },
+    // Header Conteúdo (Limitado a 1000px)
+    headerContent: {
+      width: "100%",
+      maxWidth: "1000px",
+      padding: "30px 20px 60px 20px", // Mantém o padding original
       color: "white",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "flex-start",
     },
+
+    // Container do Corpo (Limitado a 1000px para centralizar no Desktop)
+    bodyContainer: {
+      width: "100%",
+      maxWidth: "1000px",
+      margin: "0 auto", // Centraliza na tela
+      padding: "0 15px", // Padding lateral para mobile não colar na borda
+    },
+
     userInfo: { display: "flex", alignItems: "center", gap: "15px" },
     avatar: {
       width: "60px",
@@ -118,13 +138,11 @@ export const Profile = () => {
     userName: { fontSize: "18px", fontWeight: "bold" },
     userEmail: { fontSize: "12px", opacity: 0.8 },
 
-    // Header Actions
     headerActions: {
       display: "flex",
       gap: "15px",
       alignItems: "center",
     },
-    // Estilo base do botão (a visibilidade é controlada pelo CSS injetado abaixo)
     headerBtn: {
       background: "transparent",
       border: "none",
@@ -139,13 +157,15 @@ export const Profile = () => {
 
     statusCard: {
       backgroundColor: colors.card,
-      margin: "-40px 15px 0 15px",
+      // MUDANÇA: Removemos margem lateral fixa. Usamos width 100% do pai.
+      marginTop: "-40px",
       borderRadius: "12px",
       padding: "20px 10px",
       boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
       display: "flex",
       justifyContent: "space-between",
       border: `1px solid ${colors.border}`,
+      width: "100%",
     },
     menuItem: {
       display: "flex",
@@ -188,10 +208,6 @@ export const Profile = () => {
 
   return (
     <div style={styles.container}>
-      {/* INJEÇÃO DE CSS PARA RESPONSIVIDADE DO BOTÃO HOME
-        - Por padrão (.desktop-only) é display: none (Mobile First)
-        - Em telas >= 768px (Tablet/Desktop), vira display: flex
-      */}
       <style>{`
         .desktop-only { display: none; }
         @media (min-width: 768px) {
@@ -199,68 +215,72 @@ export const Profile = () => {
         }
       `}</style>
 
-      {/* HEADER */}
-      <div style={styles.header}>
-        <div style={styles.userInfo}>
-          <div style={styles.avatar}>
-            <UserCircle size={40} />
-          </div>
-          <div>
-            <div style={styles.userName}>
-              {user?.email?.split("@")[0] || "Visitante"}
+      {/* HEADER (WRAPPER + CONTENT) */}
+      <div style={styles.headerWrapper}>
+        <div style={styles.headerContent}>
+          <div style={styles.userInfo}>
+            <div style={styles.avatar}>
+              <UserCircle size={40} />
             </div>
-            <div style={styles.userEmail}>{user?.email}</div>
-          </div>
-        </div>
-
-        <div style={styles.headerActions}>
-          {/* BOTÃO HOME (Inverso do Menu Bottom) */}
-          {/* Apliquei a classe 'desktop-only' aqui */}
-          <button
-            onClick={() => navigate("/")}
-            style={styles.headerBtn}
-            className="desktop-only"
-            title="Voltar para a Loja"
-          >
-            <Home size={24} />
-          </button>
-
-          <button
-            onClick={() => navigate("/configuracoes")}
-            style={{ ...styles.headerBtn, display: "flex" }} // Configurações aparece sempre
-            title="Configurações"
-          >
-            <Settings size={24} />
-          </button>
-        </div>
-      </div>
-
-      {/* MEUS PEDIDOS STATUS */}
-      <div style={styles.statusCard}>
-        {menuItems.map((item, index) => (
-          <div
-            key={index}
-            style={styles.menuItem}
-            onClick={() => navigate(item.route)}
-          >
-            <div style={{ color: colors.text }}>{item.icon}</div>
-            <span style={styles.menuLabel}>{item.label}</span>
-            {item.count > 0 && (
-              <div style={styles.badge}>
-                {item.count > 9 ? "9+" : item.count}
+            <div>
+              <div style={styles.userName}>
+                {user?.email?.split("@")[0] || "Visitante"}
               </div>
-            )}
+              <div style={styles.userEmail}>{user?.email}</div>
+            </div>
           </div>
-        ))}
+
+          <div style={styles.headerActions}>
+            <button
+              onClick={() => navigate("/")}
+              style={styles.headerBtn}
+              className="desktop-only"
+              title="Voltar para a Loja"
+            >
+              <Home size={24} />
+            </button>
+
+            <button
+              onClick={() => navigate("/configuracoes")}
+              style={{ ...styles.headerBtn, display: "flex" }}
+              title="Configurações"
+            >
+              <Settings size={24} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* ÁREA FUTURA */}
-      <div style={styles.placeholderArea}></div>
+      {/* CORPO CENTRALIZADO */}
+      <div style={styles.bodyContainer}>
+        {/* MEUS PEDIDOS STATUS */}
+        <div style={styles.statusCard}>
+          {menuItems.map((item, index) => (
+            <div
+              key={index}
+              style={styles.menuItem}
+              onClick={() => navigate(item.route)}
+            >
+              <div style={{ color: colors.text }}>{item.icon}</div>
+              <span style={styles.menuLabel}>{item.label}</span>
+              {item.count > 0 && (
+                <div style={styles.badge}>
+                  {item.count > 9 ? "9+" : item.count}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
 
-      {/* PRODUTOS RECOMENDADOS */}
-      <RecommendedProducts />
+        {/* ÁREA FUTURA */}
+        <div style={styles.placeholderArea}></div>
 
-      {/* MENU INFERIOR (O CSS dele já cuida de sumir no Desktop) */}
+        {/* PRODUTOS RECOMENDADOS */}
+        {/* O padding lateral aqui já vem do componente, então fica alinhado */}
+        <RecommendedProducts />
+      </div>
+
+      {/* MENU INFERIOR */}
       <MobileBottomNav />
     </div>
   );
