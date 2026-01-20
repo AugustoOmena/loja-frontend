@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../../services/supabaseClient";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
-import { ChevronLeft, Package, Clock, AlertCircle } from "lucide-react";
+import { ChevronLeft, Package, Clock } from "lucide-react";
 import { RecommendedProducts } from "../../../components/RecommendedProducts";
 
 // Tipos de lista baseados na rota
@@ -39,7 +39,7 @@ export const OrderList = () => {
   const { type } = useParams(); // Pega o parametro da URL (pagamento, envio, etc)
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { colors, theme } = useTheme();
+  const { colors } = useTheme();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

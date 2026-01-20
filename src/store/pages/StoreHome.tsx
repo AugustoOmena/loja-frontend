@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -98,7 +99,7 @@ export const StoreHome = () => {
   const allProducts = data?.pages.flatMap((page) => page.data) || [];
 
   // --- ESTILOS DINÂMICOS ---
-  const styles = {
+  const styles: Record<string, CSSProperties> = {
     // Wrapper Geral
     pageWrapper: {
       backgroundColor: colors.bg,

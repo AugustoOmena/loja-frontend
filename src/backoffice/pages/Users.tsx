@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import {
   Search,
   Edit,
@@ -104,7 +105,7 @@ export const Users = () => {
   };
 
   // --- 3. ESTILOS DINÂMICOS ---
-  const styles = {
+  const styles: Record<string, CSSProperties> = {
     container: {
       padding: "20px",
       maxWidth: "1200px",
