@@ -102,9 +102,7 @@ export const MobileBottomNav = () => {
             <ShoppingCart size={22} color={colors.muted} />
             {cartCount > 0 && <span style={styles.badge}>{cartCount}</span>}
           </div>
-          <span style={styles.label} style={{ color: colors.muted }}>
-            Carrinho
-          </span>
+          <span style={{ ...styles.label, color: colors.muted }}>Carrinho</span>
         </button>
 
         {/* 4. CONTA */}

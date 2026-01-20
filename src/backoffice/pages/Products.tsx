@@ -310,7 +310,11 @@ export const Products = () => {
     },
     tableRow: { borderBottom: `1px solid ${colors.border}` },
     td: { padding: "15px", fontSize: "15px", color: colors.text },
-    tdCenter: { padding: "30px", textAlign: "center", color: colors.muted },
+    tdCenter: {
+      padding: "30px",
+      textAlign: "center" as const,
+      color: colors.muted,
+    },
     tdAction: {
       padding: "15px",
       textAlign: "right" as const,

@@ -1,17 +1,24 @@
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
+import { authService } from "../../../services/authService";
 import { ChevronLeft, LogOut, Moon, Sun } from "lucide-react";
 
 export const Settings = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme, colors } = useTheme();
-  const { authService } = useAuth() as any; // Ajuste conforme seu contexto exporta
 
   const handleLogout = async () => {
-    // Importe o serviço corretamente se não estiver no contexto ou use authService
-    // await supabase.auth.signOut(); (Se preferir direto)
-    navigate("/login");
+    try {
+      // 2. Executa o logout real no Supabase
+      await authService.signOut();
+
+      // 3. Redireciona para a Home da Loja (StoreHome)
+      navigate("/");
+    } catch (error) {
+      console.error("Erro ao tentar sair:", error);
+      // Mesmo com erro, força a ida para home
+      navigate("/");
+    }
   };
 
   const styles = {

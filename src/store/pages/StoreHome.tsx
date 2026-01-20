@@ -267,6 +267,12 @@ export const StoreHome = () => {
       justifyContent: "center",
       border: `2px solid ${colors.card}`,
     },
+    ratingRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      marginBottom: "4px",
+    },
   };
 
   return (

@@ -8,8 +8,8 @@ import {
   Calendar,
   Hash,
   AlertCircle,
-  CheckCircle, // Importado para a tela de sucesso
-  Truck, // Opcional, para dar um charme extra
+  CheckCircle,
+  Truck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
@@ -45,7 +45,7 @@ export const Checkout = () => {
   const [loading, setLoading] = useState(false);
   const [docTypes, setDocTypes] = useState<IdentificationType[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState("");
-  const [issuers, setIssuers] = useState<Issuer[]>([]);
+  const [, setIssuers] = useState<Issuer[]>([]);
   const [installments, setInstallments] = useState<PayerCost[]>([]);
   const [formError, setFormError] = useState("");
   const [isMpLoaded, setIsMpLoaded] = useState(false);
