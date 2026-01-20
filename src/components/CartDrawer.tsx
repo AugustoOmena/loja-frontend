@@ -17,7 +17,7 @@ export const CartDrawer = () => {
 
   const handleCheckout = () => {
     setIsCartOpen(false);
-    navigate("/checkout"); // Vamos criar essa rota no Passo 4
+    navigate("/checkout");
   };
 
   return (

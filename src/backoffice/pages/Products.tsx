@@ -164,7 +164,7 @@ export const Products = () => {
     alert("Funcionalidade Excel (copiar do anterior se necessário)");
   };
 
-  // --- 3. ESTILOS DINÂMICOS (Movido para dentro do componente) ---
+  // --- 3. ESTILOS DINÂMICOS ---
   const styles = {
     container: {
       padding: "20px",
@@ -188,7 +188,7 @@ export const Products = () => {
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      backgroundColor: theme === "dark" ? "#6366f1" : "#0f172a", // Indigo no dark, Slate no light
+      backgroundColor: theme === "dark" ? "#6366f1" : "#0f172a",
       color: "white",
       border: "none",
       padding: "10px 20px",
@@ -367,7 +367,7 @@ export const Products = () => {
       padding: "30px",
       borderRadius: "12px",
       width: "100%",
-      maxWidth: "650px", // AUMENTADO (era 500px)
+      maxWidth: "650px",
       maxHeight: "90vh",
       overflowY: "auto" as const,
       boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
@@ -436,7 +436,7 @@ export const Products = () => {
       position: "absolute" as const,
       top: -5,
       right: -5,
-      background: "#ef4444", // Vermelho sempre visível
+      background: "#ef4444",
       color: "white",
       border: "none",
       borderRadius: "50%",

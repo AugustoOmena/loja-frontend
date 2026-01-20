@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import type { ReactNode } from "react"; // Correção do import type
+import type { ReactNode } from "react";
 
 interface ProductInput {
   id?: number;
@@ -35,7 +35,7 @@ const CartContext = createContext<CartContextType>({} as CartContextType);
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // --- CORREÇÃO: Lazy Initialization (Carrega do localStorage direto no useState) ---
+  // --- Lazy Initialization (Carrega do localStorage direto no useState) ---
   const [items, setItems] = useState<CartItem[]>(() => {
     const saved = localStorage.getItem("@loja-omena:cart");
     return saved ? JSON.parse(saved) : [];

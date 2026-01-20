@@ -9,7 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
-  Loader2, // Adicionei para ficar bonito igual aos outros
+  Loader2,
 } from "lucide-react";
 import { userService } from "../../services/userService";
 import type { UserProfile, UserFilters } from "../../types";

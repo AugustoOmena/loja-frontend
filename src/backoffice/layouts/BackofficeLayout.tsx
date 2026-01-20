@@ -10,12 +10,12 @@ import {
   Sun,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import { useTheme } from "../../contexts/ThemeContext"; // <--- Importe o tema
+import { useTheme } from "../../contexts/ThemeContext";
 import { authService } from "../../services/authService";
 
 export const BackofficeLayout = () => {
   const { user, isAdmin, loading } = useAuth();
-  const { theme, toggleTheme, colors } = useTheme(); // Hook do tema
+  const { theme, toggleTheme, colors } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -64,11 +64,11 @@ export const BackofficeLayout = () => {
       <aside
         style={{
           width: "250px",
-          background: "#0f172a", // Slate 900 Fixo
+          background: "#0f172a",
           color: "white",
           display: "flex",
           flexDirection: "column",
-          flexShrink: 0, // Garante que não encolha
+          flexShrink: 0,
         }}
       >
         <div style={{ padding: "20px", borderBottom: "1px solid #1e293b" }}>
@@ -176,10 +176,10 @@ export const BackofficeLayout = () => {
       <main
         style={{
           flex: 1,
-          background: colors.bg, // Usa a cor do tema dinâmico
-          overflowY: "auto", // <--- SÓ ISSO AQUI ROLA AGORA
+          background: colors.bg,
+          overflowY: "auto",
           padding: "30px",
-          transition: "background-color 0.3s", // Transição suave
+          transition: "background-color 0.3s",
         }}
       >
         <Outlet />
@@ -203,7 +203,7 @@ const NavLink = ({ to, icon, label, currentPath }: any) => {
         padding: "12px 15px",
         borderRadius: "8px",
         fontSize: "14px",
-        background: isActive ? "#6366f1" : "transparent", // Indigo se ativo
+        background: isActive ? "#6366f1" : "transparent",
         fontWeight: isActive ? "600" : "400",
         transition: "0.2s",
       }}

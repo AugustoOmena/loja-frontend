@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../services/supabaseClient";
-import { useTheme } from "../../contexts/ThemeContext"; // <--- Importe
+import { useTheme } from "../../contexts/ThemeContext";
 import {
   DollarSign,
   ShoppingBag,
@@ -11,7 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-// ... (Interfaces DashboardStats e RecentOrder mantêm iguais) ...
+// Interfaces DashboardStats
 interface DashboardStats {
   revenue: number;
   totalOrders: number;
@@ -27,7 +27,7 @@ interface RecentOrder {
 }
 
 export const Dashboard = () => {
-  const { colors, theme } = useTheme(); // <--- Usar as cores do contexto
+  const { colors, theme } = useTheme();
   const [stats, setStats] = useState<DashboardStats>({
     revenue: 0,
     totalOrders: 0,
@@ -37,10 +37,8 @@ export const Dashboard = () => {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ... (useEffect e fetchDashboardData mantêm IGUAIS ao anterior) ...
+  // useEffect e fetchDashboardData
   useEffect(() => {
-    // Simulação do fetch para economizar espaço na resposta,
-    // MANTENHA O SEU FETCH ORIGINAL AQUI.
     fetchDashboardData();
   }, []);
 
@@ -94,7 +92,6 @@ export const Dashboard = () => {
     );
 
   // --- ESTILOS DINÂMICOS ---
-  // Criamos o objeto de estilo aqui dentro para acessar 'colors'
   const styles = {
     title: {
       fontSize: "24px",

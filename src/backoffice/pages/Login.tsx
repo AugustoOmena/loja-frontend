@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../services/supabaseClient"; // Seu Singleton
-import {
-  Lock,
-  Mail,
-  Loader2,
-  AlertCircle,
-  ArrowRight,
-  User,
-} from "lucide-react";
+import { supabase } from "../../services/supabaseClient";
+import { Lock, Mail, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 
 export const LoginBackoffice = () => {
   const navigate = useNavigate();
@@ -174,7 +167,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "20px",
   },
   card: {
-    backgroundColor: "#1e293b", // Slate 800 (Cartão mais claro)
+    backgroundColor: "#1e293b",
     padding: "40px",
     borderRadius: "16px",
     boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
@@ -200,12 +193,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   title: {
     fontSize: "24px",
     fontWeight: "700",
-    color: "#f8fafc", // Texto branco
+    color: "#f8fafc",
     margin: "0 0 8px 0",
   },
   subtitle: {
     fontSize: "14px",
-    color: "#94a3b8", // Texto cinza
+    color: "#94a3b8",
     margin: 0,
   },
   form: {
@@ -229,7 +222,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     gap: "12px",
     padding: "12px 16px",
-    backgroundColor: "#0f172a", // Fundo do input escuro
+    backgroundColor: "#0f172a",
     border: "1px solid #334155",
     borderRadius: "8px",
     transition: "border-color 0.2s",
@@ -249,7 +242,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: "10px",
     width: "100%",
     padding: "14px",
-    backgroundColor: "#4f46e5", // Indigo 600
+    backgroundColor: "#4f46e5",
     color: "white",
     border: "none",
     borderRadius: "8px",
@@ -260,7 +253,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: "10px",
   },
   buttonHover: {
-    backgroundColor: "#4338ca", // Indigo 700
+    backgroundColor: "#4338ca",
   },
   buttonDisabled: {
     display: "flex",
@@ -279,7 +272,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: "10px",
   },
   errorContainer: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)", // Vermelho transparente
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
     border: "1px solid rgba(239, 68, 68, 0.2)",
     color: "#ef4444",
     padding: "12px",
