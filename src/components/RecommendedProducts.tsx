@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { productService } from "../services/productService";
 import { useTheme } from "../contexts/ThemeContext";
 import { Loader2, Heart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const RecommendedProducts = () => {
+  const navigate = useNavigate();
   const { colors } = useTheme();
 
   const { data, isLoading } = useQuery({
@@ -90,7 +92,11 @@ export const RecommendedProducts = () => {
 
       <div className="rec-grid">
         {products.map((product) => (
-          <div key={product.id} style={styles.card}>
+          <div
+            key={product.id}
+            style={styles.card}
+            onClick={() => navigate(`/produto/${product.id}`)}
+          >
             <img
               src={product.images?.[0] || "https://placehold.co/150"}
               alt={product.name}
