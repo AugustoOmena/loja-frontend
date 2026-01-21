@@ -45,3 +45,10 @@ export interface UserFilters {
   sort?: string;
 }
 
+export interface OrderItem {
+  id: string;
+  product_name: string; // O banco retorna isso
+  name?: string;        // Opcional, para compatibilidade se precisar
+  quantity: number;
+  price: number;
+}

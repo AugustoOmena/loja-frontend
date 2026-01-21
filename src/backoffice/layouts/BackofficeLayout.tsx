@@ -8,6 +8,7 @@ import {
   Loader2,
   Moon,
   Sun,
+  Package,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -110,6 +111,12 @@ export const BackofficeLayout = () => {
             to="/backoffice/usuarios"
             icon={<Users size={20} />}
             label="Usuários"
+            currentPath={location.pathname}
+          />
+          <NavLink
+            to="/backoffice/pedidos"
+            icon={<Package size={20} />}
+            label="Pedidos"
             currentPath={location.pathname}
           />
         </nav>

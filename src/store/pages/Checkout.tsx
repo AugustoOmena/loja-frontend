@@ -32,7 +32,7 @@ interface PayerCost {
 
 export const Checkout = () => {
   const navigate = useNavigate();
-  const { cartTotal, clearCart } = useCart();
+  const { cartTotal, clearCart, items } = useCart();
   const { colors, theme } = useTheme();
 
   const transactionAmount = cartTotal > 0 ? cartTotal : 100;
@@ -251,6 +251,13 @@ export const Checkout = () => {
         issuer_id: formData.issuer,
         payer: { email: formData.email },
         user_id: user.id,
+        items: items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image,
+        })),
       };
 
       const API_URL = import.meta.env.VITE_API_URL || "";

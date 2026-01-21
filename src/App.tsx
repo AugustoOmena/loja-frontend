@@ -15,6 +15,7 @@ import { LoginBackoffice } from "./backoffice/pages/Login";
 import { Products } from "./backoffice/pages/Products";
 import { Users } from "./backoffice/pages/Users";
 import { Dashboard } from "./backoffice/pages/Dashboard";
+import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
 
 // --- PÁGINAS DA LOJA (PÚBLICAS/CLIENTE) ---
 import { StoreHome } from "./store/pages/StoreHome";
@@ -77,6 +78,7 @@ function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="produtos" element={<Products />} />
                 <Route path="usuarios" element={<Users />} />
+                <Route path="pedidos" element={<PedidosBackoffice />} />
               </Route>
             </Routes>
           </BrowserRouter>
