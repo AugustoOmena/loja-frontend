@@ -1,6 +1,7 @@
 import { X, Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
 import { useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../contexts/ThemeContext"; // <--- 1. Import do Tema
 
 export const CartDrawer = () => {
   const {
@@ -11,7 +12,9 @@ export const CartDrawer = () => {
     updateQuantity,
     cartTotal,
   } = useCart();
+
   const navigate = useNavigate();
+  const { colors, theme } = useTheme(); // <--- 2. Hook
 
   if (!isCartOpen) return null;
 
@@ -20,22 +23,162 @@ export const CartDrawer = () => {
     navigate("/checkout");
   };
 
+  // --- 3. ESTILOS DINÂMICOS (Dentro do componente) ---
+  const styles = {
+    overlay: {
+      position: "fixed" as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 2000,
+      display: "flex",
+      justifyContent: "flex-end",
+    },
+    backdrop: {
+      position: "absolute" as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      cursor: "pointer",
+    },
+    drawer: {
+      position: "relative" as const,
+      width: "100%",
+      maxWidth: "400px",
+      height: "100%",
+      backgroundColor: colors.card, // Cor do Card (Branco ou Slate Escuro)
+      color: colors.text, // Texto automático
+      display: "flex",
+      flexDirection: "column" as const,
+      boxShadow: "-5px 0 15px rgba(0,0,0,0.2)",
+      animation: "slideIn 0.3s ease-out",
+    },
+    header: {
+      padding: "20px",
+      borderBottom: `1px solid ${colors.border}`,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: colors.card,
+    },
+    title: {
+      fontSize: "20px",
+      fontWeight: "bold",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      color: colors.text,
+    },
+    content: {
+      flex: 1,
+      overflowY: "auto" as const,
+      padding: "20px",
+      backgroundColor: colors.card,
+    },
+    footer: {
+      padding: "20px",
+      borderTop: `1px solid ${colors.border}`,
+      backgroundColor: colors.bg, // Levemente diferente do card para contraste
+    },
+
+    // Itens
+    cartItem: {
+      display: "flex",
+      gap: "15px",
+      paddingBottom: "15px",
+      borderBottom: `1px solid ${colors.border}`,
+    },
+    imageWrapper: {
+      width: "70px",
+      height: "70px",
+      borderRadius: "8px",
+      overflow: "hidden",
+      border: `1px solid ${colors.border}`,
+      backgroundColor: colors.bg,
+    },
+    img: { width: "100%", height: "100%", objectFit: "cover" as const },
+    placeholderImg: {
+      width: "100%",
+      height: "100%",
+      backgroundColor: colors.bg,
+      color: colors.muted,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "10px",
+    },
+
+    // Botões
+    closeBtn: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "5px",
+      color: colors.muted,
+      transition: "color 0.2s",
+    },
+    qtyControl: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      backgroundColor: colors.bg, // Fundo do controle
+      borderRadius: "6px",
+      padding: "2px",
+      border: `1px solid ${colors.border}`,
+    },
+    qtyBtn: {
+      width: "24px",
+      height: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: "none",
+      backgroundColor: colors.card, // Botão destaca do fundo do controle
+      color: colors.text,
+      borderRadius: "4px",
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    },
+    checkoutBtn: {
+      width: "100%",
+      padding: "15px",
+      backgroundColor: "#10b981", // Verde (Marca de sucesso)
+      color: "white",
+      border: "none",
+      borderRadius: "8px",
+      fontWeight: "bold",
+      fontSize: "16px",
+      cursor: "pointer",
+    },
+    secondaryBtn: {
+      marginTop: "20px",
+      padding: "10px 20px",
+      backgroundColor: "transparent",
+      border: `1px solid ${colors.border}`,
+      color: colors.text,
+      borderRadius: "6px",
+      cursor: "pointer",
+    },
+  };
+
   return (
     <div style={styles.overlay}>
-      {/* Fecha ao clicar fora */}
+      {/* Keyframes para animação */}
+      <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
+
       <div style={styles.backdrop} onClick={() => setIsCartOpen(false)} />
 
       <div style={styles.drawer}>
         <div style={styles.header}>
-          <h2
-            style={{
-              fontSize: "20px",
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
+          <h2 style={styles.title}>
             <ShoppingBag size={24} /> Seu Carrinho
           </h2>
           <button onClick={() => setIsCartOpen(false)} style={styles.closeBtn}>
@@ -46,7 +189,11 @@ export const CartDrawer = () => {
         <div style={styles.content}>
           {items.length === 0 ? (
             <div
-              style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}
+              style={{
+                textAlign: "center",
+                padding: "40px",
+                color: colors.muted,
+              }}
             >
               <ShoppingBag
                 size={48}
@@ -68,7 +215,11 @@ export const CartDrawer = () => {
                 <div key={`${item.id}-${idx}`} style={styles.cartItem}>
                   <div style={styles.imageWrapper}>
                     {item.image ? (
-                      <img src={item.image} style={styles.img} />
+                      <img
+                        src={item.image}
+                        style={styles.img}
+                        alt={item.name}
+                      />
                     ) : (
                       <div style={styles.placeholderImg}>IMG</div>
                     )}
@@ -80,6 +231,7 @@ export const CartDrawer = () => {
                         fontSize: "14px",
                         fontWeight: "600",
                         marginBottom: "4px",
+                        color: colors.text,
                       }}
                     >
                       {item.name}
@@ -87,7 +239,7 @@ export const CartDrawer = () => {
                     <div
                       style={{
                         fontSize: "12px",
-                        color: "#64748b",
+                        color: colors.muted,
                         marginBottom: "8px",
                       }}
                     >
@@ -125,7 +277,14 @@ export const CartDrawer = () => {
                       >
                         <Minus size={14} />
                       </button>
-                      <span style={{ fontSize: "13px", fontWeight: "bold" }}>
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "bold",
+                          color: colors.text,
+                          padding: "0 5px",
+                        }}
+                      >
                         {item.quantity}
                       </span>
                       <button
@@ -151,6 +310,7 @@ export const CartDrawer = () => {
                 marginBottom: "15px",
                 fontWeight: "bold",
                 fontSize: "18px",
+                color: colors.text,
               }}
             >
               <span>Total</span>
@@ -164,120 +324,4 @@ export const CartDrawer = () => {
       </div>
     </div>
   );
-};
-
-const styles: { [key: string]: React.CSSProperties } = {
-  overlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 2000,
-    display: "flex",
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  drawer: {
-    position: "relative",
-    width: "100%",
-    maxWidth: "400px",
-    height: "100%",
-    backgroundColor: "white",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "-5px 0 15px rgba(0,0,0,0.1)",
-    animation: "slideIn 0.3s ease-out",
-  },
-  header: {
-    padding: "20px",
-    borderBottom: "1px solid #e2e8f0",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  content: { flex: 1, overflowY: "auto", padding: "20px" },
-  footer: {
-    padding: "20px",
-    borderTop: "1px solid #e2e8f0",
-    backgroundColor: "#f8fafc",
-  },
-
-  cartItem: {
-    display: "flex",
-    gap: "15px",
-    paddingBottom: "15px",
-    borderBottom: "1px solid #f1f5f9",
-  },
-  imageWrapper: {
-    width: "70px",
-    height: "70px",
-    borderRadius: "8px",
-    overflow: "hidden",
-    border: "1px solid #e2e8f0",
-  },
-  img: { width: "100%", height: "100%", objectFit: "cover" },
-  placeholderImg: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#eee",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "10px",
-  },
-
-  closeBtn: {
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: "5px",
-  },
-  qtyControl: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    backgroundColor: "#f1f5f9",
-    borderRadius: "6px",
-    padding: "2px",
-  },
-  qtyBtn: {
-    width: "24px",
-    height: "24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: "none",
-    backgroundColor: "white",
-    borderRadius: "4px",
-    cursor: "pointer",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-  },
-
-  checkoutBtn: {
-    width: "100%",
-    padding: "15px",
-    backgroundColor: "#10b981",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "bold",
-    fontSize: "16px",
-    cursor: "pointer",
-  },
-  secondaryBtn: {
-    marginTop: "20px",
-    padding: "10px 20px",
-    backgroundColor: "transparent",
-    border: "1px solid #cbd5e1",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
 };

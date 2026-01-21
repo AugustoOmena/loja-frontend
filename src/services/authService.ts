@@ -61,6 +61,15 @@ export const authService = {
     const { data } = await supabase.auth.getSession();
     return data.session;
   },
+
+  async sendPasswordReset(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Onde o usuário vai cair após clicar no email para trocar a senha
+      // Geralmente é uma rota '/redefinir-senha' ou a própria home com um modal
+      redirectTo: `${window.location.origin}/minha-conta/dados`, 
+    });
+    if (error) throw error;
+  },
   
   // Expõe a instância supabase para casos de uso direto em componentes
   supabase 
