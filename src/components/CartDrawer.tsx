@@ -14,7 +14,7 @@ export const CartDrawer = () => {
   } = useCart();
 
   const navigate = useNavigate();
-  const { colors, theme } = useTheme(); // <--- 2. Hook
+  const { colors } = useTheme(); // <--- 2. Hook
 
   if (!isCartOpen) return null;
 
