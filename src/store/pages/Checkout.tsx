@@ -263,7 +263,13 @@ export const Checkout = () => {
         payment_method_id: finalPaymentMethodId,
         installments: Number(formData.installments) || 1,
         issuer_id: formData.issuer,
-        payer: { email: formData.email },
+        payer: {
+          email: formData.email,
+          identification: {
+            type: formData.docType,
+            number: formData.docNumber,
+          },
+        },
         user_id: user.id,
         items: items.map((item) => ({
           id: item.id,
