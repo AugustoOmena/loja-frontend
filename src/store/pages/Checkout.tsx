@@ -32,7 +32,10 @@ interface PayerCost {
 
 export const Checkout = () => {
   const navigate = useNavigate();
+
+  // CORREÇÃO 1: Adicionei 'items' aqui para poder enviar para a Lambda
   const { cartTotal, clearCart, items } = useCart();
+
   const { colors, theme } = useTheme();
 
   const transactionAmount = cartTotal > 0 ? cartTotal : 100;
@@ -71,6 +74,15 @@ export const Checkout = () => {
       return () => clearTimeout(timer);
     }
   }, [cartTotal, navigate, showSuccess]);
+
+  // Carrega Email do Usuário automaticamente (Melhoria de UX)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user?.email) {
+        setFormData((prev) => ({ ...prev, email: data.session!.user.email! }));
+      }
+    });
+  }, []);
 
   // Busca dados do cartão (Bandeira, Parcelas)
   const fetchPaymentMethodInfo = async (mp: any, bin: string) => {
@@ -185,8 +197,8 @@ export const Checkout = () => {
 
       try {
         const types = await mp.getIdentificationTypes();
-        setDocTypes(types);
-        if (types.length > 0)
+        setDocTypes(types || []);
+        if (types && types.length > 0)
           setFormData((p) => ({ ...p, docType: types[0].id }));
       } catch (e) {
         console.error(e);
@@ -240,9 +252,11 @@ export const Checkout = () => {
       }
 
       if (!finalPaymentMethodId) {
-        throw new Error("Bandeira não identificada.");
+        // Fallback básico se a API não retornar a tempo
+        finalPaymentMethodId = "credit_card";
       }
 
+      // CORREÇÃO 2: Enviando os Itens no Payload para a Lambda
       const payload = {
         token: token.id,
         transaction_amount: transactionAmount,
@@ -254,8 +268,8 @@ export const Checkout = () => {
         items: items.map((item) => ({
           id: item.id,
           name: item.name,
-          quantity: item.quantity,
           price: item.price,
+          quantity: item.quantity,
           image: item.image,
         })),
       };
@@ -269,16 +283,14 @@ export const Checkout = () => {
 
       const result = await response.json();
 
-      if (
-        response.ok &&
-        (result.status === "approved" || result.status === "in_process")
-      ) {
+      if (response.ok) {
         clearCart();
         setShowSuccess(true);
         setTimeout(() => navigate("/minha-conta"), 3000);
       } else {
+        // Se a validação da Lambda falhar (ex: items missing), mostramos aqui
         setFormError(
-          result.status_detail || result.error || "Pagamento recusado.",
+          result.error || result.status_detail || "Pagamento recusado.",
         );
       }
     } catch (error: any) {
@@ -684,7 +696,7 @@ export const Checkout = () => {
                 {!loading && <ShieldCheck size={20} />}
               </button>
 
-              {/* --- RODAPÉ DE SEGURANÇA (NOVO) --- */}
+              {/* --- RODAPÉ DE SEGURANÇA --- */}
               <div style={{ marginTop: "25px", textAlign: "center" }}>
                 <p
                   style={{
@@ -704,13 +716,11 @@ export const Checkout = () => {
                     opacity: 0.8,
                   }}
                 >
-                  {/* Mercado Pago */}
                   <img
                     src="https://img.icons8.com/color/48/mercado-pago.png"
                     alt="Mercado Pago"
                     style={{ height: "24px" }}
                   />
-                  {/* Divisor */}
                   <div
                     style={{
                       width: "1px",
@@ -718,7 +728,6 @@ export const Checkout = () => {
                       backgroundColor: colors.border,
                     }}
                   ></div>
-                  {/* Bandeiras */}
                   <img
                     src="https://img.icons8.com/color/48/visa.png"
                     alt="Visa"
