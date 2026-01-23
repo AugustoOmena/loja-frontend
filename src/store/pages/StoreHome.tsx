@@ -86,9 +86,8 @@ export const StoreHome = () => {
         });
       },
       initialPageParam: 1,
-      getNextPageParam: (lastPage, allPages) => {
-        const currentCount = lastPage.data.length;
-        return currentCount < 10 ? undefined : allPages.length + 1;
+      getNextPageParam: (lastPage) => {
+        return lastPage.meta.nextPage;
       },
     });
 

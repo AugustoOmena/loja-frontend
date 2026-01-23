@@ -13,6 +13,8 @@ import {
   ArrowUpDown,
   Image as ImageIcon,
   Loader2,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { productService } from "../../services/productService";
 import { uploadService } from "../../services/uploadService";
@@ -59,20 +61,30 @@ export const Products = () => {
   });
 
   const products = data?.data || [];
-  const totalCount = data?.count || 0;
+  const totalCount = data?.meta?.total || 0;
   const totalPages = Math.ceil(totalCount / pagination.limit);
 
-  // Estados do Modal
+  // --- ESTADOS DO MODAL ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Estado para controlar se tem variação (P, M, G) ou estoque único
+  const [hasVariations, setHasVariations] = useState(false);
+
+  // Estado para gerenciar os inputs de estoque
+  const [stockInputs, setStockInputs] = useState<{ [key: string]: number }>({
+    Único: 0,
+    P: 0,
+    M: 0,
+    G: 0,
+    GG: 0,
+  });
 
   const initialFormState = {
     name: "",
     description: "",
     price: "",
-    size: "",
-    quantity: "0",
     category: "",
     images: [] as string[],
   };
@@ -105,14 +117,33 @@ export const Products = () => {
         name: product.name,
         description: product.description || "",
         price: product.price.toString(),
-        size: product.size || "",
-        quantity: (product.quantity || 0).toString(),
         category: product.category || "",
         images: product.images || [],
       });
+
+      // Lógica para popular o estoque existente
+      const existingStock = product.stock || {}; // Supondo que o tipo Product já tenha stock?: Record<string, number>
+
+      // Verifica se tem chaves de tamanho para decidir se ativa o modo variação
+      const hasSizeKeys = Object.keys(existingStock).some((k) =>
+        ["P", "M", "G", "GG"].includes(k),
+      );
+      setHasVariations(hasSizeKeys);
+
+      setStockInputs({
+        Único:
+          existingStock["Único"] || (hasSizeKeys ? 0 : product.quantity) || 0,
+        P: existingStock["P"] || 0,
+        M: existingStock["M"] || 0,
+        G: existingStock["G"] || 0,
+        GG: existingStock["GG"] || 0,
+      });
     } else {
+      // Novo Produto
       setCurrentProduct(null);
       setFormData(initialFormState);
+      setHasVariations(false); // Padrão: Sem variação
+      setStockInputs({ Único: 0, P: 0, M: 0, G: 0, GG: 0 });
     }
     setIsModalOpen(true);
   };
@@ -134,7 +165,6 @@ export const Products = () => {
     }
   };
 
-  // Lógica de remover imagem preservada
   const handleRemoveImage = (index: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -144,15 +174,35 @@ export const Products = () => {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Monta o objeto stock baseado no modo (Com ou Sem variação)
+    let finalStock: { [key: string]: number } = {};
+
+    if (hasVariations) {
+      // Filtra apenas os tamanhos que têm quantidade > 0 ou salva todos zerados
+      finalStock = {
+        P: Number(stockInputs["P"]) || 0,
+        M: Number(stockInputs["M"]) || 0,
+        G: Number(stockInputs["G"]) || 0,
+        GG: Number(stockInputs["GG"]) || 0,
+      };
+    } else {
+      finalStock = {
+        Único: Number(stockInputs["Único"]) || 0,
+      };
+    }
+
     const payload = {
       name: formData.name,
       description: formData.description,
       price: parseFloat(formData.price),
-      size: formData.size || null,
-      quantity: parseInt(formData.quantity) || 0,
       category: formData.category,
       images: formData.images,
+      stock: finalStock, // Enviamos o JSON pronto
+      // O quantity total o Backend calcula, mas podemos mandar pra garantir
+      quantity: Object.values(finalStock).reduce((a, b) => a + b, 0),
     };
+
     saveMutation.mutate(payload);
   };
 
@@ -160,12 +210,44 @@ export const Products = () => {
     if (confirm("Excluir este produto?")) deleteMutation.mutate(id);
   };
 
-  const handleExportExcel = () => {
-    alert("Funcionalidade Excel (copiar do anterior se necessário)");
+  const handleExportExcel = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL;
+      const btn = document.activeElement as HTMLButtonElement;
+      if (btn) btn.disabled = true;
+
+      const response = await fetch(`${API_URL}/produtos/exportar`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erro ao exportar CSV");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "produtos.csv";
+      document.body.appendChild(a);
+      a.click();
+
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      if (btn) btn.disabled = false;
+    } catch (error) {
+      console.error(error);
+      alert("Falha ao baixar relatório.");
+      const btn = document.activeElement as HTMLButtonElement;
+      if (btn) btn.disabled = false;
+    }
   };
 
-  // --- 3. ESTILOS DINÂMICOS ---
+  // --- ESTILOS ---
   const styles = {
+    // ... Mantive seus estilos anteriores ...
     container: {
       padding: "20px",
       maxWidth: "1200px",
@@ -178,12 +260,7 @@ export const Products = () => {
       alignItems: "center",
       marginBottom: "25px",
     },
-    title: {
-      fontSize: "24px",
-      fontWeight: "bold",
-      color: colors.text,
-    },
-    // Botões
+    title: { fontSize: "24px", fontWeight: "bold", color: colors.text },
     primaryButton: {
       display: "flex",
       alignItems: "center",
@@ -220,7 +297,6 @@ export const Products = () => {
       cursor: "pointer",
       color: colors.muted,
     },
-    // Filtros
     filterContainer: {
       marginBottom: "20px",
       backgroundColor: colors.card,
@@ -278,7 +354,6 @@ export const Products = () => {
       backgroundColor: theme === "dark" ? "#0f172a" : "white",
       color: colors.text,
     },
-    // Tabela
     tableContainer: {
       backgroundColor: colors.card,
       borderRadius: "8px",
@@ -322,7 +397,6 @@ export const Products = () => {
       justifyContent: "flex-end",
       gap: "10px",
     },
-    // Paginação
     pagination: {
       display: "flex",
       justifyContent: "space-between",
@@ -353,7 +427,6 @@ export const Products = () => {
       cursor: "not-allowed",
       color: colors.muted,
     },
-    // Modal
     modalOverlay: {
       position: "fixed" as const,
       top: 0,
@@ -453,6 +526,20 @@ export const Products = () => {
       justifyContent: "center",
       boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
     },
+    // NOVO: Estilo do Toggle
+    toggleContainer: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      cursor: "pointer",
+      marginBottom: "10px",
+    },
+    stockGrid: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "10px",
+      marginTop: "5px",
+    },
   };
 
   if (isError)
@@ -491,7 +578,6 @@ export const Products = () => {
               style={styles.searchInput}
             />
           </div>
-
           <div style={styles.inputGroupRow}>
             <input
               placeholder="Min"
@@ -566,7 +652,7 @@ export const Products = () => {
             <tr style={styles.tableHeadRow}>
               <th style={styles.th}>Produto</th>
               <th style={styles.th}>Preço</th>
-              <th style={styles.th}>Qtd.</th>
+              <th style={styles.th}>Qtd. Total</th>
               <th style={styles.th}>Img</th>
               <th style={styles.thAction}>Ações</th>
             </tr>
@@ -588,8 +674,7 @@ export const Products = () => {
                   <td style={styles.td}>
                     <div style={{ fontWeight: "bold" }}>{product.name}</div>
                     <div style={{ fontSize: "12px", color: colors.muted }}>
-                      {product.category || "Sem categoria"} •{" "}
-                      {product.size || "-"}
+                      {product.category || "Sem categoria"}
                     </div>
                   </td>
                   <td style={styles.td}>R$ {product.price.toFixed(2)}</td>
@@ -714,7 +799,6 @@ export const Products = () => {
                 />
               </div>
 
-              {/* CATEGORIA PRESERVADA */}
               <div style={styles.formGroup}>
                 <label style={styles.label}>Categoria</label>
                 <select
@@ -728,10 +812,95 @@ export const Products = () => {
                   <option value="biquinis">Biquínis</option>
                   <option value="saidas">Saídas de Praia</option>
                   <option value="acessorios">Acessórios</option>
+                  <option value="promocao">Promoção</option>
                 </select>
               </div>
 
-              {/* UPLOAD COM BOTÃO DE REMOVER */}
+              {/* --- GESTÃO DE ESTOQUE ATUALIZADA --- */}
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Estoque e Grade</label>
+
+                {/* Toggle Simples */}
+                <div
+                  onClick={() => setHasVariations(!hasVariations)}
+                  style={styles.toggleContainer}
+                >
+                  {hasVariations ? (
+                    <CheckSquare size={18} color="#ff4747" />
+                  ) : (
+                    <Square size={18} color={colors.muted} />
+                  )}
+                  <span style={{ fontSize: "14px", color: colors.text }}>
+                    Produto tem variação de tamanho? (P, M, G...)
+                  </span>
+                </div>
+
+                {hasVariations ? (
+                  <div style={styles.stockGrid}>
+                    {["P", "M", "G", "GG"].map((size) => (
+                      <div
+                        key={size}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: "30px",
+                            fontWeight: "bold",
+                            fontSize: "14px",
+                            color: colors.muted,
+                          }}
+                        >
+                          {size}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={stockInputs[size] || ""}
+                          onChange={(e) =>
+                            setStockInputs({
+                              ...stockInputs,
+                              [size]: Number(e.target.value),
+                            })
+                          }
+                          style={styles.input}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Quantidade Total"
+                      value={stockInputs["Único"] || ""}
+                      onChange={(e) =>
+                        setStockInputs({
+                          ...stockInputs,
+                          Único: Number(e.target.value),
+                        })
+                      }
+                      style={styles.input}
+                    />
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: colors.muted,
+                        marginTop: "4px",
+                        display: "block",
+                      }}
+                    >
+                      Quantidade para produto tamanho único.
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div style={styles.formGroup}>
                 <label style={styles.label}>Imagens</label>
                 <div style={{ marginBottom: "10px" }}>
@@ -785,48 +954,18 @@ export const Products = () => {
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: "15px" }}>
-                <div style={{ ...styles.formGroup, flex: 1 }}>
-                  <label style={styles.label}>Preço</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
-                    }
-                    style={styles.input}
-                  />
-                </div>
-                <div style={{ ...styles.formGroup, width: "80px" }}>
-                  <label style={styles.label}>Qtd.</label>
-                  <input
-                    required
-                    type="number"
-                    value={formData.quantity}
-                    onChange={(e) =>
-                      setFormData({ ...formData, quantity: e.target.value })
-                    }
-                    style={styles.input}
-                  />
-                </div>
-                <div style={{ ...styles.formGroup, width: "80px" }}>
-                  <label style={styles.label}>Tam.</label>
-                  <select
-                    value={formData.size}
-                    onChange={(e) =>
-                      setFormData({ ...formData, size: e.target.value })
-                    }
-                    style={styles.input}
-                  >
-                    <option value="">-</option>
-                    <option value="P">P</option>
-                    <option value="M">M</option>
-                    <option value="G">G</option>
-                    <option value="GG">GG</option>
-                  </select>
-                </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Preço</label>
+                <input
+                  required
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: e.target.value })
+                  }
+                  style={styles.input}
+                />
               </div>
 
               <div style={styles.modalFooter}>

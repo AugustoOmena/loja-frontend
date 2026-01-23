@@ -216,6 +216,8 @@ export const Checkout = () => {
     setFormError("");
     setLoading(true);
 
+    const cleanDoc = formData.docNumber.replace(/\D/g, "");
+
     try {
       const {
         data: { session },
@@ -229,14 +231,14 @@ export const Checkout = () => {
 
       const user = session.user;
 
-      if (!formData.email || !formData.docNumber || !formData.cardholderName) {
+      if (!formData.email || !cleanDoc || !formData.cardholderName) {
         throw new Error("Preencha todos os campos.");
       }
 
       const token = await mpRef.current.fields.createCardToken({
         cardholderName: formData.cardholderName,
         identificationType: formData.docType,
-        identificationNumber: formData.docNumber,
+        identificationNumber: cleanDoc,
       });
 
       let finalPaymentMethodId = paymentMethodId;
@@ -267,7 +269,7 @@ export const Checkout = () => {
           email: formData.email,
           identification: {
             type: formData.docType,
-            number: formData.docNumber,
+            number: cleanDoc,
           },
         },
         user_id: user.id,

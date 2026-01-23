@@ -37,13 +37,16 @@ export const productService = {
     return response.json();
   },
 
-  delete: async (id: number) => {
-    const response = await fetch(`${API_URL}/produtos`, {
+delete: async (id: number) => {
+    const response = await fetch(`${API_URL}/produtos/${id}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
     });
+
     if (!response.ok) throw new Error('Erro ao deletar produto');
+    
+    if (response.status === 204) return null;
+
     return response.json();
   },
 
@@ -71,18 +74,19 @@ export const productService = {
     if (!response.ok) throw new Error('Erro ao buscar produtos');
     return response.json();
   },
-  getById: async (id: number): Promise<Product | null> => {
-    const response = await fetch(`${API_URL}/produtos?id=${id}`);
-    if (!response.ok) throw new Error('Erro ao buscar produto');
-    
-    const json = await response.json();
-    
-    // A API sempre retorna uma lista "data": [ ... ]. 
-    // Se tiver algo, retornamos o primeiro item (índice 0).
-    if (json.data && json.data.length > 0) {
-      return json.data[0];
+  getById: async (id: number): Promise<Product> => {
+    // Erro comum: esquecer de colocar /${id} no final
+    const response = await fetch(`${API_URL}/produtos/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Erro ao buscar produto");
     }
-    
-    return null;
+
+    return response.json();
   },
 };
