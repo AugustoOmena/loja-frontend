@@ -55,6 +55,7 @@ export const StoreHome = () => {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
+  // Lógica centralizada: Se tiver user vai pro perfil, senão vai pro login
   const handleProfileClick = () => {
     if (user) navigate("/minha-conta");
     else navigate("/login");
@@ -640,7 +641,8 @@ export const StoreHome = () => {
         </main>
       </div>
 
-      <MobileBottomNav />
+      {/* --- CORREÇÃO AQUI: Passando a função que contém a lógica de login/perfil --- */}
+      <MobileBottomNav onProfileClick={handleProfileClick} />
     </div>
   );
 };

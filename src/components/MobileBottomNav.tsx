@@ -1,20 +1,29 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Grid, ShoppingCart, User } from "lucide-react";
-import { useTheme } from "../contexts/ThemeContext";
+import { Home, ShoppingCart, User, Search } from "lucide-react";
 import { useCart } from "../contexts/CartContext";
+import { useTheme } from "../contexts/ThemeContext";
 
-export const MobileBottomNav = () => {
+// 1. Definimos a interface para aceitar a prop
+interface MobileBottomNavProps {
+  onProfileClick?: () => void;
+}
+
+// 2. Recebemos a prop no componente
+export const MobileBottomNav = ({ onProfileClick }: MobileBottomNavProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { colors, theme } = useTheme();
-  const { cartCount, setIsCartOpen } = useCart();
+  const { setIsCartOpen, cartCount } = useCart();
+  const { colors } = useTheme();
 
-  const isActive = (path: string) => location.pathname === path;
-
-  // Cores dinâmicas baseadas no tema e estado ativo
-  const getColor = (path: string) => {
-    const activeColor = theme === "dark" ? "#6366f1" : "#0f172a"; // Indigo ou Slate Dark
-    return isActive(path) ? activeColor : colors.muted;
+  // Função auxiliar para lidar com o clique no perfil
+  const handleUserClick = () => {
+    if (onProfileClick) {
+      // Se a função foi passada pelo pai (StoreHome), usa ela (que tem a lógica de login)
+      onProfileClick();
+    } else {
+      // Fallback: tenta ir direto para conta se não tiver função passada
+      navigate("/minha-conta");
+    }
   };
 
   const styles = {
@@ -22,99 +31,99 @@ export const MobileBottomNav = () => {
       position: "fixed" as const,
       bottom: 0,
       left: 0,
-      width: "100%",
-      height: "65px",
+      right: 0,
       backgroundColor: colors.card,
       borderTop: `1px solid ${colors.border}`,
       display: "flex",
       justifyContent: "space-around",
       alignItems: "center",
-      zIndex: 50,
-      boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
+      padding: "10px 0",
+      zIndex: 1000,
+      height: "60px",
+      // Esconde em telas grandes (acima de 768px)
+      "@media (min-width: 768px)": {
+        display: "none",
+      },
     },
-    button: {
-      background: "none",
-      border: "none",
+    button: (isActive: boolean) => ({
       display: "flex",
       flexDirection: "column" as const,
       alignItems: "center",
       justifyContent: "center",
-      gap: "4px",
-      flex: 1,
-      height: "100%",
-      cursor: "pointer",
-      position: "relative" as const,
-    },
-    label: {
+      background: "none",
+      border: "none",
+      color: isActive ? "#ff4747" : colors.muted,
       fontSize: "10px",
-      fontWeight: 500,
-    },
-    badge: {
+      gap: "4px",
+      cursor: "pointer",
+      flex: 1,
+    }),
+    cartBadge: {
       position: "absolute" as const,
-      top: "6px",
-      right: "25%",
-      backgroundColor: "#ef4444",
+      top: "-5px",
+      right: "-5px",
+      backgroundColor: "#ff4747",
       color: "white",
       fontSize: "10px",
       fontWeight: "bold",
-      minWidth: "16px",
+      width: "16px",
       height: "16px",
-      borderRadius: "8px",
+      borderRadius: "50%",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      border: `2px solid ${colors.card}`,
     },
   };
 
   return (
     <>
-      {/* CSS para esconder no Desktop (min-width: 768px) */}
+      {/* CSS Inline para garantir que suma no desktop */}
       <style>{`
         .mobile-nav-container { display: flex; }
-        @media (min-width: 768px) {
-          .mobile-nav-container { display: none !important; }
-        }
+        @media (min-width: 768px) { .mobile-nav-container { display: none !important; } }
       `}</style>
 
       <div style={styles.nav} className="mobile-nav-container">
-        {/* 1. INÍCIO */}
-        <button style={styles.button} onClick={() => navigate("/")}>
-          <Home
-            size={22}
-            color={getColor("/")}
-            strokeWidth={isActive("/") ? 2.5 : 2}
-          />
-          <span style={{ ...styles.label, color: getColor("/") }}>Início</span>
+        {/* HOME */}
+        <button
+          onClick={() => navigate("/")}
+          style={styles.button(location.pathname === "/")}
+        >
+          <Home size={22} />
+          <span>Início</span>
         </button>
 
-        {/* 2. CATEGORIAS (Placeholder por enquanto) */}
-        <button style={styles.button} onClick={() => navigate("/")}>
-          <Grid size={22} color={getColor("/categorias")} />
-          <span style={{ ...styles.label, color: getColor("/categorias") }}>
-            Categorias
-          </span>
+        {/* BUSCA (foca no topo se estiver na home) */}
+        <button
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            // Se quiser focar num input específico, pode usar document.getElementById('search').focus()
+          }}
+          style={styles.button(false)}
+        >
+          <Search size={22} />
+          <span>Buscar</span>
         </button>
 
-        {/* 3. CARRINHO */}
-        <button style={styles.button} onClick={() => setIsCartOpen(true)}>
+        {/* CARRINHO */}
+        <button
+          onClick={() => setIsCartOpen(true)}
+          style={{ ...styles.button(false), position: "relative" }}
+        >
           <div style={{ position: "relative" }}>
-            <ShoppingCart size={22} color={colors.muted} />
-            {cartCount > 0 && <span style={styles.badge}>{cartCount}</span>}
+            <ShoppingCart size={22} />
+            {cartCount > 0 && <span style={styles.cartBadge}>{cartCount}</span>}
           </div>
-          <span style={{ ...styles.label, color: colors.muted }}>Carrinho</span>
+          <span>Cesta</span>
         </button>
 
-        {/* 4. CONTA */}
-        <button style={styles.button} onClick={() => navigate("/minha-conta")}>
-          <User
-            size={22}
-            color={getColor("/minha-conta")}
-            strokeWidth={isActive("/minha-conta") ? 2.5 : 2}
-          />
-          <span style={{ ...styles.label, color: getColor("/minha-conta") }}>
-            Conta
-          </span>
+        {/* PERFIL (Usa a nova lógica) */}
+        <button
+          onClick={handleUserClick}
+          style={styles.button(location.pathname === "/minha-conta")}
+        >
+          <User size={22} />
+          <span>Perfil</span>
         </button>
       </div>
     </>
