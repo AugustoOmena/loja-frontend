@@ -22,6 +22,8 @@ import { StoreHome } from "./store/pages/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
 import { Login } from "./pages/Login";
 import { Checkout } from "./store/pages/Checkout";
+import { PixBoletoCheckout } from "./store/pages/PixBoletoCheckout";
+import { CreditCardCheckout } from "./store/pages/CreditCardCheckout";
 
 // --- NOVAS PÁGINAS DA ÁREA DO CLIENTE (QUE CRIAMOS AGORA) ---
 import { Profile } from "./store/pages/client/Profile"; // A nova tela "Minha Conta"
@@ -62,6 +64,11 @@ function App() {
               {/* Checkout e Callback */}
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/auth/callback" element={<Navigate to="/" />} />
+              <Route
+                path="/checkout/pix-boleto"
+                element={<PixBoletoCheckout />}
+              />
+              <Route path="/checkout/credit" element={<CreditCardCheckout />} />
 
               {/* Telas Internas do Cliente (Sub-telas do Minha Conta) */}
               {/* O :type captura 'pagamento', 'envio', etc. */}
