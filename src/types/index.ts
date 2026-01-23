@@ -7,15 +7,20 @@ export interface Product {
   category: string;
   images: string[];
   quantity: number;
+  stock?: Record<string, number>;
   created_at?: string;
 }
 
 // Resposta paginada da API
 export interface PaginatedResponse<T> {
   data: T[];
-  count: number;
+  // Some APIs return `count`, others return `meta.total` — support both
+  count?: number;
   page: number;
   limit: number;
+  meta?: {
+    total: number;
+  };
 }
 
 // Filtros que enviaremos para a API
