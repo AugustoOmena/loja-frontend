@@ -10,11 +10,13 @@ import {
   MapPin,
   User,
   ArrowLeft,
+  Copy,
+  Download,
 } from "lucide-react";
 import { useTheme } from "../../contexts/ThemeContext";
 
 // --- MODAL DE SUCESSO ---
-const SuccessModal = ({ data, onClose, colors }: any) => {
+const SuccessModal = ({ data, onClose, colors, theme }: any) => {
   const isPix = data.payment_method_id === "pix";
 
   const handleCopyPix = () => {
@@ -30,7 +32,8 @@ const SuccessModal = ({ data, onClose, colors }: any) => {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.9)",
+        backgroundColor: "rgba(0,0,0,0.85)", // Um pouco mais transparente para modernidade
+        backdropFilter: "blur(5px)", // Efeito de desfoque no fundo
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -42,12 +45,13 @@ const SuccessModal = ({ data, onClose, colors }: any) => {
         style={{
           backgroundColor: colors.card,
           padding: "30px",
-          borderRadius: "12px",
+          borderRadius: "16px",
           width: "100%",
-          maxWidth: "500px",
+          maxWidth: "480px",
           textAlign: "center",
           color: colors.text,
           border: `1px solid ${colors.border}`,
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
         }}
       >
         <div
@@ -57,87 +61,119 @@ const SuccessModal = ({ data, onClose, colors }: any) => {
             justifyContent: "center",
           }}
         >
-          <CheckCircle size={60} color="#10b981" />
+          <CheckCircle
+            size={64}
+            color="#10b981"
+            fill={theme === "dark" ? "rgba(16, 185, 129, 0.2)" : "transparent"}
+          />
         </div>
         <h2
-          style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "10px" }}
+          style={{ fontSize: "24px", fontWeight: "800", marginBottom: "10px" }}
         >
-          {isPix ? "Pix Gerado!" : "Boleto Gerado!"}
+          {isPix ? "Pix Gerado!" : "Boleto Emitido!"}
         </h2>
 
         {isPix ? (
           <div style={{ marginTop: "20px" }}>
+            <p style={{ fontSize: 14, color: colors.muted, marginBottom: 15 }}>
+              Escaneie o QR Code ou copie o código abaixo:
+            </p>
+
             {data.qr_code_base64 && (
               <div
                 style={{
-                  background: "white",
-                  padding: "10px",
+                  background: "white", // QR Code PRECISA de fundo branco para contraste
+                  padding: "15px",
                   display: "inline-block",
-                  borderRadius: "8px",
-                  margin: "15px 0",
+                  borderRadius: "12px",
+                  marginBottom: "20px",
+                  border: "1px solid #e2e8f0",
                 }}
               >
                 <img
                   src={`data:image/png;base64,${data.qr_code_base64}`}
                   alt="QR Code"
-                  style={{ width: "200px", height: "200px" }}
+                  style={{ width: "180px", height: "180px", display: "block" }}
                 />
               </div>
             )}
-            <textarea
-              readOnly
-              value={data.qr_code}
-              style={{
-                width: "100%",
-                height: "80px",
-                fontSize: "12px",
-                padding: "10px",
-                borderRadius: "6px",
-                marginBottom: 10,
-                color: "#333",
-              }}
-            />
+
+            <div style={{ position: "relative" }}>
+              <textarea
+                readOnly
+                value={data.qr_code}
+                style={{
+                  width: "100%",
+                  height: "80px",
+                  fontSize: "12px",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  marginBottom: 10,
+                  // CORRIGIDO: Cores responsivas ao tema
+                  backgroundColor: colors.bg,
+                  color: colors.muted,
+                  border: `1px solid ${colors.border}`,
+                  resize: "none",
+                  fontFamily: "monospace",
+                }}
+              />
+            </div>
+
             <button
               onClick={handleCopyPix}
               style={{
                 width: "100%",
-                padding: "12px",
+                padding: "14px",
                 backgroundColor: "#10b981",
                 color: "white",
                 border: "none",
-                borderRadius: "6px",
+                borderRadius: "8px",
                 fontWeight: "bold",
                 cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                fontSize: 15,
               }}
             >
-              Copiar Código Pix
+              <Copy size={18} /> Copiar Código Pix
             </button>
           </div>
         ) : (
           <div style={{ marginTop: "20px" }}>
-            <p style={{ marginBottom: 15, color: colors.muted }}>
-              O boleto pode levar alguns minutos para ser registrado.
+            <p
+              style={{
+                marginBottom: 20,
+                color: colors.muted,
+                lineHeight: "1.5",
+              }}
+            >
+              O boleto foi gerado com sucesso. Ele pode levar alguns minutos
+              para ser registrado pelo banco.
             </p>
             <a
               href={data.ticket_url}
               target="_blank"
               rel="noreferrer"
               style={{
-                display: "block",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 width: "100%",
-                padding: "15px",
-                backgroundColor: "#0f172a",
+                padding: "16px",
+                // CORRIGIDO: Fundo escuro mas com borda para contraste no Dark Mode
+                backgroundColor: theme === "dark" ? "#1e293b" : "#0f172a",
+                border: theme === "dark" ? "1px solid #334155" : "none",
                 color: "white",
                 textDecoration: "none",
-                borderRadius: "6px",
+                borderRadius: "8px",
                 fontWeight: "bold",
-                textAlign: "center",
+                gap: 10,
+                fontSize: 16,
               }}
             >
-              <FileText
-                size={18}
-                style={{ verticalAlign: "middle", marginRight: 8 }}
-              />{" "}
+              <Download size={20} />
               Baixar Boleto PDF
             </a>
           </div>
@@ -146,17 +182,18 @@ const SuccessModal = ({ data, onClose, colors }: any) => {
         <button
           onClick={onClose}
           style={{
-            marginTop: "30px",
+            marginTop: "20px",
             width: "100%",
             padding: "12px",
             backgroundColor: "transparent",
-            border: `1px solid ${colors.border}`,
-            color: colors.text,
-            borderRadius: "6px",
+            border: "none",
+            color: colors.muted,
             cursor: "pointer",
+            fontWeight: "500",
+            textDecoration: "underline",
           }}
         >
-          Ir para Meus Pedidos
+          Voltar para Meus Pedidos
         </button>
       </div>
     </div>
@@ -235,7 +272,6 @@ export const PixBoletoCheckout = () => {
       if (safeItems.length === 0) throw new Error("Carrinho vazio.");
 
       const names = formData.fullName.trim().split(" ");
-
       const safeNumber = formData.number.trim() || "S/N";
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
 
@@ -294,14 +330,14 @@ export const PixBoletoCheckout = () => {
   };
 
   const styles = {
-    // NOVO: Wrapper para garantir fundo responsivo
     pageWrapper: {
       backgroundColor: colors.bg,
       minHeight: "100vh",
       width: "100%",
       display: "flex",
       justifyContent: "center",
-      alignItems: "flex-start", // Evita centralizar vertical se for muito alto
+      alignItems: "flex-start",
+      paddingTop: "20px",
     },
     container: {
       maxWidth: "600px",
@@ -314,27 +350,33 @@ export const PixBoletoCheckout = () => {
     card: {
       backgroundColor: colors.card,
       padding: "25px",
-      borderRadius: "10px",
-      boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
+      borderRadius: "12px",
+      boxShadow:
+        "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
       border: `1px solid ${colors.border}`,
       marginBottom: 20,
     },
     input: {
       width: "100%",
       padding: "12px",
-      borderRadius: "6px",
+      borderRadius: "8px",
       border: `1px solid ${colors.border}`,
+      // Fundo BG para dar contraste dentro do Card
       backgroundColor: colors.bg,
       color: colors.text,
       marginBottom: "15px",
       fontSize: "14px",
+      outline: "none",
+      transition: "border-color 0.2s",
     },
     label: {
       fontSize: "12px",
       fontWeight: "bold",
-      marginBottom: "5px",
+      marginBottom: "6px",
       display: "block",
       color: colors.muted,
+      textTransform: "uppercase" as const,
+      letterSpacing: "0.5px",
     },
     btn: {
       width: "100%",
@@ -350,33 +392,44 @@ export const PixBoletoCheckout = () => {
       justifyContent: "center",
       alignItems: "center",
       gap: 10,
+      marginTop: 10,
+      transition: "background 0.2s",
     },
-    tabRow: { display: "flex", gap: 10, marginBottom: 20 },
+    tabRow: { display: "flex", gap: 15, marginBottom: 25 },
     tab: (active: boolean) => ({
       flex: 1,
-      padding: 15,
-      borderRadius: 8,
+      padding: "15px",
+      borderRadius: "10px",
+      // Borda verde se ativo, borda padrão se inativo
       border: active ? "2px solid #10b981" : `1px solid ${colors.border}`,
+      // Fundo levemente verde se ativo, ou cor do card
       background: active
         ? theme === "dark"
-          ? "rgba(16,185,129,0.1)"
+          ? "rgba(16,185,129,0.15)"
           : "#ecfdf5"
         : colors.card,
+      // Texto verde se ativo, texto normal se inativo
+      color: active ? "#10b981" : colors.text,
       cursor: "pointer",
       textAlign: "center" as const,
       fontWeight: "bold",
+      transition: "all 0.2s ease",
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      gap: 5,
     }),
   };
 
   return (
-    // Adicionei o pageWrapper aqui
     <div style={styles.pageWrapper}>
       <div style={styles.container}>
         {successData && (
           <SuccessModal
             data={successData}
             colors={colors}
-            onClose={() => navigate("/meus-pedidos")}
+            theme={theme}
+            onClose={() => navigate("/minha-conta")}
           />
         )}
 
@@ -385,19 +438,20 @@ export const PixBoletoCheckout = () => {
           style={{
             background: "none",
             border: "none",
-            color: colors.text,
+            color: colors.muted,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             gap: 5,
             marginBottom: 20,
+            fontSize: 14,
           }}
         >
           <ArrowLeft size={18} /> Voltar
         </button>
 
-        <h1 style={{ fontSize: 24, marginBottom: 30 }}>
-          Pagamento via Pix ou Boleto
+        <h1 style={{ fontSize: 26, fontWeight: "800", marginBottom: 30 }}>
+          Pagamento
         </h1>
 
         <div style={styles.tabRow}>
@@ -407,13 +461,9 @@ export const PixBoletoCheckout = () => {
           >
             <QrCode
               size={24}
-              style={{
-                marginBottom: 5,
-                display: "block",
-                margin: "0 auto 5px",
-              }}
-            />{" "}
-            Pix
+              color={method === "pix" ? "#10b981" : colors.muted}
+            />
+            <span>Pix</span>
           </div>
           <div
             style={styles.tab(method === "boleto")}
@@ -421,13 +471,9 @@ export const PixBoletoCheckout = () => {
           >
             <FileText
               size={24}
-              style={{
-                marginBottom: 5,
-                display: "block",
-                margin: "0 auto 5px",
-              }}
-            />{" "}
-            Boleto
+              color={method === "boleto" ? "#10b981" : colors.muted}
+            />
+            <span>Boleto</span>
           </div>
         </div>
 
@@ -439,10 +485,13 @@ export const PixBoletoCheckout = () => {
                 gap: 10,
                 alignItems: "center",
                 marginBottom: 20,
-                color: colors.muted,
+                color: colors.text,
+                fontWeight: "bold",
+                paddingBottom: 15,
+                borderBottom: `1px solid ${colors.border}`,
               }}
             >
-              <User size={18} /> Dados Pessoais
+              <User size={20} color={colors.muted} /> Dados do Pagador
             </div>
 
             <label style={styles.label}>Nome Completo</label>
@@ -452,9 +501,10 @@ export const PixBoletoCheckout = () => {
               onChange={(e) =>
                 setFormData({ ...formData, fullName: e.target.value })
               }
+              placeholder="Ex: João da Silva"
             />
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 15 }}>
               <div style={{ flex: 1 }}>
                 <label style={styles.label}>CPF</label>
                 <input
@@ -474,87 +524,113 @@ export const PixBoletoCheckout = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
+                  placeholder="seu@email.com"
                 />
               </div>
             </div>
 
             {/* Endereço */}
-            <div
-              style={{
-                marginTop: 20,
-                paddingTop: 20,
-                borderTop: `1px solid ${colors.border}`,
-              }}
-            >
+            <div style={{ marginTop: 25 }}>
               <div
                 style={{
                   display: "flex",
                   gap: 10,
                   alignItems: "center",
                   marginBottom: 20,
-                  color: colors.muted,
+                  color: colors.text,
+                  fontWeight: "bold",
+                  paddingBottom: 15,
+                  borderBottom: `1px solid ${colors.border}`,
                 }}
               >
-                <MapPin size={18} /> Endereço{" "}
+                <MapPin size={20} color={colors.muted} /> Endereço{" "}
                 {method === "boleto" && (
-                  <span style={{ color: "red", fontSize: 12 }}>
-                    *Obrigatório
+                  <span
+                    style={{
+                      color: "#ef4444",
+                      fontSize: 11,
+                      fontWeight: "normal",
+                      marginLeft: "auto",
+                    }}
+                  >
+                    *Obrigatório para Boleto
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <input
-                  style={{ ...styles.input, width: 120 }}
-                  placeholder="CEP"
-                  value={formData.zipCode}
-                  onChange={(e) =>
-                    setFormData({ ...formData, zipCode: e.target.value })
-                  }
-                />
-                <input
-                  style={{ ...styles.input, flex: 1 }}
-                  placeholder="Rua"
-                  value={formData.street}
-                  onChange={(e) =>
-                    setFormData({ ...formData, street: e.target.value })
-                  }
-                />
+
+              <div style={{ display: "flex", gap: 15 }}>
+                <div style={{ width: "35%" }}>
+                  <label style={styles.label}>CEP</label>
+                  <input
+                    style={styles.input}
+                    placeholder="00000-000"
+                    value={formData.zipCode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, zipCode: e.target.value })
+                    }
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Rua</label>
+                  <input
+                    style={styles.input}
+                    placeholder="Nome da Rua"
+                    value={formData.street}
+                    onChange={(e) =>
+                      setFormData({ ...formData, street: e.target.value })
+                    }
+                  />
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <input
-                  style={{ ...styles.input, width: 80 }}
-                  placeholder="Nº (ou S/N)"
-                  value={formData.number}
-                  onChange={(e) =>
-                    setFormData({ ...formData, number: e.target.value })
-                  }
-                />
-                <input
-                  style={{ ...styles.input, flex: 1 }}
-                  placeholder="Bairro"
-                  value={formData.neighborhood}
-                  onChange={(e) =>
-                    setFormData({ ...formData, neighborhood: e.target.value })
-                  }
-                />
+
+              <div style={{ display: "flex", gap: 15 }}>
+                <div style={{ width: "25%" }}>
+                  <label style={styles.label}>Número</label>
+                  <input
+                    style={styles.input}
+                    placeholder="Nº"
+                    value={formData.number}
+                    onChange={(e) =>
+                      setFormData({ ...formData, number: e.target.value })
+                    }
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Bairro</label>
+                  <input
+                    style={styles.input}
+                    placeholder="Bairro"
+                    value={formData.neighborhood}
+                    onChange={(e) =>
+                      setFormData({ ...formData, neighborhood: e.target.value })
+                    }
+                  />
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <input
-                  style={{ ...styles.input, flex: 1 }}
-                  placeholder="Cidade"
-                  value={formData.city}
-                  onChange={(e) =>
-                    setFormData({ ...formData, city: e.target.value })
-                  }
-                />
-                <input
-                  style={{ ...styles.input, width: 60 }}
-                  placeholder="UF"
-                  value={formData.state}
-                  onChange={(e) =>
-                    setFormData({ ...formData, state: e.target.value })
-                  }
-                />
+
+              <div style={{ display: "flex", gap: 15 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Cidade</label>
+                  <input
+                    style={styles.input}
+                    placeholder="Cidade"
+                    value={formData.city}
+                    onChange={(e) =>
+                      setFormData({ ...formData, city: e.target.value })
+                    }
+                  />
+                </div>
+                <div style={{ width: "20%" }}>
+                  <label style={styles.label}>UF</label>
+                  <input
+                    style={styles.input}
+                    placeholder="UF"
+                    value={formData.state}
+                    onChange={(e) =>
+                      setFormData({ ...formData, state: e.target.value })
+                    }
+                  />
+                </div>
               </div>
             </div>
 
@@ -565,11 +641,11 @@ export const PixBoletoCheckout = () => {
                 borderTop: `1px solid ${colors.border}`,
                 display: "flex",
                 justifyContent: "space-between",
-                fontSize: 18,
-                fontWeight: "bold",
+                fontSize: 20,
+                fontWeight: "800",
               }}
             >
-              <span>Total:</span>
+              <span>Total a pagar</span>
               <span style={{ color: "#10b981" }}>
                 R$ {cartTotal.toFixed(2)}
               </span>

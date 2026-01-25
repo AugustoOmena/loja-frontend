@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, ShoppingCart, User, Search } from "lucide-react";
+import { Home, ShoppingCart, User } from "lucide-react";
 import { useCart } from "../contexts/CartContext";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -91,18 +91,6 @@ export const MobileBottomNav = ({ onProfileClick }: MobileBottomNavProps) => {
         >
           <Home size={22} />
           <span>Início</span>
-        </button>
-
-        {/* BUSCA (foca no topo se estiver na home) */}
-        <button
-          onClick={() => {
-            window.scrollTo({ top: 0, behavior: "smooth" });
-            // Se quiser focar num input específico, pode usar document.getElementById('search').focus()
-          }}
-          style={styles.button(false)}
-        >
-          <Search size={22} />
-          <span>Buscar</span>
         </button>
 
         {/* CARRINHO */}

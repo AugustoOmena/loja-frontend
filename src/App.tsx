@@ -5,19 +5,19 @@ import { CartProvider } from "./contexts/CartContext";
 
 // --- COMPONENTES GLOBAIS ---
 import { CartDrawer } from "./components/CartDrawer";
+import { PrivateRoute } from "./components/PrivateRoute"; // <--- IMPORTOU O SEGURANÇA
 
 // --- LAYOUTS ---
 import { BackofficeLayout } from "./backoffice/layouts/BackofficeLayout";
-import { ClientLayout } from "./store/layouts/ClientLayout"; // O layout com o Menu Bottom
+import { ClientLayout } from "./store/layouts/ClientLayout";
 
-// --- PÁGINAS DO BACKOFFICE ---
+// --- PÁGINAS ---
 import { LoginBackoffice } from "./backoffice/pages/Login";
 import { Products } from "./backoffice/pages/Products";
 import { Users } from "./backoffice/pages/Users";
 import { Dashboard } from "./backoffice/pages/Dashboard";
 import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
 
-// --- PÁGINAS DA LOJA (PÚBLICAS/CLIENTE) ---
 import { StoreHome } from "./store/pages/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
 import { Login } from "./pages/Login";
@@ -25,10 +25,9 @@ import { Checkout } from "./store/pages/Checkout";
 import { PixBoletoCheckout } from "./store/pages/PixBoletoCheckout";
 import { CreditCardCheckout } from "./store/pages/CreditCardCheckout";
 
-// --- NOVAS PÁGINAS DA ÁREA DO CLIENTE (QUE CRIAMOS AGORA) ---
-import { Profile } from "./store/pages/client/Profile"; // A nova tela "Minha Conta"
-import { OrderList } from "./store/pages/client/OrderList"; // A tela de lista de pedidos
-import { Settings } from "./store/pages/client/Settings"; // A tela de configurações
+import { Profile } from "./store/pages/client/Profile";
+import { OrderList } from "./store/pages/client/OrderList";
+import { Settings } from "./store/pages/client/Settings";
 
 function App() {
   return (
@@ -36,50 +35,54 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <BrowserRouter>
-            {/* O CartDrawer flutua sobre tudo */}
             <CartDrawer />
 
             <Routes>
               {/* ====================================================
-                  GRUPO 1: PÁGINAS COM MENU BOTTOM (ClientLayout)
-                  (Início, Categorias, Carrinho*, Minha Conta)
+                  ROTAS PÚBLICAS (Qualquer um acessa)
               ==================================================== */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/backoffice/login" element={<LoginBackoffice />} />
+
+              {/* Layout Principal da Loja (Com Menu Bottom) */}
               <Route path="/" element={<ClientLayout />}>
                 <Route index element={<StoreHome />} />
+                <Route path="produto/:id" element={<ProductDetails />} />
 
-                {/* Agora /minha-conta aponta para a nova tela PROFILE */}
-                <Route path="minha-conta" element={<Profile />} />
-
-                {/* Se tiver rota de categoria/busca no futuro, coloque aqui */}
+                {/* PROTEÇÃO 1: Minha Conta (Dentro do layout com menu) 
+                   Aninhamos dentro do PrivateRoute
+                */}
+                <Route element={<PrivateRoute />}>
+                  <Route path="minha-conta" element={<Profile />} />
+                </Route>
               </Route>
 
               {/* ====================================================
-                  GRUPO 2: PÁGINAS TELA CHEIA (SEM MENU BOTTOM)
+                  ROTAS PROTEGIDAS (CHECKOUT & CLIENTE)
+                  Se tentar entrar aqui sem logar, vai pro Login
               ==================================================== */}
+              <Route element={<PrivateRoute />}>
+                {/* Checkout Flow */}
+                <Route path="/checkout" element={<Checkout />} />
+                <Route
+                  path="/checkout/pix-boleto"
+                  element={<PixBoletoCheckout />}
+                />
+                <Route
+                  path="/checkout/credit"
+                  element={<CreditCardCheckout />}
+                />
+                <Route path="/auth/callback" element={<Navigate to="/" />} />
 
-              {/* Login e Detalhes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/produto/:id" element={<ProductDetails />} />
-
-              {/* Checkout e Callback */}
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/auth/callback" element={<Navigate to="/" />} />
-              <Route
-                path="/checkout/pix-boleto"
-                element={<PixBoletoCheckout />}
-              />
-              <Route path="/checkout/credit" element={<CreditCardCheckout />} />
-
-              {/* Telas Internas do Cliente (Sub-telas do Minha Conta) */}
-              {/* O :type captura 'pagamento', 'envio', etc. */}
-              <Route path="/pedidos/:type" element={<OrderList />} />
-              <Route path="/configuracoes" element={<Settings />} />
+                {/* Sub-páginas do Cliente (Fora do menu bottom se desejar, ou dentro) */}
+                <Route path="/pedidos/:type" element={<OrderList />} />
+                <Route path="/configuracoes" element={<Settings />} />
+              </Route>
 
               {/* ====================================================
-                  GRUPO 3: BACKOFFICE
+                  ROTAS DO BACKOFFICE (Proteção Admin)
+                  (Idealmente criar um <AdminRoute> separado depois)
               ==================================================== */}
-              <Route path="/backoffice/login" element={<LoginBackoffice />} />
-
               <Route path="/backoffice" element={<BackofficeLayout />}>
                 <Route index element={<Navigate to="dashboard" />} />
                 <Route path="dashboard" element={<Dashboard />} />
