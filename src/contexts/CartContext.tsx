@@ -20,9 +20,13 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: ProductInput, size: string | null) => void;
+  addToCart: (
+    product: ProductInput,
+    size: string | null,
+    maxQuantity?: number,
+  ) => void;
   removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, delta: number) => void;
+  updateQuantity: (id: number, delta: number, maxQuantity?: number) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
@@ -46,18 +50,29 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("@loja-omena:cart", JSON.stringify(items));
   }, [items]);
 
-  const addToCart = (product: ProductInput, size: string | null) => {
+  const addToCart = (
+    product: ProductInput,
+    size: string | null,
+    maxQuantity?: number,
+  ) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === product.id && i.size === size);
 
       if (existing) {
+        // Se já existe, aumenta quantidade respeitando o limite
+        const newQuantity = existing.quantity + 1;
+        if (maxQuantity !== undefined && newQuantity > maxQuantity) {
+          // Não adiciona se exceder o limite
+          return prev;
+        }
         return prev.map((i) =>
           i.id === product.id && i.size === size
-            ? { ...i, quantity: i.quantity + 1 }
+            ? { ...i, quantity: newQuantity }
             : i,
         );
       }
 
+      // Se não existe, adiciona novo item (sempre quantidade 1)
       return [
         ...prev,
         {
@@ -77,12 +92,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const updateQuantity = (id: number, delta: number) => {
+  const updateQuantity = (id: number, delta: number, maxQuantity?: number) => {
     setItems((prev) =>
       prev.map((i) => {
         if (i.id === id) {
           const newQty = i.quantity + delta;
-          return newQty > 0 ? { ...i, quantity: newQty } : i;
+          // Não permite quantidade menor que 1
+          if (newQty < 1) return i;
+          // Não permite exceder o limite de estoque
+          if (maxQuantity !== undefined && newQty > maxQuantity) {
+            return i;
+          }
+          return { ...i, quantity: newQty };
         }
         return i;
       }),

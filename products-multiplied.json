@@ -1,0 +1,498 @@
+[
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  {
+    "category": "saidas",
+    "created_at": "2026-01-22T19:00:57.780451+00:00",
+    "description": "Conjunto verão 2026 - Edição Limitada",
+    "id": 19,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769108392476-0.10875624588667798.webp",
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769108398176-0.05735311669228982.webp"
+    ],
+    "is_featured": false,
+    "name": "Conjunto Camisa e Short",
+    "price": 29.99,
+    "quantity": 1020,
+    "stock": {
+      "G": 210,
+      "GG": 210,
+      "M": 300,
+      "P": 300
+    }
+  },
+  {
+    "category": "saidas",
+    "created_at": "2026-01-22T19:04:09.418339+00:00",
+    "description": "Soleia Vestido Casual de Verão Estampado e Sem Mangas para Mulheres VERÃO 2026",
+    "id": 20,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769108598153-0.6326133249899707.webp",
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769108718243-0.5820461320227516.jpeg"
+    ],
+    "is_featured": false,
+    "name": "Soleia Vestido Casual de Verão Estampado e Sem Mangas para Mulheres",
+    "price": 35.99,
+    "quantity": 960,
+    "stock": {
+      "G": 300,
+      "GG": 300,
+      "M": 360,
+      "P": 0
+    }
+  },
+  {
+    "category": "acessorios",
+    "created_at": "2026-01-23T14:30:31.123257+00:00",
+    "description": "Feminino - edição verão 2026 - Limitado - Preço especial! Com desconto de 49,99 por 3,00",
+    "id": 21,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769178616563-0.21854211529624423.webp"
+    ],
+    "is_featured": false,
+    "name": "Chapéu de palha",
+    "price": 3,
+    "quantity": 210,
+    "stock": {
+      "Único": 210
+    }
+  },
+  null,
+  null,
+  null,
+  {
+    "category": "biquinis",
+    "created_at": "2026-01-28T18:28:43.790807+00:00",
+    "description": "Feminino",
+    "id": 25,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769624900340-0.059422908688374076.webp"
+    ],
+    "is_featured": false,
+    "name": "Maio",
+    "price": 19.99,
+    "quantity": 300,
+    "stock": {
+      "G": 60,
+      "GG": 0,
+      "M": 120,
+      "P": 120
+    }
+  },
+  {
+    "category": "acessorios",
+    "created_at": "2026-01-28T18:30:07.788037+00:00",
+    "description": "Chapéu com estampa BR",
+    "id": 26,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625018470-0.1766977093606571.webp"
+    ],
+    "is_featured": false,
+    "name": "Chapéu - Brasil",
+    "price": 22.99,
+    "quantity": 510,
+    "stock": {
+      "Único": 510
+    }
+  },
+  {
+    "category": "saidas",
+    "created_at": "2026-01-28T18:37:23.008859+00:00",
+    "description": "",
+    "id": 27,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625403970-0.8790321680672194.webp"
+    ],
+    "is_featured": false,
+    "name": "Shorts feminino",
+    "price": 19.99,
+    "quantity": 150,
+    "stock": {
+      "G": 30,
+      "GG": 0,
+      "M": 60,
+      "P": 60
+    }
+  },
+  {
+    "category": "saidas",
+    "created_at": "2026-01-28T18:38:33.097336+00:00",
+    "description": "Edição Março",
+    "id": 28,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625454503-0.113259475993852.webp"
+    ],
+    "is_featured": false,
+    "name": "Pç praia Exclusiva",
+    "price": 197,
+    "quantity": 210,
+    "stock": {
+      "Único": 210
+    }
+  },
+  {
+    "category": "biquinis",
+    "created_at": "2026-01-28T18:39:33.740808+00:00",
+    "description": "Exclusividade",
+    "id": 29,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625529218-0.7348890899684423.webp"
+    ],
+    "is_featured": false,
+    "name": "Maio",
+    "price": 57.9,
+    "quantity": 180,
+    "stock": {
+      "G": 0,
+      "GG": 30,
+      "M": 0,
+      "P": 150
+    }
+  },
+  {
+    "category": "promocao",
+    "created_at": "2026-01-28T18:40:45.609978+00:00",
+    "description": "Estilo Van Gogh",
+    "id": 30,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625584153-0.19199936372012383.webp"
+    ],
+    "is_featured": false,
+    "name": "Camisa Uni Van Gogh",
+    "price": 39.7,
+    "quantity": 60,
+    "stock": {
+      "Único": 60
+    }
+  },
+  {
+    "category": "promocao",
+    "created_at": "2026-01-28T18:41:40.177041+00:00",
+    "description": "Conjunto limitado",
+    "id": 31,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625656637-0.8359645758697236.webp"
+    ],
+    "is_featured": false,
+    "name": "Vestido Praia Conjunto - Promoção",
+    "price": 39.99,
+    "quantity": 150,
+    "stock": {
+      "Único": 150
+    }
+  },
+  {
+    "category": "promocao",
+    "created_at": "2026-01-28T18:42:16.179437+00:00",
+    "description": "Masc",
+    "id": 32,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625707291-0.2680389435172287.webp"
+    ],
+    "is_featured": false,
+    "name": "Short Masculino",
+    "price": 37.8,
+    "quantity": 120,
+    "stock": {
+      "G": 0,
+      "GG": 0,
+      "M": 120,
+      "P": 0
+    }
+  },
+  {
+    "category": "acessorios",
+    "created_at": "2026-01-28T18:43:00.188248+00:00",
+    "description": "Dourado - Ouro",
+    "id": 33,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625743804-0.11201057673345416.webp"
+    ],
+    "is_featured": false,
+    "name": "Brincos e Pingentes",
+    "price": 79.9,
+    "quantity": 90,
+    "stock": {
+      "Único": 90
+    }
+  },
+  {
+    "category": "acessorios",
+    "created_at": "2026-01-28T18:43:49.209344+00:00",
+    "description": "Style Black Piano",
+    "id": 34,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625786170-0.004362125443192921.webp"
+    ],
+    "is_featured": false,
+    "name": "Oculos Estilo Puro",
+    "price": 79.9,
+    "quantity": 210,
+    "stock": {
+      "Único": 210
+    }
+  },
+  {
+    "category": "acessorios",
+    "created_at": "2026-01-28T18:44:46.77661+00:00",
+    "description": "pérola",
+    "id": 35,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625850568-0.7338088310615105.webp"
+    ],
+    "is_featured": false,
+    "name": "Colar",
+    "price": 29,
+    "quantity": 60,
+    "stock": {
+      "Único": 60
+    }
+  },
+  {
+    "category": "saidas",
+    "created_at": "2026-01-28T18:45:45.018227+00:00",
+    "description": "Edição Luxo",
+    "id": 36,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625895234-0.942765082699658.webp"
+    ],
+    "is_featured": false,
+    "name": "EXCLUSIVO SITE - Vestido Unique Style praia 2026",
+    "price": 127,
+    "quantity": 0,
+    "stock": {
+      "Único": 0
+    }
+  },
+  {
+    "category": "",
+    "created_at": "2026-01-28T18:46:33.225952+00:00",
+    "description": "",
+    "id": 37,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769625955288-0.2807873573304741.webp"
+    ],
+    "is_featured": false,
+    "name": "Camisa Verão 2025 - Ultimas",
+    "price": 49.9,
+    "quantity": 90,
+    "stock": {
+      "G": 30,
+      "GG": 60,
+      "M": 0,
+      "P": 0
+    }
+  },
+  {
+    "category": "",
+    "created_at": "2026-01-28T18:48:31.408301+00:00",
+    "description": "",
+    "id": 38,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626037520-0.8747891665363419.webp"
+    ],
+    "is_featured": false,
+    "name": "Short preto masculino",
+    "price": 79,
+    "quantity": 240,
+    "stock": {
+      "Único": 240
+    }
+  },
+  {
+    "category": "promocao",
+    "created_at": "2026-01-28T18:49:21.566861+00:00",
+    "description": "",
+    "id": 39,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626139863-0.7466590737147296.webp"
+    ],
+    "is_featured": false,
+    "name": "Maio",
+    "price": 49.9,
+    "quantity": 150,
+    "stock": {
+      "Único": 150
+    }
+  },
+  {
+    "category": "saidas",
+    "created_at": "2026-01-28T18:50:15.096022+00:00",
+    "description": "Edição Lika",
+    "id": 40,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626170011-0.044221920315796304.webp"
+    ],
+    "is_featured": false,
+    "name": "Vestido moderno",
+    "price": 37.7,
+    "quantity": 210,
+    "stock": {
+      "Único": 210
+    }
+  },
+  {
+    "category": "promocao",
+    "created_at": "2026-01-28T18:50:57.893486+00:00",
+    "description": "Preto",
+    "id": 41,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626226044-0.41791747198419316.webp"
+    ],
+    "is_featured": false,
+    "name": "Short Feminino",
+    "price": 59.7,
+    "quantity": 0,
+    "stock": {
+      "Único": 0
+    }
+  },
+  {
+    "category": "",
+    "created_at": "2026-01-28T18:51:48.338753+00:00",
+    "description": "",
+    "id": 42,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626289178-0.04867715259691652.webp"
+    ],
+    "is_featured": false,
+    "name": "Prod teste",
+    "price": 67,
+    "quantity": 150,
+    "stock": {
+      "Único": 150
+    }
+  },
+  {
+    "category": "",
+    "created_at": "2026-01-28T18:52:15.207028+00:00",
+    "description": "",
+    "id": 43,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626318075-0.6543242940816342.webp"
+    ],
+    "is_featured": false,
+    "name": "Chinelo",
+    "price": 49.8,
+    "quantity": 120,
+    "stock": {
+      "G": 0,
+      "GG": 0,
+      "M": 0,
+      "P": 120
+    }
+  },
+  {
+    "category": "promocao",
+    "created_at": "2026-01-28T18:52:53.392929+00:00",
+    "description": "87",
+    "id": 44,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626345658-0.5769684279065465.webp"
+    ],
+    "is_featured": false,
+    "name": "Brincos luxo",
+    "price": 97.9,
+    "quantity": 30,
+    "stock": {
+      "Único": 30
+    }
+  },
+  {
+    "category": "",
+    "created_at": "2026-01-28T18:53:10.031322+00:00",
+    "description": "",
+    "id": 45,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626384845-0.8988467445570643.webp"
+    ],
+    "is_featured": false,
+    "name": "Maio",
+    "price": 76.94,
+    "quantity": 0,
+    "stock": {
+      "Único": 0
+    }
+  },
+  {
+    "category": "",
+    "created_at": "2026-01-28T18:58:44.176321+00:00",
+    "description": "",
+    "id": 46,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626702532-0.825278104928628.webp"
+    ],
+    "is_featured": false,
+    "name": "Maio ",
+    "price": 75,
+    "quantity": 0,
+    "stock": {
+      "Único": 0
+    }
+  },
+  {
+    "category": "saidas",
+    "created_at": "2026-01-28T18:59:22.542691+00:00",
+    "description": "",
+    "id": 47,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626732426-0.1569406078136939.webp"
+    ],
+    "is_featured": false,
+    "name": "Peça exclusiva Ultra Soft",
+    "price": 107,
+    "quantity": 240,
+    "stock": {
+      "Único": 240
+    }
+  },
+  {
+    "category": "",
+    "created_at": "2026-01-28T18:59:50.285227+00:00",
+    "description": "",
+    "id": 48,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626771495-0.45942367649478266.webp"
+    ],
+    "is_featured": false,
+    "name": "Chapéu ",
+    "price": 57,
+    "quantity": 120,
+    "stock": {
+      "Único": 120
+    }
+  },
+  {
+    "category": "saidas",
+    "created_at": "2026-01-28T19:00:20.124639+00:00",
+    "description": "",
+    "id": 49,
+    "images": [
+      "https://bgjvtabygtugayybxgcw.supabase.co/storage/v1/object/public/product-images/1769626799210-0.24720310507571852.webp"
+    ],
+    "is_featured": false,
+    "name": "Peça exclusiva",
+    "price": 87,
+    "quantity": 0,
+    "stock": {
+      "Único": 0
+    }
+  }
+]

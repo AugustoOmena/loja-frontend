@@ -1,7 +1,9 @@
 import { X, Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
 import { useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
-import { useTheme } from "../contexts/ThemeContext"; // <--- 1. Import do Tema
+import { useTheme } from "../contexts/ThemeContext";
+import { getProductById } from "../services/firebaseProductService";
+import { useState } from "react";
 
 export const CartDrawer = () => {
   const {
@@ -14,13 +16,81 @@ export const CartDrawer = () => {
   } = useCart();
 
   const navigate = useNavigate();
-  const { colors } = useTheme(); // <--- 2. Hook
+  const { colors } = useTheme();
+  const [loadingProducts, setLoadingProducts] = useState<Set<number>>(
+    new Set(),
+  );
+  const [maxQuantities, setMaxQuantities] = useState<Map<string, number>>(
+    new Map(),
+  );
+
+  // Função auxiliar para criar chave única (id + size)
+  const getItemKey = (id: number, size: string | null) =>
+    `${id}-${size || "Único"}`;
 
   if (!isCartOpen) return null;
 
   const handleCheckout = () => {
     setIsCartOpen(false);
     navigate("/checkout");
+  };
+
+  // Busca a quantidade máxima disponível para um item
+  const getMaxQuantity = async (
+    itemId: number,
+    size: string | null,
+  ): Promise<number | undefined> => {
+    try {
+      const product = await getProductById(itemId);
+      if (!product) return undefined;
+
+      // Se tem estoque por tamanho
+      if (product.stock && Object.keys(product.stock).length > 0) {
+        const sizeKey = size || "Único";
+        return product.stock[sizeKey] || 0;
+      }
+
+      // Se não tem estoque por tamanho, usa quantity geral
+      return product.quantity || 0;
+    } catch (error) {
+      console.error("Erro ao buscar produto para validação:", error);
+      return undefined;
+    }
+  };
+
+  // Handler para aumentar quantidade com validação
+  const handleIncreaseQuantity = async (
+    itemId: number,
+    size: string | null,
+  ) => {
+    const itemKey = getItemKey(itemId, size);
+    if (loadingProducts.has(itemId)) return; // Evita múltiplas chamadas simultâneas
+
+    setLoadingProducts((prev) => new Set(prev).add(itemId));
+    try {
+      const maxQty = await getMaxQuantity(itemId, size);
+      if (maxQty !== undefined) {
+        setMaxQuantities((prev) => new Map(prev).set(itemKey, maxQty));
+      }
+      updateQuantity(itemId, 1, maxQty);
+    } finally {
+      setLoadingProducts((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    }
+  };
+
+  // Verifica se o item atingiu o limite máximo
+  const isAtMaxQuantity = (item: {
+    id: number;
+    size: string | null;
+    quantity: number;
+  }) => {
+    const itemKey = getItemKey(item.id, item.size);
+    const maxQty = maxQuantities.get(itemKey);
+    return maxQty !== undefined && item.quantity >= maxQty;
   };
 
   // --- 3. ESTILOS DINÂMICOS (Dentro do componente) ---
@@ -288,8 +358,28 @@ export const CartDrawer = () => {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.id, 1)}
-                        style={styles.qtyBtn}
+                        onClick={() =>
+                          handleIncreaseQuantity(item.id, item.size)
+                        }
+                        disabled={
+                          loadingProducts.has(item.id) || isAtMaxQuantity(item)
+                        }
+                        title={
+                          isAtMaxQuantity(item) ? "Estoque máximo atingido" : ""
+                        }
+                        style={{
+                          ...styles.qtyBtn,
+                          opacity:
+                            loadingProducts.has(item.id) ||
+                            isAtMaxQuantity(item)
+                              ? 0.5
+                              : 1,
+                          cursor:
+                            loadingProducts.has(item.id) ||
+                            isAtMaxQuantity(item)
+                              ? "not-allowed"
+                              : "pointer",
+                        }}
                       >
                         <Plus size={14} />
                       </button>

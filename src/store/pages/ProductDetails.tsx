@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ChevronLeft,
   ShoppingCart,
@@ -36,6 +36,59 @@ export const ProductDetails = () => {
     enabled: !!id,
     staleTime: 1000 * 60 * 5, // Cache por 5 minutos
   });
+
+  // Verifica se o produto tem estoque por tamanho (usando useMemo para estabilizar)
+  const hasStockBySize = useMemo(() => {
+    return product?.stock && Object.keys(product.stock).length > 0;
+  }, [product?.stock]);
+
+  // Obtém tamanhos disponíveis (com estoque > 0) - usando useMemo
+  const availableSizes = useMemo(() => {
+    if (!hasStockBySize || !product?.stock) return [];
+    return Object.entries(product.stock)
+      .filter(([_, qty]) => qty > 0)
+      .map(([size]) => size);
+  }, [hasStockBySize, product?.stock]);
+
+  // Verifica se há estoque disponível
+  const hasAvailableStock = useMemo(() => {
+    return hasStockBySize
+      ? availableSizes.length > 0
+      : (product?.quantity || 0) > 0;
+  }, [hasStockBySize, availableSizes.length, product?.quantity]);
+
+  // Se só tiver tamanho "Único" disponível, pré-seleciona automaticamente
+  useEffect(() => {
+    if (
+      product &&
+      hasStockBySize &&
+      availableSizes.length === 1 &&
+      availableSizes[0] === "Único" &&
+      !selectedSize
+    ) {
+      setSelectedSize("Único");
+    }
+  }, [product, hasStockBySize, availableSizes, selectedSize]);
+
+  // Log do produto para debug
+  useEffect(() => {
+    if (product) {
+      console.log("📦 Produto carregado:", {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: product.quantity,
+        stock: product.stock,
+        size: product.size,
+        category: product.category,
+        images: product.images,
+        description: product.description,
+        hasStockBySize,
+        availableSizes,
+        selectedSize,
+      });
+    }
+  }, [product, hasStockBySize, availableSizes, selectedSize]);
 
   const styles = {
     // --- NOVO: WRAPPER EXTERNO (Cobre a tela toda com a cor do tema) ---
@@ -156,19 +209,24 @@ export const ProductDetails = () => {
       marginBottom: "10px",
       color: colors.text,
     },
-    sizeButton: (isActive: boolean) => ({
+    sizeButton: (isActive: boolean, isDisabled: boolean) => ({
       padding: "10px 20px",
       border: isActive ? "2px solid #ff4747" : `1px solid ${colors.border}`,
       backgroundColor: isActive
         ? theme === "dark"
           ? "rgba(255, 71, 71, 0.15)"
           : "#fff1f2"
-        : colors.card,
+        : isDisabled
+          ? theme === "dark"
+            ? "#1e293b"
+            : "#f1f5f9"
+          : colors.card,
       borderRadius: "6px",
       fontWeight: isActive ? "bold" : "normal",
-      color: isActive ? "#ff4747" : colors.text,
-      cursor: "pointer",
+      color: isDisabled ? colors.muted : isActive ? "#ff4747" : colors.text,
+      cursor: isDisabled ? "not-allowed" : "pointer",
       transition: "0.2s",
+      opacity: isDisabled ? 0.5 : 1,
     }),
     addToCartBtn: {
       width: "100%",
@@ -230,12 +288,56 @@ export const ProductDetails = () => {
 
   const mainImage =
     selectedImage ||
-    (product.images && product.images.length > 0 ? product.images[0] : null);
+    (product?.images && product.images.length > 0 ? product.images[0] : null);
+
+  // Obtém quantidade disponível para o tamanho selecionado ou quantidade geral
+  const getAvailableQuantity = (): number => {
+    if (!product) return 0;
+    if (hasStockBySize && selectedSize && product.stock) {
+      return product.stock[selectedSize] || 0;
+    }
+    return product.quantity || 0;
+  };
+
+  // Verifica se precisa selecionar tamanho antes de adicionar
+  // Precisa selecionar se:
+  // - Tem stock por tamanho E
+  // - Não é o caso especial de só ter "Único" (que já é pré-selecionado) E
+  // - Ainda não selecionou um tamanho
+  const needsSizeSelection =
+    hasStockBySize &&
+    !(availableSizes.length === 1 && availableSizes[0] === "Único") &&
+    !selectedSize;
+
+  // Obtém a quantidade máxima disponível para o tamanho selecionado
+  const getMaxQuantityForSize = (): number | undefined => {
+    if (!product) return undefined;
+
+    if (hasStockBySize && product.stock) {
+      const sizeKey = selectedSize || product.size || "Único";
+      return product.stock[sizeKey] || 0;
+    }
+
+    return product.quantity || 0;
+  };
 
   const handleAddToCart = () => {
-    if (!product) return;
+    if (!product || !hasAvailableStock) return;
+
+    // Se precisa selecionar tamanho e não selecionou, não adiciona
+    if (needsSizeSelection && !selectedSize) {
+      return;
+    }
+
     const sizeToAdd = selectedSize || product.size || "Único";
-    addToCart(product, sizeToAdd);
+    const maxQuantity = getMaxQuantityForSize();
+
+    // Valida se há estoque disponível antes de adicionar
+    if (maxQuantity !== undefined && maxQuantity <= 0) {
+      return; // Não adiciona se não há estoque
+    }
+
+    addToCart(product, sizeToAdd, maxQuantity);
   };
 
   return (
@@ -298,29 +400,74 @@ export const ProductDetails = () => {
             </div>
 
             {/* SELEÇÃO DE TAMANHO */}
-            <div style={{ margin: "25px 0" }}>
-              <span style={styles.label}>
-                Tamanho: {selectedSize || product.size || ""}
-              </span>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                {["P", "M", "G", "GG"].map((s) => {
-                  const isActive = selectedSize === s;
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => setSelectedSize(s)}
-                      style={styles.sizeButton(isActive)}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
+            {hasStockBySize ? (
+              <div style={{ margin: "25px 0" }}>
+                <span style={styles.label}>
+                  Tamanho: {selectedSize || "Selecione um tamanho"}
+                </span>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  {Object.keys(product.stock || {}).map((size) => {
+                    const isActive = selectedSize === size;
+                    const qty = product.stock?.[size] || 0;
+                    const isDisabled = qty === 0;
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => !isDisabled && setSelectedSize(size)}
+                        disabled={isDisabled}
+                        style={styles.sizeButton(isActive, isDisabled)}
+                        title={
+                          isDisabled ? "Indisponível" : `${qty} em estoque`
+                        }
+                      >
+                        {size}
+                        {!isDisabled && (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              marginLeft: "4px",
+                              opacity: 0.7,
+                            }}
+                          >
+                            ({qty})
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedSize && (
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      fontSize: "13px",
+                      color: colors.muted,
+                    }}
+                  >
+                    {getAvailableQuantity()} unidades disponíveis
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div style={{ margin: "25px 0" }}>
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: colors.text,
+                    marginBottom: "10px",
+                  }}
+                >
+                  <span style={styles.label}>Estoque:</span>{" "}
+                  <span style={{ fontWeight: "bold", color: "#ff4747" }}>
+                    {product.quantity || 0} unidades disponíveis
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* BOTÃO DE AÇÃO */}
             <div style={{ marginTop: "30px" }}>
-              {(product.quantity || 0) > 0 ? (
+              {hasAvailableStock && !needsSizeSelection ? (
                 <button
                   onClick={handleAddToCart}
                   style={styles.addToCartBtn}
@@ -335,7 +482,9 @@ export const ProductDetails = () => {
                 </button>
               ) : (
                 <button disabled style={styles.disabledBtn}>
-                  Produto Indisponível
+                  {needsSizeSelection && !selectedSize
+                    ? "Selecione um tamanho"
+                    : "Produto Indisponível"}
                 </button>
               )}
             </div>

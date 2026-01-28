@@ -381,13 +381,20 @@ export const StoreHome = () => {
           >
             <div
               style={{
-                fontWeight: "900",
-                color: "#ff4747",
-                fontSize: "20px",
                 flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
               }}
             >
-              LOJA
+              <img
+                src="/casa-logo.jpg"
+                alt="Logo da Loja"
+                style={{
+                  height: "40px",
+                  width: "auto",
+                  objectFit: "contain",
+                }}
+              />
             </div>
 
             <div style={styles.searchContainer}>
