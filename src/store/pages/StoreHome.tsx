@@ -1,7 +1,5 @@
-import { useState, useEffect } from "react";
-import type { CSSProperties } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
   Search,
@@ -10,14 +8,15 @@ import {
   Star,
   Image as ImageIcon,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
-import { productService } from "../../services/productService";
 import type { Product } from "../../types";
-import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 import { MobileBottomNav } from "../../components/MobileBottomNav";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useFirebaseProductsInfinite } from "../../hooks/useFirebaseProductsInfinite";
+import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
 
 export const StoreHome = () => {
   const navigate = useNavigate();
@@ -27,6 +26,7 @@ export const StoreHome = () => {
   // --- ESTADOS ---
   const [searchTermInput, setSearchTermInput] = useState("");
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [willLoadMore, setWillLoadMore] = useState(false);
 
   const [filters, setFilters] = useState({
     name: "",
@@ -70,33 +70,161 @@ export const StoreHome = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // --- REACT QUERY ---
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useInfiniteQuery({
-      queryKey: ["store_products", filters],
-      queryFn: ({ pageParam = 1 }) => {
-        return productService.getInfinite({
-          pageParam,
-          filters: {
-            search: filters.name,
-            min_price: filters.min_price,
-            max_price: filters.max_price,
-            sort: filters.sort,
-            category: filters.category,
-          },
-        });
-      },
-      initialPageParam: 1,
-      getNextPageParam: (lastPage) => {
-        return lastPage.meta.nextPage;
-      },
-    });
+  // --- FIREBASE REALTIME DATABASE COM PAGINAÇÃO ---
+  const {
+    products: allProducts,
+    loading: isLoading,
+    error,
+    loadMore,
+    hasMore,
+    isLoadingMore,
+  } = useFirebaseProductsInfinite(40); // 40 produtos por página
+
+  // --- FILTROS CLIENT-SIDE (Rápido e sem latência de rede) ---
+  const filteredProducts = useMemo(() => {
+    return allProducts
+      .filter((product) => {
+        // Busca por nome
+        const matchesSearch = filters.name
+          ? product.name.toLowerCase().includes(filters.name.toLowerCase())
+          : true;
+
+        // Filtra por categoria
+        const matchesCategory = filters.category
+          ? product.category === filters.category
+          : true;
+
+        // Filtra por preço mínimo
+        const matchesMinPrice = filters.min_price
+          ? product.price >= Number(filters.min_price)
+          : true;
+
+        // Filtra por preço máximo
+        const matchesMaxPrice = filters.max_price
+          ? product.price <= Number(filters.max_price)
+          : true;
+
+        return (
+          matchesSearch && matchesCategory && matchesMinPrice && matchesMaxPrice
+        );
+      })
+      .sort((a, b) => {
+        // Ordenação
+        if (filters.sort === "qty_asc") {
+          return (a.quantity || 0) - (b.quantity || 0);
+        }
+        // Default: mantém a ordem de carregamento (crescente por ID)
+        // Os produtos mais recentes (IDs maiores) aparecem no final conforme são carregados
+        return (a.id || 0) - (b.id || 0);
+      });
+  }, [allProducts, filters]);
+
+  // --- SCROLL INFINITO ---
+  // Só habilita o observer se há mais produtos para carregar OU se há filtros aplicados
+  // (mesmo que não haja mais produtos, precisa manter o observer ativo para quando remover filtros)
+  const observerEnabled = hasMore && !isLoadingMore && !isLoading;
 
   const loadMoreRef = useIntersectionObserver(() => {
-    if (hasNextPage) fetchNextPage();
-  }, !!hasNextPage);
+    console.log("🎯 IntersectionObserver callback executado:", {
+      hasMore,
+      isLoadingMore,
+      isLoading,
+      allProductsCount: allProducts.length,
+      filteredProductsCount: filteredProducts.length,
+      hasFilters: !!(
+        filters.name ||
+        filters.category ||
+        filters.min_price ||
+        filters.max_price
+      ),
+    });
+    if (hasMore && !isLoadingMore && !isLoading) {
+      console.log("✅ Condições OK, chamando loadMore()");
+      setWillLoadMore(true); // Marca que vai carregar imediatamente
+      loadMore();
+    } else {
+      console.log("⏸️ Condições não atendidas para loadMore");
+    }
+  }, observerEnabled);
 
-  const allProducts = data?.pages.flatMap((page) => page.data) || [];
+  // Reset willLoadMore quando isLoadingMore mudar
+  useEffect(() => {
+    if (isLoadingMore) {
+      setWillLoadMore(false);
+    }
+  }, [isLoadingMore]);
+
+  // Garante que o elemento de trigger tenha espaço suficiente quando há filtros
+  // e força uma verificação do IntersectionObserver quando produtos são filtrados
+  useEffect(() => {
+    if (loadMoreRef.current && filteredProducts.length > 0) {
+      // Se há filtros aplicados e poucos produtos, garante espaço mínimo
+      const hasFilters = !!(
+        filters.name ||
+        filters.category ||
+        filters.min_price ||
+        filters.max_price
+      );
+      if (hasFilters && filteredProducts.length < 20) {
+        // Aumenta o espaçamento quando há poucos produtos filtrados
+        loadMoreRef.current.style.minHeight = "400px";
+        loadMoreRef.current.style.marginTop = "60px";
+      } else {
+        // Espaçamento normal
+        loadMoreRef.current.style.minHeight = "300px";
+        loadMoreRef.current.style.marginTop = "40px";
+      }
+
+      // Se há filtros e mais produtos para carregar, força uma verificação após um delay
+      if (hasFilters && hasMore && !isLoadingMore) {
+        setTimeout(() => {
+          // Dispara um evento de scroll para forçar o IntersectionObserver a verificar
+          window.dispatchEvent(new Event("scroll"));
+        }, 500);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    filteredProducts.length,
+    filters.name,
+    filters.category,
+    filters.min_price,
+    filters.max_price,
+    hasMore,
+    isLoadingMore,
+  ]);
+
+  // Debug: Monitora mudanças no estado de paginação e força loadMore se necessário
+  useEffect(() => {
+    const observerEnabled = hasMore && !isLoadingMore && !isLoading;
+    console.log("📊 Estado da paginação:", {
+      allProductsCount: allProducts.length,
+      filteredProductsCount: filteredProducts.length,
+      hasMore,
+      isLoadingMore,
+      isLoading,
+      observerEnabled,
+    });
+
+    // Verifica se o elemento de trigger existe
+    if (loadMoreRef.current) {
+      console.log("✅ Elemento de trigger encontrado:", {
+        element: loadMoreRef.current,
+        offsetTop: loadMoreRef.current.offsetTop,
+        offsetHeight: loadMoreRef.current.offsetHeight,
+        isVisible: loadMoreRef.current.offsetParent !== null,
+      });
+    } else {
+      console.warn("⚠️ Elemento de trigger não encontrado ainda");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    allProducts.length,
+    filteredProducts.length,
+    hasMore,
+    isLoadingMore,
+    isLoading,
+  ]);
 
   // --- ESTILOS DINÂMICOS ---
   const styles = {
@@ -242,11 +370,11 @@ export const StoreHome = () => {
       marginBottom: "4px",
       display: "-webkit-box",
       WebkitLineClamp: 2,
-      WebkitBoxOrient: "vertical" as any,
+      WebkitBoxOrient: "vertical",
       overflow: "hidden",
       lineHeight: "1.4",
       height: "36px",
-    } as CSSProperties,
+    } as React.CSSProperties,
     priceRow: {
       display: "flex",
       alignItems: "baseline",
@@ -499,7 +627,8 @@ export const StoreHome = () => {
         </aside>
 
         <main style={{ flex: 1 }}>
-          {isLoading ? (
+          {/* Estado de Loading */}
+          {isLoading && (
             <div
               style={{
                 padding: "40px",
@@ -510,11 +639,100 @@ export const StoreHome = () => {
               <Loader2
                 className="animate-spin"
                 style={{ margin: "0 auto 10px" }}
+                size={32}
               />
-              Carregando vitrine...
+              <p style={{ fontSize: "14px", marginTop: "10px" }}>
+                🔥 Carregando vitrine em tempo real...
+              </p>
             </div>
-          ) : (
+          )}
+
+          {/* Estado de Erro */}
+          {error && !isLoading && (
+            <div
+              style={{
+                padding: "30px",
+                textAlign: "center",
+                backgroundColor: theme === "dark" ? "#7f1d1d" : "#fee2e2",
+                border: `1px solid ${theme === "dark" ? "#991b1b" : "#fecaca"}`,
+                borderRadius: "8px",
+                margin: "20px 0",
+              }}
+            >
+              <AlertCircle
+                size={40}
+                color={theme === "dark" ? "#fca5a5" : "#dc2626"}
+                style={{ margin: "0 auto 15px" }}
+              />
+              <h3
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  color: theme === "dark" ? "#fca5a5" : "#dc2626",
+                  marginBottom: "8px",
+                }}
+              >
+                Erro ao carregar produtos
+              </h3>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: theme === "dark" ? "#fca5a5" : "#dc2626",
+                  marginBottom: "15px",
+                }}
+              >
+                {error}
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: "10px 20px",
+                  backgroundColor: theme === "dark" ? "#991b1b" : "#dc2626",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                }}
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+
+          {/* Grid de Produtos */}
+          {!isLoading && !error && (
             <>
+              {/* Badge de Resultados */}
+              {filters.name ||
+              filters.category ||
+              filters.min_price ||
+              filters.max_price ? (
+                <div
+                  style={{
+                    padding: "10px 15px",
+                    backgroundColor: colors.card,
+                    borderRadius: "8px",
+                    marginBottom: "15px",
+                    fontSize: "13px",
+                    color: colors.text,
+                    border: `1px solid ${colors.border}`,
+                  }}
+                >
+                  <strong>{filteredProducts.length}</strong>{" "}
+                  {filteredProducts.length === 1
+                    ? "produto encontrado"
+                    : "produtos encontrados"}
+                  {allProducts.length !== filteredProducts.length && (
+                    <span style={{ color: colors.muted }}>
+                      {" "}
+                      de {allProducts.length} no total
+                    </span>
+                  )}
+                </div>
+              ) : null}
+
               {/* Ajuste no GRID para permitir até 5 colunas */}
               <style>{`
                 .store-grid {
@@ -532,7 +750,7 @@ export const StoreHome = () => {
               `}</style>
 
               <div className="store-grid">
-                {allProducts.map((product: Product) => (
+                {filteredProducts.map((product: Product) => (
                   <div
                     key={product.id}
                     style={styles.productCard}
@@ -608,36 +826,77 @@ export const StoreHome = () => {
                 ))}
               </div>
 
-              {allProducts.length === 0 && (
+              {/* Empty State */}
+              {filteredProducts.length === 0 && (
                 <div
                   style={{
                     textAlign: "center",
-                    padding: "40px",
+                    padding: "60px 20px",
                     color: colors.muted,
                   }}
                 >
-                  Nenhum produto encontrado.
+                  <Search
+                    size={48}
+                    color={colors.muted}
+                    style={{ margin: "0 auto 15px", opacity: 0.5 }}
+                  />
+                  <p
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: "600",
+                      marginBottom: "5px",
+                    }}
+                  >
+                    Nenhum produto encontrado
+                  </p>
+                  <p style={{ fontSize: "13px" }}>
+                    Tente ajustar os filtros ou buscar por outro termo
+                  </p>
+                </div>
+              )}
+
+              {/* Loading More Indicator - Sempre renderiza quando há produtos para o IntersectionObserver funcionar */}
+              {filteredProducts.length > 0 && (
+                <div
+                  ref={loadMoreRef}
+                  style={{
+                    minHeight: "300px",
+                    height: "300px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: colors.muted,
+                    fontSize: "13px",
+                    padding: "20px",
+                    marginTop: "40px",
+                    marginBottom: "40px",
+                    width: "100%",
+                    backgroundColor: "transparent",
+                  }}
+                  data-testid="load-more-trigger"
+                >
+                  {isLoadingMore || willLoadMore ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <Loader2 className="animate-spin" size={20} />
+                      <span>Carregando mais produtos...</span>
+                    </div>
+                  ) : hasMore ? (
+                    <span style={{ opacity: 0.3, fontSize: "12px" }}>
+                      Role para carregar mais
+                    </span>
+                  ) : (
+                    <span style={{ opacity: 0.5 }}>Você chegou ao fim!</span>
+                  )}
                 </div>
               )}
             </>
           )}
-
-          <div
-            ref={loadMoreRef}
-            style={{
-              height: "40px",
-              textAlign: "center",
-              padding: "20px",
-              color: colors.muted,
-              fontSize: "12px",
-            }}
-          >
-            {isFetchingNextPage
-              ? "Carregando mais..."
-              : !hasNextPage && allProducts.length > 0
-                ? "Você chegou ao fim!"
-                : ""}
-          </div>
         </main>
       </div>
 

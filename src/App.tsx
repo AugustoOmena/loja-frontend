@@ -5,7 +5,7 @@ import { CartProvider } from "./contexts/CartContext";
 
 // --- COMPONENTES GLOBAIS ---
 import { CartDrawer } from "./components/CartDrawer";
-import { PrivateRoute } from "./components/PrivateRoute"; // <--- IMPORTOU O SEGURANÇA
+import { PrivateRoute } from "./components/PrivateRoute";
 
 // --- LAYOUTS ---
 import { BackofficeLayout } from "./backoffice/layouts/BackofficeLayout";

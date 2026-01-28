@@ -8,7 +8,7 @@ import {
   Loader2,
   Image as ImageIcon,
 } from "lucide-react";
-import { productService } from "../../services/productService";
+import { getProductById } from "../../services/firebaseProductService";
 import { useCart } from "../../contexts/CartContext";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -27,11 +27,14 @@ export const ProductDetails = () => {
     isError,
   } = useQuery({
     queryKey: ["product", id],
-    queryFn: () => {
+    queryFn: async () => {
       if (!id) throw new Error("ID inválido");
-      return productService.getById(Number(id));
+      const result = await getProductById(Number(id));
+      if (!result) throw new Error("Produto não encontrado");
+      return result;
     },
     enabled: !!id,
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
   });
 
   const styles = {
