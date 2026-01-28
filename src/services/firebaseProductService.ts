@@ -236,41 +236,61 @@ export async function getProductsPaginated(
     const keys = Object.keys(data);
     const newLastKey = keys.length > 0 ? keys[keys.length - 1] : null;
     
-    // SEMPRE verifica se há mais produtos após o último carregado
+    // Se retornou menos produtos que o limite, não há mais produtos
+    if (productsArray.length < limit) {
+      return {
+        products: productsArray,
+        lastKey: newLastKey,
+        hasMore: false
+      };
+    }
+    
+    // Se retornou exatamente o limite, SEMPRE verifica se há mais produtos
     let hasMore = false;
     
     if (newLastKey) {
       try {
+        // Busca limit+1 produtos começando após o lastKey
+        // Se retornar mais que 0, significa que há mais produtos
         const nextQuery = query(
           productsRef,
           orderByKey(),
           startAfter(newLastKey),
-          limitToFirst(1)
+          limitToFirst(limit + 1)
         );
         const nextSnapshot = await get(nextQuery);
-        hasMore = nextSnapshot.exists();
         
         if (nextSnapshot.exists()) {
-          const nextData = nextSnapshot.val();
-          const nextKeys = Object.keys(nextData);
-          console.log(`🔍 Verificação de hasMore: ${hasMore} | Próxima chave encontrada: ${nextKeys[0]}`);
-        } else {
-          console.log(`🔍 Verificação de hasMore: ${hasMore} | Nenhum produto após ${newLastKey}`);
+          const nextKeys = Object.keys(nextSnapshot.val());
+          hasMore = nextKeys.length > 0;
         }
-      } catch (err) {
-        console.error('❌ Erro ao verificar próximo item:', err);
+        
+        // Se não encontrou via startAfter, verifica alternativamente
+        // buscando todos os produtos e verificando se há algum com chave maior
+        if (!hasMore) {
+          try {
+            const allSnapshot = await get(productsRef);
+            if (allSnapshot.exists()) {
+              const allData = allSnapshot.val();
+              const allKeys = Object.keys(allData);
+              const lastKeyNum = Number(newLastKey);
+              const keysAfter = allKeys
+                .map(k => Number(k))
+                .filter(k => k > lastKeyNum);
+              
+              if (keysAfter.length > 0) {
+                hasMore = true;
+              }
+            }
+          } catch {
+            // Ignora erro na verificação alternativa
+          }
+        }
+      } catch {
         // Se der erro, assume que há mais se retornou exatamente o limit
-        // ou se retornou produtos (pode ser erro temporário)
-        hasMore = productsArray.length === limit || productsArray.length > 0;
-        console.log(`⚠️ Assumindo hasMore=${hasMore} devido ao erro`);
+        hasMore = productsArray.length === limit;
       }
-    } else {
-      // Se não há lastKey, não há mais produtos
-      hasMore = false;
-      console.log('🔍 Sem lastKey, hasMore=false');
     }
-
-    console.log(`✅ ${productsArray.length} produtos carregados | lastKey: ${newLastKey} | hasMore: ${hasMore} (retornou ${productsArray.length} de ${limit})`);
     
     return { 
       products: productsArray, 

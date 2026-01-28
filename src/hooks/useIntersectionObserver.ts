@@ -32,6 +32,10 @@ export function useIntersectionObserver(
       observerInstanceRef.current = null;
     }
 
+    // Reset do estado de trigger quando recriar o observer
+    isTriggeredRef.current = false;
+    wasIntersectingRef.current = false;
+
     // Cria o observer
     const observer = new IntersectionObserver((entries) => {
       const entry = entries[0];
@@ -41,50 +45,33 @@ export function useIntersectionObserver(
       const isIntersecting = entry.isIntersecting;
       const currentEnabled = enabledRef.current;
       
-      // Detecta se o elemento ACABOU DE ENTRAR na viewport (mudou de false para true)
-      const justEnteredViewport = isIntersecting && !wasIntersectingRef.current;
-      
-      // Atualiza o estado anterior
-      wasIntersectingRef.current = isIntersecting;
-      
-      // Só dispara se:
-      // 1. Acabou de entrar na viewport (não estava visível antes)
-      // 2. Não foi acionado recentemente
-      // 3. Está habilitado
-      const shouldTrigger = justEnteredViewport && !isTriggeredRef.current && currentEnabled;
+      // Se não está habilitado, não faz nada
+      if (!currentEnabled) {
+        return;
+      }
 
-      console.log('👁️ IntersectionObserver evento:', {
-        isIntersecting,
-        justEnteredViewport,
-        intersectionRatio: entry.intersectionRatio,
-        boundingClientRect: {
-          top: entry.boundingClientRect.top,
-          bottom: entry.boundingClientRect.bottom,
-          height: entry.boundingClientRect.height,
-          y: entry.boundingClientRect.y
-        },
-        isTriggered: isTriggeredRef.current,
-        enabled: currentEnabled,
-        shouldTrigger,
-        scrollY: window.scrollY
-      });
+      // Se já foi acionado recentemente, não dispara novamente
+      if (isTriggeredRef.current) {
+        return;
+      }
 
-      // Se o elemento acabou de entrar na viewport...
-      if (shouldTrigger) {
-        console.log('✅ CHAMANDO callback loadMore... (elemento entrou na viewport)');
+      // Se está visível (intersectando), dispara o callback
+      if (isIntersecting) {
         isTriggeredRef.current = true;
         callbackRef.current();
         
         // Reset após um delay para permitir novo trigger
         setTimeout(() => {
           isTriggeredRef.current = false;
-          wasIntersectingRef.current = false; // Reset também o estado de intersecção
-          console.log('🔄 Reset do trigger, pronto para próxima carga');
-        }, 2000);
+          wasIntersectingRef.current = false;
+        }, 1000);
       }
+      
+      // Atualiza o estado anterior
+      wasIntersectingRef.current = isIntersecting;
     }, { 
       threshold: 0, // Dispara assim que qualquer parte do elemento entrar na viewport
-      rootMargin: '800px' // Aumentado para 800px - começa a carregar bem antes (melhor para filtros)
+      rootMargin: '200px' // Carrega quando está a 200px de entrar na viewport
     });
 
     observerInstanceRef.current = observer;
@@ -92,30 +79,51 @@ export function useIntersectionObserver(
     // Sempre observa o elemento (o callback verifica se enabled é true)
     observer.observe(el);
     
+    // Verifica imediatamente se o elemento já está visível usando takeRecords
+    // Isso é necessário porque o IntersectionObserver não dispara eventos
+    // para elementos que já estão visíveis quando o observer é criado
+    setTimeout(() => {
+      const records = observer.takeRecords();
+      if (records.length > 0) {
+        const entry = records[0];
+        if (entry && entry.isIntersecting && enabledRef.current && !isTriggeredRef.current) {
+          isTriggeredRef.current = true;
+          callbackRef.current();
+          
+          setTimeout(() => {
+            isTriggeredRef.current = false;
+            wasIntersectingRef.current = true;
+          }, 1000);
+        }
+      } else {
+        // Se não há records, verifica manualmente a posição
+        const rect = el.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        const rootMargin = 200;
+        const isVisible = rect.top < windowHeight + rootMargin && rect.bottom > -rootMargin;
+        
+        if (isVisible && enabledRef.current && !isTriggeredRef.current) {
+          isTriggeredRef.current = true;
+          callbackRef.current();
+          
+          setTimeout(() => {
+            isTriggeredRef.current = false;
+            wasIntersectingRef.current = true;
+          }, 1000);
+        }
+      }
+    }, 100);
+    
     // Verifica a posição inicial do elemento
     const rect = el.getBoundingClientRect();
     const initialTop = rect.top;
-    const wasInitiallyVisible = initialTop < window.innerHeight + 500;
+    const windowHeight = window.innerHeight;
+    const rootMargin = 200;
+    const wasInitiallyVisible = initialTop < windowHeight + rootMargin;
     
     // Guarda se estava visível inicialmente
     wasInitiallyVisibleRef.current = wasInitiallyVisible;
     lastScrollYRef.current = window.scrollY;
-    
-    console.log('🟢 IntersectionObserver criado e observando elemento...', {
-      element: el,
-      enabled: enabledRef.current,
-      offsetTop: el.offsetTop,
-      offsetHeight: el.offsetHeight,
-      clientHeight: el.clientHeight,
-      scrollHeight: document.documentElement.scrollHeight,
-      windowHeight: window.innerHeight,
-      rectTop: rect.top,
-      wasInitiallyVisible,
-      initialScrollY: lastScrollYRef.current
-    });
-    
-    // NÃO dispara automaticamente se já estava visível
-    // Só dispara quando o usuário rolar e o elemento entrar na viewport
 
     return true; // Observer criado com sucesso
   };
@@ -127,32 +135,24 @@ export function useIntersectionObserver(
 
     // Tenta criar imediatamente
     if (setupObserver()) {
-      console.log('✅ Observer criado imediatamente');
       return;
     }
-
-    console.log('⏳ Elemento não encontrado, tentando criar observer com intervalo...');
 
     // Se não conseguiu, tenta novamente com intervalos
     intervalId = setInterval(() => {
       if (setupObserver()) {
-        console.log('✅ Observer criado com sucesso após tentativas');
         if (intervalId) clearInterval(intervalId);
       }
-    }, 100); // Tenta a cada 100ms
+    }, 100);
 
     // Timeout de segurança após 5 segundos
     timeoutId = setTimeout(() => {
       if (intervalId) clearInterval(intervalId);
-      if (!observerInstanceRef.current) {
-        console.error('❌ Não foi possível criar IntersectionObserver após 5 segundos');
-      }
     }, 5000);
 
     return () => {
       if (intervalId) clearInterval(intervalId);
       if (timeoutId) clearTimeout(timeoutId);
-      console.log('🧹 Limpando IntersectionObserver');
       if (observerInstanceRef.current) {
         observerInstanceRef.current.disconnect();
         observerInstanceRef.current = null;
@@ -163,9 +163,7 @@ export function useIntersectionObserver(
 
   // Effect adicional para recriar o observer quando enabled mudar (garantir que está ativo)
   useEffect(() => {
-    // Se enabled mudou para true e o elemento existe, garante que o observer está criado
-    if (enabled && observerRef.current && !observerInstanceRef.current) {
-      console.log('🔄 Enabled mudou para true, criando observer...');
+    if (observerRef.current) {
       setupObserver();
     }
   }, [enabled]);

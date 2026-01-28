@@ -120,30 +120,16 @@ export const StoreHome = () => {
   }, [allProducts, filters]);
 
   // --- SCROLL INFINITO ---
-  // Só habilita o observer se há mais produtos para carregar OU se há filtros aplicados
-  // (mesmo que não haja mais produtos, precisa manter o observer ativo para quando remover filtros)
-  const observerEnabled = hasMore && !isLoadingMore && !isLoading;
+  // Mantém o observer sempre ativo quando há mais produtos para carregar
+  // Não desabilita durante isLoadingMore para permitir carregamento contínuo
+  const observerEnabled = hasMore && !isLoading;
 
   const loadMoreRef = useIntersectionObserver(() => {
-    console.log("🎯 IntersectionObserver callback executado:", {
-      hasMore,
-      isLoadingMore,
-      isLoading,
-      allProductsCount: allProducts.length,
-      filteredProductsCount: filteredProducts.length,
-      hasFilters: !!(
-        filters.name ||
-        filters.category ||
-        filters.min_price ||
-        filters.max_price
-      ),
-    });
-    if (hasMore && !isLoadingMore && !isLoading) {
-      console.log("✅ Condições OK, chamando loadMore()");
-      setWillLoadMore(true); // Marca que vai carregar imediatamente
+    // O hook useFirebaseProductsInfinite já tem proteção contra múltiplas chamadas
+    // Então podemos chamar loadMore diretamente quando o observer dispara
+    if (hasMore && !isLoading) {
+      setWillLoadMore(true);
       loadMore();
-    } else {
-      console.log("⏸️ Condições não atendidas para loadMore");
     }
   }, observerEnabled);
 
@@ -192,38 +178,6 @@ export const StoreHome = () => {
     filters.max_price,
     hasMore,
     isLoadingMore,
-  ]);
-
-  // Debug: Monitora mudanças no estado de paginação e força loadMore se necessário
-  useEffect(() => {
-    const observerEnabled = hasMore && !isLoadingMore && !isLoading;
-    console.log("📊 Estado da paginação:", {
-      allProductsCount: allProducts.length,
-      filteredProductsCount: filteredProducts.length,
-      hasMore,
-      isLoadingMore,
-      isLoading,
-      observerEnabled,
-    });
-
-    // Verifica se o elemento de trigger existe
-    if (loadMoreRef.current) {
-      console.log("✅ Elemento de trigger encontrado:", {
-        element: loadMoreRef.current,
-        offsetTop: loadMoreRef.current.offsetTop,
-        offsetHeight: loadMoreRef.current.offsetHeight,
-        isVisible: loadMoreRef.current.offsetParent !== null,
-      });
-    } else {
-      console.warn("⚠️ Elemento de trigger não encontrado ainda");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    allProducts.length,
-    filteredProducts.length,
-    hasMore,
-    isLoadingMore,
-    isLoading,
   ]);
 
   // --- ESTILOS DINÂMICOS ---
@@ -642,7 +596,7 @@ export const StoreHome = () => {
                 size={32}
               />
               <p style={{ fontSize: "14px", marginTop: "10px" }}>
-                🔥 Carregando vitrine em tempo real...
+                Carregando vitrine...
               </p>
             </div>
           )}

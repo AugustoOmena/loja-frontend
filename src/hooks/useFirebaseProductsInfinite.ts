@@ -32,47 +32,36 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
   const [lastKey, setLastKey] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   
-  // Ref para evitar múltiplas chamadas simultâneas
+  // Refs para evitar múltiplas chamadas simultâneas e manter valores atualizados
   const isLoadingMoreRef = useRef(false);
+  const lastKeyRef = useRef<string | null>(null);
+  const hasMoreRef = useRef(true);
+
+  // Sincroniza refs com estado
+  useEffect(() => {
+    lastKeyRef.current = lastKey;
+    hasMoreRef.current = hasMore;
+  }, [lastKey, hasMore]);
 
   // Carrega primeira página
   useEffect(() => {
     let isMounted = true;
-    console.log('🔄 Hook useFirebaseProductsInfinite montado');
 
     async function loadInitialProducts() {
       try {
         setLoading(true);
         setError(null);
-
-        console.log('🚀 Carregando produtos iniciais...', { pageSize, isMounted });
         const result = await getProductsPaginated(pageSize);
-        console.log('✅ Produtos iniciais carregados:', {
-          produtos: result.products.length,
-          lastKey: result.lastKey,
-          hasMore: result.hasMore,
-          pageSize,
-          isMounted
-        });
 
         if (isMounted) {
-          console.log('📦 Atualizando estado com produtos:', {
-            count: result.products.length,
-            hasMore: result.hasMore,
-            lastKey: result.lastKey,
-            pageSize,
-            isMounted
-          });
           setProducts(result.products);
           setLastKey(result.lastKey);
           setHasMore(result.hasMore);
+          lastKeyRef.current = result.lastKey;
+          hasMoreRef.current = result.hasMore;
           setLoading(false);
-          console.log('✅ Estado atualizado com sucesso - hasMore:', result.hasMore);
-        } else {
-          console.warn('⚠️ Componente desmontado durante carregamento, ignorando resultado');
         }
       } catch (err) {
-        console.error('❌ Erro ao carregar produtos iniciais:', err);
         if (isMounted) {
           setError(err instanceof Error ? err.message : "Erro desconhecido");
           setLoading(false);
@@ -83,28 +72,18 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
     loadInitialProducts();
 
     return () => {
-      console.log('🧹 Hook useFirebaseProductsInfinite desmontado');
       isMounted = false;
     };
   }, [pageSize]);
 
-  // Função para carregar mais produtos
+  // Função para carregar mais produtos - usa refs para evitar closure stale
   const loadMore = useCallback(async () => {
-    console.log('📞 loadMore chamado:', {
-      hasMore,
-      isLoadingMore,
-      isLoadingMoreRef: isLoadingMoreRef.current,
-      lastKey,
-      currentProductsCount: products.length
-    });
+    const currentHasMore = hasMoreRef.current;
+    const currentLastKey = lastKeyRef.current;
+    const currentIsLoading = isLoadingMoreRef.current;
 
     // Proteção contra múltiplas chamadas simultâneas
-    if (!hasMore || isLoadingMore || isLoadingMoreRef.current) {
-      console.log('⏸️ loadMore bloqueado:', {
-        hasMore,
-        isLoadingMore,
-        isLoadingMoreRef: isLoadingMoreRef.current
-      });
+    if (!currentHasMore || currentIsLoading) {
       return;
     }
 
@@ -113,34 +92,28 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
       setIsLoadingMore(true);
       setError(null);
 
-      console.log('🔄 Carregando mais produtos...');
-      const result = await getProductsPaginated(pageSize, lastKey || undefined);
-      console.log('✅ Produtos carregados:', {
-        novosProdutos: result.products.length,
-        lastKey: result.lastKey,
-        hasMore: result.hasMore
-      });
+      const result = await getProductsPaginated(pageSize, currentLastKey || undefined);
 
       // Adiciona novos produtos ao final da lista existente
       setProducts((prev) => {
         // Evita duplicatas
         const existingIds = new Set(prev.map(p => p.id));
         const newProducts = result.products.filter(p => !existingIds.has(p.id));
-        console.log(`📦 Adicionando ${newProducts.length} novos produtos (${prev.length} → ${prev.length + newProducts.length})`);
         return [...prev, ...newProducts];
       });
       
       setLastKey(result.lastKey);
       setHasMore(result.hasMore);
+      lastKeyRef.current = result.lastKey;
+      hasMoreRef.current = result.hasMore;
       setIsLoadingMore(false);
       isLoadingMoreRef.current = false;
     } catch (err) {
-      console.error('❌ Erro ao carregar mais produtos:', err);
       setError(err instanceof Error ? err.message : "Erro desconhecido");
       setIsLoadingMore(false);
       isLoadingMoreRef.current = false;
     }
-  }, [hasMore, isLoadingMore, lastKey, pageSize, products.length]);
+  }, [pageSize]);
 
   return {
     products,
