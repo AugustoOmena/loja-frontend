@@ -122,8 +122,8 @@ export function useIntersectionObserver(
 
   // Effect para criar o observer quando o elemento estiver disponível
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    let timeoutId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     // Tenta criar imediatamente
     if (setupObserver()) {
