@@ -387,7 +387,7 @@ export const StoreHome = () => {
               }}
             >
               <img
-                src="/casa-logo.jpg"
+                src="/casa-logo.png"
                 alt="Logo da Loja"
                 style={{
                   height: "40px",
