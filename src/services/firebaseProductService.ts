@@ -198,26 +198,25 @@ export async function getProductsPaginated(
 ): Promise<{ products: Product[]; lastKey: string | null; hasMore: boolean }> {
   try {
     const productsRef = ref(db, "products");
-    
+    // Pedimos limit+1 para saber se existe próxima página sem fazer query extra.
+    const fetchSize = limit + 1;
+
     let productsQuery;
     if (lastKey) {
-      // Próximas páginas: começa depois da última chave
       productsQuery = query(
         productsRef,
         orderByKey(),
         startAfter(lastKey),
-        limitToFirst(limit)
+        limitToFirst(fetchSize)
       );
     } else {
-      // Primeira página
       productsQuery = query(
         productsRef,
         orderByKey(),
-        limitToFirst(limit)
+        limitToFirst(fetchSize)
       );
     }
 
-    // Usa get() ao invés de onValue() - mais rápido para snapshot único
     const snapshot = await get(productsQuery);
 
     const data = snapshot.val();
@@ -232,16 +231,15 @@ export async function getProductsPaginated(
       })
     );
 
-    // Última chave é o ID do último produto (ordem lexicográfica do Firebase)
     const keys = Object.keys(data);
-    const newLastKey = keys.length > 0 ? keys[keys.length - 1] : null;
-
-    // Regra simples: página cheia = pode ter mais; página incompleta = fim
-    // Evita query extra que pode falhar com ordem lexicográfica das chaves.
-    const hasMore = productsArray.length >= limit;
+    const hasMore = keys.length > limit;
+    // Se trouxemos mais que limit, devolvemos só limit e usamos o último da página como lastKey.
+    const returnCount = hasMore ? limit : productsArray.length;
+    const returnProducts = productsArray.slice(0, returnCount);
+    const newLastKey = returnCount > 0 ? keys[returnCount - 1] : null;
 
     return {
-      products: productsArray,
+      products: returnProducts,
       lastKey: newLastKey,
       hasMore,
     };
