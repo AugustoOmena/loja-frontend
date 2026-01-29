@@ -21,11 +21,15 @@ export const RecommendedProducts = () => {
   // --- SCROLL INFINITO ---
   const observerEnabled = hasMore && !isLoading;
 
-  const loadMoreRef = useIntersectionObserver(() => {
-    if (hasMore && !isLoading) {
-      loadMore();
-    }
-  }, observerEnabled);
+  const loadMoreRef = useIntersectionObserver(
+    () => {
+      if (hasMore && !isLoading) {
+        loadMore();
+      }
+    },
+    observerEnabled,
+    isLoadingMore,
+  );
 
   const styles = {
     // AQUI ESTÁ A MUDANÇA: padding lateral de 15px

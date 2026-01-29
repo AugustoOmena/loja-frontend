@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 
 export function useIntersectionObserver(
   callback: () => void,
-  enabled: boolean = true
+  enabled: boolean = true,
+  recheckWhen?: unknown
 ) {
   const observerRef = useRef<HTMLDivElement>(null);
   const callbackRef = useRef(callback);
@@ -12,6 +13,7 @@ export function useIntersectionObserver(
   const lastScrollYRef = useRef(0);
   const wasInitiallyVisibleRef = useRef(false);
   const wasIntersectingRef = useRef(false);
+  const prevRecheckWhenRef = useRef<boolean | undefined>(undefined);
 
   // Atualiza as referências sempre que mudarem
   useEffect(() => {
@@ -58,13 +60,16 @@ export function useIntersectionObserver(
       // Se está visível (intersectando), dispara o callback
       if (isIntersecting) {
         isTriggeredRef.current = true;
+        if (import.meta.env.DEV) {
+          console.log("[scroll-inf] IntersectionObserver: sentinela entrou na viewport, disparando callback");
+        }
         callbackRef.current();
-        
-        // Reset após um delay para permitir novo trigger
+
+        // Reset após delay curto para permitir novo trigger ao rolar de novo
         setTimeout(() => {
           isTriggeredRef.current = false;
           wasIntersectingRef.current = false;
-        }, 1000);
+        }, 400);
       }
       
       // Atualiza o estado anterior
@@ -79,40 +84,25 @@ export function useIntersectionObserver(
     // Sempre observa o elemento (o callback verifica se enabled é true)
     observer.observe(el);
     
-    // Verifica imediatamente se o elemento já está visível usando takeRecords
-    // Isso é necessário porque o IntersectionObserver não dispara eventos
-    // para elementos que já estão visíveis quando o observer é criado
-    setTimeout(() => {
-      const records = observer.takeRecords();
-      if (records.length > 0) {
-        const entry = records[0];
-        if (entry && entry.isIntersecting && enabledRef.current && !isTriggeredRef.current) {
-          isTriggeredRef.current = true;
-          callbackRef.current();
-          
-          setTimeout(() => {
-            isTriggeredRef.current = false;
-            wasIntersectingRef.current = true;
-          }, 1000);
-        }
-      } else {
-        // Se não há records, verifica manualmente a posição
-        const rect = el.getBoundingClientRect();
-        const windowHeight = window.innerHeight;
-        const rootMargin = 200;
-        const isVisible = rect.top < windowHeight + rootMargin && rect.bottom > -rootMargin;
-        
-        if (isVisible && enabledRef.current && !isTriggeredRef.current) {
-          isTriggeredRef.current = true;
-          callbackRef.current();
-          
-          setTimeout(() => {
-            isTriggeredRef.current = false;
-            wasIntersectingRef.current = true;
-          }, 1000);
-        }
+    // Verifica se o elemento já está visível após o DOM pintar (re-setup após load more).
+    // IntersectionObserver não dispara para elementos já visíveis ao criar o observer.
+    const runVisibilityCheck = () => {
+      if (!observerRef.current || !enabledRef.current || isTriggeredRef.current) return;
+      const rect = el.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const rootMargin = 200;
+      const isVisible = rect.top < windowHeight + rootMargin && rect.bottom > -rootMargin;
+      if (isVisible) {
+        isTriggeredRef.current = true;
+        callbackRef.current();
+        setTimeout(() => {
+          isTriggeredRef.current = false;
+          wasIntersectingRef.current = true;
+        }, 400);
       }
-    }, 100);
+    };
+    setTimeout(runVisibilityCheck, 150);
+    setTimeout(runVisibilityCheck, 400);
     
     // Verifica a posição inicial do elemento
     const rect = el.getBoundingClientRect();
@@ -167,6 +157,24 @@ export function useIntersectionObserver(
       setupObserver();
     }
   }, [enabled]);
+
+  // Re-setup apenas quando o carregamento TERMINAR (recheckWhen: true → false).
+  // Assim não desconectamos o observer quando o usuário dispara (false → true),
+  // evitando que o scroll infinito pare após a primeira carga na StoreHome.
+  // Sempre array literal como deps para evitar "Cannot read properties of undefined (reading 'length')".
+  useEffect(() => {
+    const wasLoading = prevRecheckWhenRef.current === true;
+    const nowLoading = recheckWhen === true;
+    prevRecheckWhenRef.current = recheckWhen === true;
+
+    if (observerRef.current && wasLoading && !nowLoading) {
+      if (import.meta.env.DEV) {
+        console.log("[scroll-inf] Re-setup do observer (carregamento terminou)");
+      }
+      setupObserver();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recheckWhen pode ser undefined; array sempre definido
+  }, recheckWhen === undefined ? [] : [recheckWhen]);
 
   return observerRef;
 }

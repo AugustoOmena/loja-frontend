@@ -232,70 +232,18 @@ export async function getProductsPaginated(
       })
     );
 
-    // Última chave é o ID do último produto
+    // Última chave é o ID do último produto (ordem lexicográfica do Firebase)
     const keys = Object.keys(data);
     const newLastKey = keys.length > 0 ? keys[keys.length - 1] : null;
-    
-    // Se retornou menos produtos que o limite, não há mais produtos
-    if (productsArray.length < limit) {
-      return {
-        products: productsArray,
-        lastKey: newLastKey,
-        hasMore: false
-      };
-    }
-    
-    // Se retornou exatamente o limite, SEMPRE verifica se há mais produtos
-    let hasMore = false;
-    
-    if (newLastKey) {
-      try {
-        // Busca limit+1 produtos começando após o lastKey
-        // Se retornar mais que 0, significa que há mais produtos
-        const nextQuery = query(
-          productsRef,
-          orderByKey(),
-          startAfter(newLastKey),
-          limitToFirst(limit + 1)
-        );
-        const nextSnapshot = await get(nextQuery);
-        
-        if (nextSnapshot.exists()) {
-          const nextKeys = Object.keys(nextSnapshot.val());
-          hasMore = nextKeys.length > 0;
-        }
-        
-        // Se não encontrou via startAfter, verifica alternativamente
-        // buscando todos os produtos e verificando se há algum com chave maior
-        if (!hasMore) {
-          try {
-            const allSnapshot = await get(productsRef);
-            if (allSnapshot.exists()) {
-              const allData = allSnapshot.val();
-              const allKeys = Object.keys(allData);
-              const lastKeyNum = Number(newLastKey);
-              const keysAfter = allKeys
-                .map(k => Number(k))
-                .filter(k => k > lastKeyNum);
-              
-              if (keysAfter.length > 0) {
-                hasMore = true;
-              }
-            }
-          } catch {
-            // Ignora erro na verificação alternativa
-          }
-        }
-      } catch {
-        // Se der erro, assume que há mais se retornou exatamente o limit
-        hasMore = productsArray.length === limit;
-      }
-    }
-    
-    return { 
-      products: productsArray, 
+
+    // Regra simples: página cheia = pode ter mais; página incompleta = fim
+    // Evita query extra que pode falhar com ordem lexicográfica das chaves.
+    const hasMore = productsArray.length >= limit;
+
+    return {
+      products: productsArray,
       lastKey: newLastKey,
-      hasMore 
+      hasMore,
     };
   } catch (error) {
     console.error("❌ Erro ao buscar produtos paginados:", error);

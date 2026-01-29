@@ -26,7 +26,6 @@ export const StoreHome = () => {
   // --- ESTADOS ---
   const [searchTermInput, setSearchTermInput] = useState("");
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [willLoadMore, setWillLoadMore] = useState(false);
 
   const [filters, setFilters] = useState({
     name: "",
@@ -124,20 +123,18 @@ export const StoreHome = () => {
   // Não desabilita durante isLoadingMore para permitir carregamento contínuo
   const observerEnabled = hasMore && !isLoading;
 
-  const loadMoreRef = useIntersectionObserver(() => {
-    if (hasMore && !isLoading) {
-      setWillLoadMore(true);
-      loadMore();
-    }
-  }, observerEnabled);
-
-  // Reset willLoadMore quando isLoadingMore mudar (padrão antigo; necessário para UI)
-  // eslint-disable-next-line -- reset when isLoadingMore; deliberate setState in effect
-  useEffect(() => {
-    if (isLoadingMore) {
-      setWillLoadMore(false);
-    }
-  }, [isLoadingMore]);
+  const loadMoreRef = useIntersectionObserver(
+    () => {
+      if (import.meta.env.DEV) {
+        console.log("[scroll-inf] StoreHome callback", { hasMore, isLoading });
+      }
+      if (hasMore && !isLoading) {
+        loadMore();
+      }
+    },
+    observerEnabled,
+    isLoadingMore,
+  );
 
   // Garante que o elemento de trigger tenha espaço suficiente quando há filtros
   // e força uma verificação do IntersectionObserver quando produtos são filtrados
@@ -835,7 +832,7 @@ export const StoreHome = () => {
                   }}
                   data-testid="load-more-trigger"
                 >
-                  {isLoadingMore || willLoadMore ? (
+                  {isLoadingMore ? (
                     <div
                       style={{
                         display: "flex",

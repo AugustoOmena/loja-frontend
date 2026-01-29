@@ -82,8 +82,23 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
     const currentLastKey = lastKeyRef.current;
     const currentIsLoading = isLoadingMoreRef.current;
 
+    if (import.meta.env.DEV) {
+      console.log("[scroll-inf] loadMore chamado", {
+        hasMore: currentHasMore,
+        isLoading: currentIsLoading,
+        lastKey: currentLastKey,
+        pageSize,
+      });
+    }
+
     // Proteção contra múltiplas chamadas simultâneas
     if (!currentHasMore || currentIsLoading) {
+      if (import.meta.env.DEV && !currentHasMore) {
+        console.log("[scroll-inf] loadMore ignorado: hasMore=false");
+      }
+      if (import.meta.env.DEV && currentIsLoading) {
+        console.log("[scroll-inf] loadMore ignorado: já carregando");
+      }
       return;
     }
 
@@ -94,6 +109,14 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
 
       const result = await getProductsPaginated(pageSize, currentLastKey || undefined);
 
+      if (import.meta.env.DEV) {
+        console.log("[scroll-inf] loadMore concluído", {
+          novos: result.products.length,
+          hasMore: result.hasMore,
+          lastKey: result.lastKey,
+        });
+      }
+
       // Adiciona novos produtos ao final da lista existente
       setProducts((prev) => {
         // Evita duplicatas
@@ -101,7 +124,7 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
         const newProducts = result.products.filter(p => !existingIds.has(p.id));
         return [...prev, ...newProducts];
       });
-      
+
       setLastKey(result.lastKey);
       setHasMore(result.hasMore);
       lastKeyRef.current = result.lastKey;
@@ -109,6 +132,9 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
       setIsLoadingMore(false);
       isLoadingMoreRef.current = false;
     } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error("[scroll-inf] loadMore erro", err);
+      }
       setError(err instanceof Error ? err.message : "Erro desconhecido");
       setIsLoadingMore(false);
       isLoadingMoreRef.current = false;
