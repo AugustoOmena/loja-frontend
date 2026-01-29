@@ -176,21 +176,45 @@ export async function getProductById(id: number): Promise<Product | null> {
 }
 
 /**
- * Busca produtos paginados do Firebase.
- * Usa get() para snapshot único - mais rápido que onValue().
- * 
- * @param limit - Número de produtos por página
- * @param lastKey - Chave do último produto da página anterior (para paginação)
- * @returns Promise com array de produtos e chave do último item
- * 
- * @example
- * ```tsx
- * // Primeira página
- * const { products, lastKey } = await getProductsPaginated(40);
- * 
- * // Próxima página
- * const { products: nextProducts } = await getProductsPaginated(40, lastKey);
- * ```
+ * Carrega todos os produtos do Firebase de uma vez, em ordem estável (por id numérico).
+ * Indicado para scroll infinito: evita cursor/ordem lexicográfica do Firebase.
+ * Para catálogos grandes (> ~500 itens), considere paginação no backend.
+ *
+ * @returns Promise com array de produtos ordenados por id
+ */
+export async function getAllProductsSorted(): Promise<Product[]> {
+  try {
+    const productsRef = ref(db, "products");
+    const snapshot = await get(productsRef);
+
+    if (!snapshot.exists()) {
+      return [];
+    }
+
+    const productsArray: Product[] = [];
+    snapshot.forEach((child) => {
+      const key = child.key;
+      if (key == null) return;
+      const productData = child.val();
+      productsArray.push({
+        ...(productData as Omit<Product, "id">),
+        id: Number(key),
+      });
+    });
+
+    // Ordenação numérica por id para exibição consistente (independente da ordem das chaves no Firebase)
+    productsArray.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    return productsArray;
+  } catch (error) {
+    console.error("❌ Erro ao buscar produtos:", error);
+    throw error;
+  }
+}
+
+/**
+ * Busca produtos paginados do Firebase (orderByKey + startAfter).
+ * Mantido para compatibilidade ou catálogos muito grandes.
+ * Para scroll infinito simples e robusto, prefira getAllProductsSorted + revelar em blocos no hook.
  */
 export async function getProductsPaginated(
   limit: number = 40,
@@ -198,45 +222,39 @@ export async function getProductsPaginated(
 ): Promise<{ products: Product[]; lastKey: string | null; hasMore: boolean }> {
   try {
     const productsRef = ref(db, "products");
-    // Pedimos limit+1 para saber se existe próxima página sem fazer query extra.
     const fetchSize = limit + 1;
 
-    let productsQuery;
-    if (lastKey) {
-      productsQuery = query(
-        productsRef,
-        orderByKey(),
-        startAfter(lastKey),
-        limitToFirst(fetchSize)
-      );
-    } else {
-      productsQuery = query(
-        productsRef,
-        orderByKey(),
-        limitToFirst(fetchSize)
-      );
-    }
+    const productsQuery = lastKey
+      ? query(
+          productsRef,
+          orderByKey(),
+          startAfter(lastKey),
+          limitToFirst(fetchSize)
+        )
+      : query(productsRef, orderByKey(), limitToFirst(fetchSize));
 
     const snapshot = await get(productsQuery);
 
-    const data = snapshot.val();
-    if (!data) {
+    if (!snapshot.exists()) {
       return { products: [], lastKey: null, hasMore: false };
     }
 
-    const productsArray: Product[] = Object.entries(data).map(
-      ([id, productData]) => ({
+    const productsArray: Product[] = [];
+    const keysInOrder: string[] = [];
+    snapshot.forEach((child) => {
+      const key = child.key;
+      if (key != null) keysInOrder.push(key);
+      const productData = child.val();
+      productsArray.push({
         ...(productData as Omit<Product, "id">),
-        id: Number(id),
-      })
-    );
+        id: Number(child.key),
+      });
+    });
 
-    const keys = Object.keys(data);
-    const hasMore = keys.length > limit;
-    // Se trouxemos mais que limit, devolvemos só limit e usamos o último da página como lastKey.
+    const hasMore = keysInOrder.length > limit;
     const returnCount = hasMore ? limit : productsArray.length;
     const returnProducts = productsArray.slice(0, returnCount);
-    const newLastKey = returnCount > 0 ? keys[returnCount - 1] : null;
+    const newLastKey = returnCount > 0 ? keysInOrder[returnCount - 1] : null;
 
     return {
       products: returnProducts,

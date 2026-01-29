@@ -119,21 +119,13 @@ export const StoreHome = () => {
   }, [allProducts, filters]);
 
   // --- SCROLL INFINITO ---
-  // Mantém o observer sempre ativo quando há mais produtos para carregar
-  // Não desabilita durante isLoadingMore para permitir carregamento contínuo
+  // Hook carrega todos os produtos uma vez e revela em blocos; loadMore só aumenta visibleCount.
   const observerEnabled = hasMore && !isLoading;
 
   const loadMoreRef = useIntersectionObserver(
-    () => {
-      if (import.meta.env.DEV) {
-        console.log("[scroll-inf] StoreHome callback", { hasMore, isLoading });
-      }
-      if (hasMore && !isLoading) {
-        loadMore();
-      }
-    },
+    () => loadMore(),
     observerEnabled,
-    isLoadingMore,
+    false, // não há carregamento assíncrono ao revelar mais
   );
 
   // Garante que o elemento de trigger tenha espaço suficiente quando há filtros
@@ -158,11 +150,8 @@ export const StoreHome = () => {
       }
 
       // Se há filtros e mais produtos para carregar, força uma verificação após um delay
-      if (hasFilters && hasMore && !isLoadingMore) {
-        setTimeout(() => {
-          // Dispara um evento de scroll para forçar o IntersectionObserver a verificar
-          window.dispatchEvent(new Event("scroll"));
-        }, 500);
+      if (hasFilters && hasMore) {
+        setTimeout(() => window.dispatchEvent(new Event("scroll")), 500);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,7 +162,6 @@ export const StoreHome = () => {
     filters.min_price,
     filters.max_price,
     hasMore,
-    isLoadingMore,
   ]);
 
   // --- ESTILOS DINÂMICOS ---
@@ -681,12 +669,6 @@ export const StoreHome = () => {
                   {filteredProducts.length === 1
                     ? "produto encontrado"
                     : "produtos encontrados"}
-                  {allProducts.length !== filteredProducts.length && (
-                    <span style={{ color: colors.muted }}>
-                      {" "}
-                      de {allProducts.length} no total
-                    </span>
-                  )}
                 </div>
               ) : null}
 

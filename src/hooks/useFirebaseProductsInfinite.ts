@@ -1,64 +1,34 @@
 // src/hooks/useFirebaseProductsInfinite.ts
-import { useState, useEffect, useCallback, useRef } from "react";
-import { getProductsPaginated } from "../services/firebaseProductService";
+import { useState, useEffect, useCallback } from "react";
+import { getAllProductsSorted } from "../services/firebaseProductService";
 import type { Product } from "../types";
 
+const DEFAULT_PAGE_SIZE = 40;
+
 /**
- * Hook customizado para scroll infinito com Firebase Realtime Database.
- * 
- * Carrega produtos paginados (40 por vez) conforme o usuário faz scroll.
- * 
- * @param pageSize - Número de produtos por página (padrão: 40)
- * 
- * @example
- * ```tsx
- * function StoreHome() {
- *   const { products, loading, error, loadMore, hasMore, isLoadingMore } = useFirebaseProductsInfinite(40);
- *   
- *   return (
- *     <div>
- *       {products.map(product => <ProductCard key={product.id} product={product} />)}
- *       {hasMore && <button onClick={loadMore}>Carregar mais</button>}
- *     </div>
- *   );
- * }
- * ```
+ * Scroll infinito robusto: carrega todos os produtos do Firebase uma vez
+ * e revela em blocos (visibleCount). Evita problemas de cursor/ordem do Firebase.
+ *
+ * @param pageSize - Quantos produtos revelar por "página" (padrão: 40)
  */
-export function useFirebaseProductsInfinite(pageSize: number = 40) {
-  const [products, setProducts] = useState<Product[]>([]);
+export function useFirebaseProductsInfinite(pageSize: number = DEFAULT_PAGE_SIZE) {
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
   const [loading, setLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastKey, setLastKey] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  
-  // Refs para evitar múltiplas chamadas simultâneas e manter valores atualizados
-  const isLoadingMoreRef = useRef(false);
-  const lastKeyRef = useRef<string | null>(null);
-  const hasMoreRef = useRef(true);
 
-  // Sincroniza refs com estado
-  useEffect(() => {
-    lastKeyRef.current = lastKey;
-    hasMoreRef.current = hasMore;
-  }, [lastKey, hasMore]);
-
-  // Carrega primeira página
+  // Carrega todos os produtos uma vez no mount
   useEffect(() => {
     let isMounted = true;
 
-    async function loadInitialProducts() {
+    async function load() {
       try {
         setLoading(true);
         setError(null);
-        const result = await getProductsPaginated(pageSize);
-
+        const list = await getAllProductsSorted();
         if (isMounted) {
-          setProducts(result.products);
-          setLastKey(result.lastKey);
-          setHasMore(result.hasMore);
-          lastKeyRef.current = result.lastKey;
-          hasMoreRef.current = result.hasMore;
+          setAllProducts(list);
+          setVisibleCount(pageSize);
           setLoading(false);
         }
       } catch (err) {
@@ -69,77 +39,19 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
       }
     }
 
-    loadInitialProducts();
-
+    load();
     return () => {
       isMounted = false;
     };
   }, [pageSize]);
 
-  // Função para carregar mais produtos - usa refs para evitar closure stale
-  const loadMore = useCallback(async () => {
-    const currentHasMore = hasMoreRef.current;
-    const currentLastKey = lastKeyRef.current;
-    const currentIsLoading = isLoadingMoreRef.current;
+  // Produtos visíveis = slice do array completo (sem duplicatas, ordem estável)
+  const products = allProducts.slice(0, visibleCount);
+  const hasMore = visibleCount < allProducts.length;
 
-    if (import.meta.env.DEV) {
-      console.log("[scroll-inf] loadMore chamado", {
-        hasMore: currentHasMore,
-        isLoading: currentIsLoading,
-        lastKey: currentLastKey,
-        pageSize,
-      });
-    }
-
-    // Proteção contra múltiplas chamadas simultâneas
-    if (!currentHasMore || currentIsLoading) {
-      if (import.meta.env.DEV && !currentHasMore) {
-        console.log("[scroll-inf] loadMore ignorado: hasMore=false");
-      }
-      if (import.meta.env.DEV && currentIsLoading) {
-        console.log("[scroll-inf] loadMore ignorado: já carregando");
-      }
-      return;
-    }
-
-    try {
-      isLoadingMoreRef.current = true;
-      setIsLoadingMore(true);
-      setError(null);
-
-      const result = await getProductsPaginated(pageSize, currentLastKey || undefined);
-
-      if (import.meta.env.DEV) {
-        console.log("[scroll-inf] loadMore concluído", {
-          novos: result.products.length,
-          hasMore: result.hasMore,
-          lastKey: result.lastKey,
-        });
-      }
-
-      // Adiciona novos produtos ao final da lista existente
-      setProducts((prev) => {
-        // Evita duplicatas
-        const existingIds = new Set(prev.map(p => p.id));
-        const newProducts = result.products.filter(p => !existingIds.has(p.id));
-        return [...prev, ...newProducts];
-      });
-
-      setLastKey(result.lastKey);
-      setHasMore(result.hasMore);
-      lastKeyRef.current = result.lastKey;
-      hasMoreRef.current = result.hasMore;
-      setIsLoadingMore(false);
-      isLoadingMoreRef.current = false;
-    } catch (err) {
-      if (import.meta.env.DEV) {
-        console.error("[scroll-inf] loadMore erro", err);
-      }
-      setError(err instanceof Error ? err.message : "Erro desconhecido");
-      setIsLoadingMore(false);
-      isLoadingMoreRef.current = false;
-    }
-  }, [pageSize]);
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(prev + pageSize, allProducts.length));
+  }, [pageSize, allProducts.length]);
 
   return {
     products,
@@ -147,6 +59,6 @@ export function useFirebaseProductsInfinite(pageSize: number = 40) {
     error,
     loadMore,
     hasMore,
-    isLoadingMore,
+    isLoadingMore: false, // Não há request em andamento ao "carregar mais"
   };
 }
