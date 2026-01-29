@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import { Loader2, Heart, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +7,6 @@ import { useIntersectionObserver } from "../hooks/useIntersectionObserver";
 export const RecommendedProducts = () => {
   const navigate = useNavigate();
   const { colors, theme } = useTheme();
-  const [willLoadMore, setWillLoadMore] = useState(false);
 
   // --- FIREBASE REALTIME DATABASE COM PAGINAÇÃO ---
   const {
@@ -25,17 +23,9 @@ export const RecommendedProducts = () => {
 
   const loadMoreRef = useIntersectionObserver(() => {
     if (hasMore && !isLoading) {
-      setWillLoadMore(true);
       loadMore();
     }
   }, observerEnabled);
-
-  // Reset willLoadMore quando isLoadingMore mudar
-  useEffect(() => {
-    if (isLoadingMore) {
-      setWillLoadMore(false);
-    }
-  }, [isLoadingMore]);
 
   const styles = {
     // AQUI ESTÁ A MUDANÇA: padding lateral de 15px
@@ -233,7 +223,7 @@ export const RecommendedProducts = () => {
               }}
               data-testid="load-more-trigger"
             >
-              {isLoadingMore || willLoadMore ? (
+              {isLoadingMore ? (
                 <div
                   style={{
                     display: "flex",

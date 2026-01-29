@@ -125,15 +125,14 @@ export const StoreHome = () => {
   const observerEnabled = hasMore && !isLoading;
 
   const loadMoreRef = useIntersectionObserver(() => {
-    // O hook useFirebaseProductsInfinite já tem proteção contra múltiplas chamadas
-    // Então podemos chamar loadMore diretamente quando o observer dispara
     if (hasMore && !isLoading) {
       setWillLoadMore(true);
       loadMore();
     }
   }, observerEnabled);
 
-  // Reset willLoadMore quando isLoadingMore mudar
+  // Reset willLoadMore quando isLoadingMore mudar (padrão antigo; necessário para UI)
+  // eslint-disable-next-line -- reset when isLoadingMore; deliberate setState in effect
   useEffect(() => {
     if (isLoadingMore) {
       setWillLoadMore(false);
