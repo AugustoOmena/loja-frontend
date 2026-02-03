@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../../services/supabaseClient";
+import { listByUser } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
 import {
@@ -33,25 +33,32 @@ export const Profile = () => {
     if (!user) return;
 
     const fetchCounts = async () => {
-      const { count: paymentCount } = await supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "pending");
+      try {
+        const orders = await listByUser({ userId: user.id });
+        const paymentCount = orders.filter((o) => o.status === "pending").length;
+        const shippingCount = orders.filter((o) =>
+          ["approved", "in_process"].includes(o.status)
+        ).length;
+        const shippedCount = orders.filter((o) =>
+          ["shipped", "delivered"].includes(o.status)
+        ).length;
 
-      const { count: shippingCount } = await supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .in("status", ["approved", "in_process"]);
-
-      setCounts({
-        payment: paymentCount || 0,
-        shipping: shippingCount || 0,
-        shipped: 0,
-        review: 0,
-        returns: 0,
-      });
+        setCounts({
+          payment: paymentCount,
+          shipping: shippingCount,
+          shipped: shippedCount,
+          review: 0,
+          returns: 0,
+        });
+      } catch {
+        setCounts({
+          payment: 0,
+          shipping: 0,
+          shipped: 0,
+          review: 0,
+          returns: 0,
+        });
+      }
     };
 
     fetchCounts();

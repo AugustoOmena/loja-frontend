@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { listAllBackoffice } from "../../services/orderService";
 import { supabase } from "../../services/supabaseClient";
+import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
   DollarSign,
@@ -19,7 +21,7 @@ interface DashboardStats {
   totalCustomers: number;
 }
 interface RecentOrder {
-  id: number;
+  id: string;
   created_at: string;
   total_amount: number;
   status: string;
@@ -27,6 +29,7 @@ interface RecentOrder {
 }
 
 export const Dashboard = () => {
+  const { user } = useAuth();
   const { colors, theme } = useTheme();
   const [stats, setStats] = useState<DashboardStats>({
     revenue: 0,
@@ -38,40 +41,44 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // useEffect e fetchDashboardData
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const { count: productCount } = await supabase
-        .from("products")
-        .select("*", { count: "exact", head: true });
-      const { count: userCount } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id, total_amount, status, created_at, user_id")
-        .order("created_at", { ascending: false });
+      const [productCountRes, userCountRes, orders] = await Promise.all([
+        supabase.from("products").select("*", { count: "exact", head: true }),
+        supabase.from("profiles").select("*", { count: "exact", head: true }),
+        listAllBackoffice(user.id),
+      ]);
 
       const totalRevenue =
         orders
-          ?.filter((o) => o.status === "approved")
-          .reduce((acc, curr) => acc + curr.total_amount, 0) || 0;
+          .filter((o) => o.status === "approved")
+          .reduce((acc, curr) => acc + (curr.total_amount || 0), 0) || 0;
       setStats({
         revenue: totalRevenue,
-        totalOrders: orders?.length || 0,
-        totalProducts: productCount || 0,
-        totalCustomers: userCount || 0,
+        totalOrders: orders.length,
+        totalProducts: productCountRes.count || 0,
+        totalCustomers: userCountRes.count || 0,
       });
-      setRecentOrders(orders?.slice(0, 5) || []);
+      setRecentOrders(
+        orders.slice(0, 5).map((o) => ({
+          id: o.id,
+          created_at: o.created_at,
+          total_amount: o.total_amount,
+          status: o.status,
+          user_id: o.user_id,
+        }))
+      );
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

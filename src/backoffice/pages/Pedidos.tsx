@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
-import { supabase } from "../../services/supabaseClient";
+import {
+  listAllBackoffice,
+  backofficeFullCancel,
+  backofficeCancelItems,
+  backofficeUpdateStatus,
+  type OrderApi,
+} from "../../services/orderService";
 import {
   Eye,
   XCircle,
@@ -18,20 +25,13 @@ import {
 
 import type { OrderItem } from "../../types/index";
 
-interface Order {
-  id: string; // uuid
-  created_at: string;
-  status: string;
-  total_amount: number;
-  user_id: string;
-  payment_id?: string;
-
-  // Campos trazidos via JOIN (Relacionamento)
+interface Order extends OrderApi {
   items: OrderItem[];
   user_email: string;
 }
 
 export const PedidosBackoffice = () => {
+  const { user } = useAuth();
   const { colors, theme } = useTheme();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,80 +53,43 @@ export const PedidosBackoffice = () => {
     "refund" | "voucher" | null
   >(null);
 
-  const safeFormat = (value: any) => {
+  const safeFormat = (value: string | number) => {
     const num = Number(value);
     return isNaN(num) ? "0.00" : num.toFixed(2);
   };
 
-  // --- BUSCAR PEDIDOS (COM JOINS DE PERFIL E ITENS) ---
-  const fetchOrders = async () => {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("orders")
-      .select(
-        `
-        *,
-        profiles (
-          email
-        ),
-        order_items (
-          id,
-          product_name,
-          quantity,
-          price
-        )
-      `,
-      )
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      const formattedData: Order[] = data.map((o: any) => {
-        // 1. Trata o Email (Vem da tabela profiles)
-        let email = "Email não encontrado";
-        if (o.profiles) {
-          // O Supabase pode retornar array ou objeto dependendo da relação
-          email = Array.isArray(o.profiles)
-            ? o.profiles[0]?.email
-            : o.profiles.email;
-        }
-
-        // 2. Trata os Itens (Vem da tabela order_items)
-        // Mapeamos para garantir que o front receba o formato certo
-        const rawItems = o.order_items || [];
-        const items: OrderItem[] = Array.isArray(rawItems)
-          ? rawItems.map((i: any) => ({
-              id: i.id,
-              // AQUI O PULO DO GATO: Sua tabela usa 'product_name', mas a interface pode esperar 'name'
-              // Vamos normalizar para 'product_name' conforme sua interface OrderItem
-              product_name: i.product_name,
-              name: i.product_name, // Fallback se algum lugar usar .name
-              quantity: i.quantity,
-              price: i.price,
-            }))
-          : [];
-
-        return {
-          id: o.id,
-          created_at: o.created_at,
-          status: o.status,
-          total_amount: o.total_amount,
-          user_id: o.user_id,
-          payment_id: o.payment_id,
-          items: items, // Agora temos os itens reais do banco!
-          user_email: email || "Desconhecido",
-        };
-      });
-      setOrders(formattedData);
-    } else {
-      console.error("Erro ao buscar pedidos:", error);
-    }
-    setLoading(false);
+  const mapApiOrderToOrder = (o: OrderApi): Order => {
+    const rawItems = o.items || [];
+    const items: OrderItem[] = rawItems.map((i) => ({
+      id: i.id,
+      product_name: i.product_name,
+      name: i.product_name,
+      quantity: i.quantity,
+      price: i.price,
+    }));
+    return {
+      ...o,
+      items,
+      user_email: o.user_email || "Email não encontrado",
+    };
   };
+
+  const fetchOrders = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const data = await listAllBackoffice(user.id);
+      setOrders(data.map(mapApiOrderToOrder));
+    } catch (err) {
+      console.error("Erro ao buscar pedidos:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   // --- FILTRAGEM ---
   const filteredOrders = orders.filter((order) => {
@@ -149,96 +112,66 @@ export const PedidosBackoffice = () => {
   const confirmStatusChange = async () => {
     if (!selectedOrder || !statusToConfirm) return;
     setProcessingAction(true);
-
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: statusToConfirm })
-      .eq("id", selectedOrder.id);
-
-    if (!error) {
-      const updated = { ...selectedOrder, status: statusToConfirm };
+    try {
+      const updatedApi = await backofficeUpdateStatus(
+        selectedOrder.id,
+        statusToConfirm
+      );
+      const updated = mapApiOrderToOrder(updatedApi);
       setSelectedOrder(updated);
       setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
       setIsStatusConfirmOpen(false);
-    } else {
+    } catch {
       alert("Erro ao atualizar status.");
+    } finally {
+      setProcessingAction(false);
     }
-    setProcessingAction(false);
   };
 
-  // --- CANCELAR TOTALMENTE ---
   const handleFullCancel = async () => {
     if (!selectedOrder) return;
     if (!confirm("ATENÇÃO: Cancelar pedido?")) return;
     setProcessingAction(true);
-
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: "cancelled" })
-      .eq("id", selectedOrder.id);
-
-    if (!error) {
-      const updated = { ...selectedOrder, status: "cancelled" };
+    try {
+      const updatedApi = await backofficeFullCancel(
+        selectedOrder.id,
+        "voucher"
+      );
+      const updated = mapApiOrderToOrder(updatedApi);
       setSelectedOrder(updated);
       setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    } catch {
+      alert("Erro ao cancelar pedido.");
+    } finally {
+      setProcessingAction(false);
     }
-    setProcessingAction(false);
   };
 
-  // --- REMOVER ITEM (AGORA COM DELETE NA TABELA CERTA) ---
   const handleRemoveItemConfirm = async () => {
     if (!selectedOrder || !itemToRemove || !compensationType) return;
     setProcessingAction(true);
-
     try {
-      const amountToCompensate =
-        (Number(itemToRemove.price) || 0) *
-        (Number(itemToRemove.quantity) || 1);
-
-      // 1. DELETE REAL NA TABELA order_items
-      const { error: deleteError } = await supabase
-        .from("order_items")
-        .delete()
-        .eq("id", itemToRemove.id);
-
-      if (deleteError) throw deleteError;
-
-      // 2. ATUALIZA O TOTAL NA TABELA orders
-      const newTotal =
-        (Number(selectedOrder.total_amount) || 0) - amountToCompensate;
-
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({ total_amount: newTotal })
-        .eq("id", selectedOrder.id);
-
-      if (updateError) throw updateError;
-
-      // 3. ATUALIZA A UI
-      const newItems = selectedOrder.items.filter(
-        (i) => i.id !== itemToRemove.id,
+      const refundMethod = compensationType === "voucher" ? "voucher" : "mp";
+      const updatedApi = await backofficeCancelItems(
+        selectedOrder.id,
+        [itemToRemove.id],
+        refundMethod
       );
-      const updatedOrder = {
-        ...selectedOrder,
-        items: newItems,
-        total_amount: newTotal,
-      };
-
-      setSelectedOrder(updatedOrder);
+      const updated = mapApiOrderToOrder(updatedApi);
+      setSelectedOrder(updated);
       setOrders((prev) =>
-        prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)),
+        prev.map((o) => (o.id === updated.id ? updated : o))
       );
-
       alert(
         compensationType === "voucher"
-          ? "Item removido. Voucher gerado (Simulado)."
-          : "Item removido. Reembolso solicitado.",
+          ? "Item removido. Voucher gerado."
+          : "Item removido. Reembolso solicitado."
       );
       setItemToRemove(null);
       setCompensationType(null);
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      alert("Erro ao remover item: " + e.message);
+      alert("Erro ao remover item.");
     } finally {
       setProcessingAction(false);
     }
@@ -262,7 +195,7 @@ export const PedidosBackoffice = () => {
     }
   };
   const getStatusLabel = (status: string) => {
-    const map: any = {
+    const map: Record<string, string> = {
       pending: "Pendente",
       approved: "Pago",
       in_process: "Processando",

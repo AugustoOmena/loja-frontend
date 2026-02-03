@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "../../../services/supabaseClient";
+import { listByUser } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { ChevronLeft, Package, Clock } from "lucide-react";
@@ -50,23 +50,22 @@ export const OrderList = () => {
 
     const fetchOrders = async () => {
       setLoading(true);
-
-      // Se for Mock, não busca nada (ou busca vazio)
-      if (["enviados", "avaliar", "devolucao"].includes(type || "")) {
-        setOrders([]); // Mock vazio por enquanto
+      try {
+        if (["enviados", "avaliar", "devolucao"].includes(type || "")) {
+          setOrders([]);
+          return;
+        }
+        const data = await listByUser({ userId: user.id });
+        const filtered = data.filter((o) =>
+          config.statuses.includes(o.status)
+        );
+        setOrders(filtered);
+      } catch (err) {
+        console.error("Erro ao buscar pedidos:", err);
+        setOrders([]);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const { data } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", user.id)
-        .in("status", config.statuses)
-        .order("created_at", { ascending: false });
-
-      setOrders(data || []);
-      setLoading(false);
     };
 
     fetchOrders();

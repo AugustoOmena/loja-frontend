@@ -21,6 +21,7 @@ import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
 import { StoreHome } from "./store/pages/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
 import { Login } from "./pages/Login";
+import { AuthCallback } from "./pages/AuthCallback";
 import { Checkout } from "./store/pages/Checkout";
 import { PixBoletoCheckout } from "./store/pages/PixBoletoCheckout";
 import { CreditCardCheckout } from "./store/pages/CreditCardCheckout";
@@ -42,6 +43,7 @@ function App() {
                   ROTAS PÚBLICAS (Qualquer um acessa)
               ==================================================== */}
               <Route path="/login" element={<Login />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/backoffice/login" element={<LoginBackoffice />} />
 
               {/* Layout Principal da Loja (Com Menu Bottom) */}
@@ -72,7 +74,6 @@ function App() {
                   path="/checkout/credit"
                   element={<CreditCardCheckout />}
                 />
-                <Route path="/auth/callback" element={<Navigate to="/" />} />
 
                 {/* Sub-páginas do Cliente (Fora do menu bottom se desejar, ou dentro) */}
                 <Route path="/pedidos/:type" element={<OrderList />} />
