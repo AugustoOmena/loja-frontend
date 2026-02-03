@@ -8,6 +8,16 @@ export interface OrderItemApi {
   price: number;
 }
 
+/** Endereço de entrega (quando retornado no detalhe do pedido) */
+export interface OrderAddressApi {
+  street_name?: string;
+  street_number?: string;
+  neighborhood?: string;
+  city?: string;
+  federal_unit?: string;
+  zip_code?: string;
+}
+
 export interface OrderApi {
   id: string;
   created_at: string;
@@ -17,6 +27,8 @@ export interface OrderApi {
   payment_id?: string;
   items?: OrderItemApi[];
   user_email?: string;
+  /** Endereço de entrega (detalhe do pedido) */
+  shipping_address?: OrderAddressApi;
 }
 
 const backofficeHeaders = {

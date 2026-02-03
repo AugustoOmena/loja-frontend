@@ -9,7 +9,7 @@ import {
   Package,
   Truck,
   MessageSquare,
-  RotateCcw,
+  // RotateCcw, // devoluções comentado
   UserCircle,
   Home,
 } from "lucide-react";
@@ -89,12 +89,12 @@ export const Profile = () => {
       count: counts.review,
       route: "/pedidos/avaliar",
     },
-    {
-      label: "Devolução",
-      icon: <RotateCcw size={24} />,
-      count: counts.returns,
-      route: "/pedidos/devolucao",
-    },
+    // {
+    //   label: "Devolução",
+    //   icon: <RotateCcw size={24} />,
+    //   count: counts.returns,
+    //   route: "/pedidos/devolucao",
+    // },
   ];
 
   const styles = {
