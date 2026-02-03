@@ -7,7 +7,7 @@ import {
 } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
-import { ChevronLeft, Package, Clock, X, MapPin } from "lucide-react";
+import { ChevronLeft, Package, Clock, X, MapPin, Star } from "lucide-react";
 import { RecommendedProducts } from "../../../components/RecommendedProducts";
 
 // Tipos de lista baseados na rota
@@ -27,14 +27,14 @@ const SCREEN_CONFIG: Record<
   },
   enviados: {
     title: "Enviados",
-    statuses: ["shipped", "delivered"],
+    statuses: ["shipped"],
     emptyMsg: "Nenhum pedido em trânsito.",
-  }, // Mock
+  },
   avaliar: {
     title: "Para Avaliar",
-    statuses: ["completed"],
+    statuses: ["delivered"],
     emptyMsg: "Nenhum pedido para avaliar.",
-  }, // Mock
+  },
   devolucao: {
     title: "Devoluções",
     statuses: ["returned"],
@@ -63,6 +63,9 @@ export const OrderList = () => {
   const [loading, setLoading] = useState(true);
   const [modalOrder, setModalOrder] = useState<OrderApi | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [evalRating, setEvalRating] = useState(0);
+  const [evalComment, setEvalComment] = useState("");
+  const [evalSubmitted, setEvalSubmitted] = useState(false);
 
   const config = type ? SCREEN_CONFIG[type] : SCREEN_CONFIG.pagamento;
 
