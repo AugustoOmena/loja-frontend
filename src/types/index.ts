@@ -75,6 +75,10 @@ export interface OpcaoFrete {
   transportadora: string;
   preco: number;
   prazo_entrega_dias: number | null;
+  /** Identificador do serviço (ex: "jadlog_package", "correios_pac") - backend deve retornar para validação */
+  service?: string;
+  /** Id da opção no Melhor Envio - alternativa ao service */
+  id?: string | number;
 }
 
 /** Request body para POST /frete */

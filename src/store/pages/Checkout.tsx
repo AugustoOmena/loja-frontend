@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart, type CartItem } from "../../contexts/CartContext";
 import { useAddress } from "../../contexts/AddressContext";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +28,7 @@ export const Checkout = () => {
 
   const debouncedCep = useDebounce(address.cep, 400);
   const lastKey = useRef<string>("");
+  const [selectedShippingIndex, setSelectedShippingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!items?.length || !validarCep(debouncedCep)) return;
@@ -37,9 +38,10 @@ export const Checkout = () => {
 
     clearError();
     setSelectedShipping(null);
+    setSelectedShippingIndex(null);
     const itens = cartItemsToFreteItens(items);
     calcular(debouncedCep, itens);
-  }, [debouncedCep, items, calcular, clearError, setSelectedShipping]);
+  }, [debouncedCep, items, calcular, clearError, setSelectedShipping, setSelectedShippingIndex]);
 
   // Proteção contra carrinho vazio
   if (!items || items.length === 0) {
@@ -76,9 +78,11 @@ export const Checkout = () => {
 
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
-  const selectedId = selectedShipping
-    ? `${selectedShipping.transportadora}-${selectedShipping.preco}`
-    : null;
+
+  const handleSelectShipping = (op: import("../../types").OpcaoFrete, index: number) => {
+    setSelectedShipping(op);
+    setSelectedShippingIndex(index);
+  };
 
   // --- NAVEGAÇÃO ---
   const handleSelection = (method: string) => {
@@ -238,8 +242,8 @@ export const Checkout = () => {
                 opcoes={opcoes}
                 loading={loading}
                 error={error}
-                selectedId={selectedId}
-                onSelect={setSelectedShipping}
+                selectedIndex={selectedShippingIndex}
+                onSelect={handleSelectShipping}
                 colors={colors}
                 embed
               />

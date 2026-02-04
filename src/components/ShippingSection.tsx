@@ -20,8 +20,9 @@ interface ShippingSectionProps {
   opcoes: OpcaoFrete[];
   loading: boolean;
   error: string | null;
-  selectedId: string | null;
-  onSelect: (op: OpcaoFrete) => void;
+  /** Índice da opção selecionada (evita conflito quando várias opções têm mesmo service) */
+  selectedIndex: number | null;
+  onSelect: (op: OpcaoFrete, index: number) => void;
   colors: { text: string; muted: string; border: string; card: string };
   /** Quando true, não renderiza o card wrapper (para unificar com endereço) */
   embed?: boolean;
@@ -32,7 +33,7 @@ export function ShippingSection({
   opcoes,
   loading,
   error,
-  selectedId,
+  selectedIndex,
   onSelect,
   colors,
   embed = false,
@@ -83,12 +84,12 @@ export function ShippingSection({
         </div>
       ) : opcoes.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {opcoes.map((op) => {
-            const id = `${op.transportadora}-${op.preco}`;
-            const isSelected = selectedId === id;
+          {opcoes.map((op, index) => {
+            const radioId = `shipping-opt-${index}`;
+            const isSelected = selectedIndex === index;
             return (
               <label
-                key={id}
+                key={radioId}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -105,9 +106,9 @@ export function ShippingSection({
                   <input
                     type="radio"
                     name="shipping"
-                    value={id}
+                    value={radioId}
                     checked={isSelected}
-                    onChange={() => onSelect(op)}
+                    onChange={() => onSelect(op, index)}
                     style={{ accentColor: "#10b981", cursor: "pointer" }}
                   />
                   <div>

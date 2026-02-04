@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { useAddress } from "../../contexts/AddressContext";
+import { cartItemsToFreteItens } from "../../hooks/useFrete";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import {
@@ -215,6 +216,9 @@ export const PixBoletoCheckout = () => {
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
 
+  const shippingCost = selectedShipping?.preco ?? 0;
+  const totalComFrete = cartTotal + shippingCost;
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -291,8 +295,6 @@ export const PixBoletoCheckout = () => {
       const safeNumber = formData.number.trim() || "S/N";
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
 
-      const shippingCost = selectedShipping?.preco ?? 0;
-      const totalComFrete = cartTotal + shippingCost;
       const payload = {
         transaction_amount: totalComFrete > 0 ? totalComFrete : 0.1,
         payment_method_id: method === "pix" ? "pix" : "bolbradesco",
@@ -322,6 +324,10 @@ export const PixBoletoCheckout = () => {
           image: i.image || (i.images ? i.images[0] : null),
           size: i.size,
         })),
+        frete: shippingCost,
+        cep: formData.zipCode.replace(/\D/g, ""),
+        frete_service: selectedShipping?.service ?? selectedShipping?.id ?? selectedShipping?.transportadora,
+        frete_itens: cartItemsToFreteItens(safeItems),
       };
 
       const API_URL = import.meta.env.VITE_API_URL;
@@ -657,16 +663,46 @@ export const PixBoletoCheckout = () => {
                 marginTop: 20,
                 paddingTop: 20,
                 borderTop: `1px solid ${colors.border}`,
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 20,
-                fontWeight: "800",
               }}
             >
-              <span>Total a pagar</span>
-              <span style={{ color: "#10b981" }}>
-                R$ {cartTotal.toFixed(2)}
-              </span>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                  fontSize: 14,
+                  color: colors.muted,
+                }}
+              >
+                <span>Subtotal</span>
+                <span>R$ {cartTotal.toFixed(2)}</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                  fontSize: 14,
+                  color: colors.muted,
+                }}
+              >
+                <span>Frete</span>
+                <span>R$ {shippingCost.toFixed(2)}</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginTop: 15,
+                  fontSize: 20,
+                  fontWeight: "800",
+                }}
+              >
+                <span>Total a pagar</span>
+                <span style={{ color: "#10b981" }}>
+                  R$ {totalComFrete.toFixed(2)}
+                </span>
+              </div>
             </div>
 
             <button type="submit" disabled={loading} style={styles.btn}>
