@@ -2,13 +2,6 @@ import { Truck, Loader2, AlertCircle } from "lucide-react";
 import type { OpcaoFrete } from "../types";
 import { normalizarCep } from "../services/freteService";
 
-/** Máscara CEP 00000-000 */
-function formatCep(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 5) return digits;
-  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
-}
-
 function formatPrice(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -24,44 +17,31 @@ function formatPrazo(dias: number | null): string {
 
 interface ShippingSectionProps {
   cep: string;
-  onCepChange: (cep: string) => void;
   opcoes: OpcaoFrete[];
   loading: boolean;
   error: string | null;
   selectedId: string | null;
   onSelect: (op: OpcaoFrete) => void;
-  onCalcular: () => void;
   colors: { text: string; muted: string; border: string; card: string };
+  /** Quando true, não renderiza o card wrapper (para unificar com endereço) */
+  embed?: boolean;
 }
 
 export function ShippingSection({
   cep,
-  onCepChange,
   opcoes,
   loading,
   error,
   selectedId,
   onSelect,
-  onCalcular,
   colors,
+  embed = false,
 }: ShippingSectionProps) {
   const cepDigits = normalizarCep(cep);
-  const canCalcular = cepDigits.length === 8;
+  const cepValido = cepDigits.length === 8;
 
-  const handleCepBlur = () => {
-    onCepChange(formatCep(cep));
-  };
-
-  return (
-    <div
-      style={{
-        backgroundColor: colors.card,
-        padding: "20px",
-        borderRadius: "12px",
-        border: `1px solid ${colors.border}`,
-        marginBottom: "20px",
-      }}
-    >
+  const content = (
+    <>
       <div
         style={{
           display: "flex",
@@ -73,61 +53,25 @@ export function ShippingSection({
           fontWeight: 600,
         }}
       >
-        <Truck size={20} color="#10b981" /> Calcular frete
+        <Truck size={20} color="#10b981" /> Opções de entrega
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 15, flexWrap: "wrap" }}>
-        <input
-          type="text"
-          placeholder="00000-000"
-          value={formatCep(cep)}
-          onChange={(e) => onCepChange(e.target.value.replace(/\D/g, "").slice(0, 8))}
-          onBlur={handleCepBlur}
-          maxLength={9}
-          style={{
-            flex: 1,
-            minWidth: 140,
-            padding: "12px 14px",
-            borderRadius: 8,
-            border: `1px solid ${colors.border}`,
-            backgroundColor: "transparent",
-            color: colors.text,
-            fontSize: 14,
-          }}
-        />
-        <button
-          type="button"
-          onClick={onCalcular}
-          disabled={!canCalcular || loading}
-          style={{
-            padding: "12px 20px",
-            background: canCalcular && !loading ? "#10b981" : "#94a3b8",
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            fontWeight: 600,
-            cursor: canCalcular && !loading ? "pointer" : "not-allowed",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          {loading ? (
-            <Loader2 size={18} className="animate-spin" style={{ animation: "spin 0.8s linear infinite" }} />
-          ) : (
-            "Calcular"
-          )}
-        </button>
-      </div>
-
-      {error && (
+      {!cepValido ? (
+        <p style={{ fontSize: 14, color: colors.muted, margin: 0 }}>
+          Preencha o CEP acima para ver as opções disponíveis
+        </p>
+      ) : loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, color: colors.muted, fontSize: 14 }}>
+          <Loader2 size={18} style={{ animation: "spin 0.8s linear infinite" }} />
+          Buscando opções...
+        </div>
+      ) : error ? (
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 8,
             padding: "12px",
-            marginBottom: 15,
             borderRadius: 8,
             backgroundColor: "rgba(239, 68, 68, 0.1)",
             color: "#ef4444",
@@ -137,9 +81,7 @@ export function ShippingSection({
           <AlertCircle size={18} />
           {error}
         </div>
-      )}
-
-      {opcoes.length > 0 && (
+      ) : opcoes.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {opcoes.map((op) => {
             const id = `${op.transportadora}-${op.preco}`;
@@ -184,11 +126,33 @@ export function ShippingSection({
             );
           })}
         </div>
-      )}
+      ) : null}
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
+    </>
+  );
+
+  if (embed) {
+    return (
+      <div style={{ marginTop: 24, paddingTop: 24, borderTop: `1px solid ${colors.border}` }}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        backgroundColor: colors.card,
+        padding: "20px",
+        borderRadius: "12px",
+        border: `1px solid ${colors.border}`,
+        marginBottom: "20px",
+      }}
+    >
+      {content}
     </div>
   );
 }

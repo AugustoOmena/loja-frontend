@@ -93,3 +93,14 @@ export interface FreteErrorBody {
   error: string;
   details?: string;
 }
+
+/** Endereço de entrega (salvo em localStorage) */
+export interface ShippingAddress {
+  cep: string;
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  complement: string;
+}

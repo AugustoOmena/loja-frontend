@@ -1,5 +1,8 @@
+import { useEffect, useRef } from "react";
 import { useCart, type CartItem } from "../../contexts/CartContext";
+import { useAddress } from "../../contexts/AddressContext";
 import { useNavigate } from "react-router-dom";
+import { useDebounce } from "../../hooks/useDebounce";
 import {
   CreditCard,
   QrCode,
@@ -8,23 +11,35 @@ import {
   ShieldCheck,
   Lock,
   Star,
+  AlertCircle,
 } from "lucide-react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useFrete, cartItemsToFreteItens } from "../../hooks/useFrete";
 import { ShippingSection } from "../../components/ShippingSection";
+import { AddressForm } from "../../components/AddressForm";
+import { validarCep } from "../../services/freteService";
 
 export const Checkout = () => {
-  const {
-    items,
-    cartTotal,
-    selectedShipping,
-    setSelectedShipping,
-    cep,
-    setCep,
-  } = useCart();
+  const { items, cartTotal, selectedShipping, setSelectedShipping } = useCart();
+  const { address, setAddress } = useAddress();
   const { opcoes, loading, error, calcular, clearError } = useFrete();
   const navigate = useNavigate();
   const { colors, theme } = useTheme();
+
+  const debouncedCep = useDebounce(address.cep, 400);
+  const lastKey = useRef<string>("");
+
+  useEffect(() => {
+    if (!items?.length || !validarCep(debouncedCep)) return;
+    const key = `${debouncedCep}-${items.length}`;
+    if (lastKey.current === key) return;
+    lastKey.current = key;
+
+    clearError();
+    setSelectedShipping(null);
+    const itens = cartItemsToFreteItens(items);
+    calcular(debouncedCep, itens);
+  }, [debouncedCep, items, calcular, clearError, setSelectedShipping]);
 
   // Proteção contra carrinho vazio
   if (!items || items.length === 0) {
@@ -57,12 +72,7 @@ export const Checkout = () => {
     );
   }
 
-  const handleCalcularFrete = () => {
-    clearError();
-    setSelectedShipping(null);
-    const itens = cartItemsToFreteItens(items);
-    calcular(cep, itens);
-  };
+  const cepValido = validarCep(address.cep);
 
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
@@ -72,6 +82,7 @@ export const Checkout = () => {
 
   // --- NAVEGAÇÃO ---
   const handleSelection = (method: string) => {
+    if (!cepValido) return;
     if (method === "credit") {
       navigate("/checkout/credit");
     } else if (method === "pix") {
@@ -206,23 +217,63 @@ export const Checkout = () => {
 
           {/* --- COLUNA ESQUERDA (OPÇÕES) --- */}
           <div>
-            <ShippingSection
-              cep={cep}
-              onCepChange={(v) => setCep(v.replace(/\D/g, "").slice(0, 8))}
-              opcoes={opcoes}
-              loading={loading}
-              error={error}
-              selectedId={selectedId}
-              onSelect={setSelectedShipping}
-              onCalcular={handleCalcularFrete}
-              colors={colors}
-            />
+            <div
+              style={{
+                backgroundColor: colors.card,
+                padding: "20px",
+                borderRadius: "12px",
+                border: `1px solid ${colors.border}`,
+                marginBottom: "20px",
+              }}
+            >
+              <AddressForm
+                address={address}
+                onAddressChange={setAddress}
+                colors={colors}
+                embed
+              />
+
+              <ShippingSection
+                cep={address.cep}
+                opcoes={opcoes}
+                loading={loading}
+                error={error}
+                selectedId={selectedId}
+                onSelect={setSelectedShipping}
+                colors={colors}
+                embed
+              />
+            </div>
+
+            {!cepValido && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "14px",
+                  marginBottom: 20,
+                  borderRadius: 10,
+                  backgroundColor: "rgba(245, 158, 11, 0.1)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  color: "#d97706",
+                  fontSize: 14,
+                }}
+              >
+                <AlertCircle size={18} />
+                Preencha o CEP no endereço acima para prosseguir com o pagamento.
+              </div>
+            )}
 
             <div style={styles.subtitle}>Escolha o método de pagamento</div>
 
             {/* Opção 1: Cartão */}
             <div
-              style={styles.optionCard}
+              style={{
+                ...styles.optionCard,
+                opacity: cepValido ? 1 : 0.6,
+                pointerEvents: cepValido ? "auto" : "none",
+              }}
               className="hover-card"
               onClick={() => handleSelection("credit")}
             >
@@ -251,6 +302,8 @@ export const Checkout = () => {
                 border: `2px solid #10b981`,
                 background:
                   theme === "dark" ? "rgba(16,185,129,0.05)" : "#f0fdf4",
+                opacity: cepValido ? 1 : 0.6,
+                pointerEvents: cepValido ? "auto" : "none",
               }}
               className="hover-card"
               onClick={() => handleSelection("pix")}
@@ -282,7 +335,11 @@ export const Checkout = () => {
 
             {/* Opção 3: Boleto */}
             <div
-              style={styles.optionCard}
+              style={{
+                ...styles.optionCard,
+                opacity: cepValido ? 1 : 0.6,
+                pointerEvents: cepValido ? "auto" : "none",
+              }}
               className="hover-card"
               onClick={() => handleSelection("boleto")}
             >
@@ -390,7 +447,7 @@ export const Checkout = () => {
                 >
                   {selectedShipping
                     ? `R$ ${shippingCost.toFixed(2)}`
-                    : "Calcule o CEP acima"}
+                    : "Preencha o CEP para ver o frete"}
                 </span>
               </div>
 

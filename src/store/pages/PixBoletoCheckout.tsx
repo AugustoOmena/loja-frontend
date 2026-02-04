@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useCart } from "../../contexts/CartContext";
+import { useAddress } from "../../contexts/AddressContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import {
@@ -202,16 +203,17 @@ const SuccessModal = ({ data, onClose, colors, theme }: any) => {
 
 export const PixBoletoCheckout = () => {
   const { items, cartTotal, clearCart, selectedShipping } = useCart();
+  const { address } = useAddress();
   const navigate = useNavigate();
   const location = useLocation();
   const { colors, theme } = useTheme();
 
   const [method, setMethod] = useState<"pix" | "boleto">(
-    (location.state as any)?.defaultMethod || "pix",
+    (location.state as { defaultMethod?: "pix" | "boleto" })?.defaultMethod || "pix",
   );
 
   const [loading, setLoading] = useState(false);
-  const [successData, setSuccessData] = useState<any>(null);
+  const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -235,6 +237,20 @@ export const PixBoletoCheckout = () => {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (address.cep || address.street || address.city) {
+      setFormData((prev) => ({
+        ...prev,
+        zipCode: address.cep || prev.zipCode,
+        street: address.street || prev.street,
+        number: address.number || prev.number,
+        neighborhood: address.neighborhood || prev.neighborhood,
+        city: address.city || prev.city,
+        state: address.state || prev.state,
+      }));
+    }
+  }, [address.cep, address.street, address.number, address.neighborhood, address.city, address.state]);
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
