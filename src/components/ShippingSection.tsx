@@ -15,6 +15,14 @@ function formatPrazo(dias: number | null): string {
   return `${dias} dias úteis`;
 }
 
+/** JadLog usa .Package, .Com etc. — exibir como JadLog */
+const JADLOG_ALIASES = [".package", ".com"];
+function formatTransportadoraDisplay(name: string): string {
+  const n = name?.trim().toLowerCase() || "";
+  if (JADLOG_ALIASES.includes(n) || n.startsWith(".jadlog")) return "JadLog";
+  return name?.trim() || name;
+}
+
 interface ShippingSectionProps {
   cep: string;
   opcoes: OpcaoFrete[];
@@ -113,7 +121,7 @@ export function ShippingSection({
                   />
                   <div>
                     <span style={{ fontWeight: 600, color: colors.text }}>
-                      {op.transportadora}
+                      {formatTransportadoraDisplay(op.transportadora)}
                     </span>
                     <span style={{ marginLeft: 10, fontSize: 13, color: colors.muted }}>
                       {formatPrazo(op.prazo_entrega_dias)}
