@@ -201,7 +201,7 @@ const SuccessModal = ({ data, onClose, colors, theme }: any) => {
 };
 
 export const PixBoletoCheckout = () => {
-  const { items, cartTotal, clearCart } = useCart();
+  const { items, cartTotal, clearCart, selectedShipping } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const { colors, theme } = useTheme();
@@ -275,8 +275,10 @@ export const PixBoletoCheckout = () => {
       const safeNumber = formData.number.trim() || "S/N";
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
 
+      const shippingCost = selectedShipping?.preco ?? 0;
+      const totalComFrete = cartTotal + shippingCost;
       const payload = {
-        transaction_amount: cartTotal > 0 ? cartTotal : 0.1,
+        transaction_amount: totalComFrete > 0 ? totalComFrete : 0.1,
         payment_method_id: method === "pix" ? "pix" : "bolbradesco",
         user_id: user.id,
         payer: {

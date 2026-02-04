@@ -34,11 +34,13 @@ export const CreditCardCheckout = () => {
   const navigate = useNavigate();
 
   // CORREÇÃO 1: Adicionei 'items' aqui para poder enviar para a Lambda
-  const { cartTotal, clearCart, items } = useCart();
+  const { cartTotal, clearCart, items, selectedShipping } = useCart();
 
   const { colors, theme } = useTheme();
 
-  const transactionAmount = cartTotal > 0 ? cartTotal : 100;
+  const shippingCost = selectedShipping?.preco ?? 0;
+  const totalComFrete = cartTotal + shippingCost;
+  const transactionAmount = totalComFrete > 0 ? totalComFrete : 100;
 
   const amountRef = useRef(transactionAmount);
   useEffect(() => {

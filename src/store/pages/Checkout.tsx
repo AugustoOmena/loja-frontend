@@ -1,4 +1,4 @@
-import { useCart } from "../../contexts/CartContext";
+import { useCart, type CartItem } from "../../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import {
   CreditCard,
@@ -10,9 +10,19 @@ import {
   Star,
 } from "lucide-react";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useFrete, cartItemsToFreteItens } from "../../hooks/useFrete";
+import { ShippingSection } from "../../components/ShippingSection";
 
 export const Checkout = () => {
-  const { items, cartTotal } = useCart();
+  const {
+    items,
+    cartTotal,
+    selectedShipping,
+    setSelectedShipping,
+    cep,
+    setCep,
+  } = useCart();
+  const { opcoes, loading, error, calcular, clearError } = useFrete();
   const navigate = useNavigate();
   const { colors, theme } = useTheme();
 
@@ -46,6 +56,19 @@ export const Checkout = () => {
       </div>
     );
   }
+
+  const handleCalcularFrete = () => {
+    clearError();
+    setSelectedShipping(null);
+    const itens = cartItemsToFreteItens(items);
+    calcular(cep, itens);
+  };
+
+  const shippingCost = selectedShipping?.preco ?? 0;
+  const totalComFrete = cartTotal + shippingCost;
+  const selectedId = selectedShipping
+    ? `${selectedShipping.transportadora}-${selectedShipping.preco}`
+    : null;
 
   // --- NAVEGAÇÃO ---
   const handleSelection = (method: string) => {
@@ -175,7 +198,7 @@ export const Checkout = () => {
           <Lock size={28} color="#10b981" /> Finalizar Compra
         </h1>
 
-        <div className="checkout-grid" style={styles.grid as any}>
+        <div className="checkout-grid" style={styles.grid as React.CSSProperties}>
           <style>{`
             @media (max-width: 900px) { .checkout-grid { grid-template-columns: 1fr !important; } }
             .hover-card:hover { border-color: #10b981 !important; transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.15) !important; }
@@ -183,6 +206,18 @@ export const Checkout = () => {
 
           {/* --- COLUNA ESQUERDA (OPÇÕES) --- */}
           <div>
+            <ShippingSection
+              cep={cep}
+              onCepChange={(v) => setCep(v.replace(/\D/g, "").slice(0, 8))}
+              opcoes={opcoes}
+              loading={loading}
+              error={error}
+              selectedId={selectedId}
+              onSelect={setSelectedShipping}
+              onCalcular={handleCalcularFrete}
+              colors={colors}
+            />
+
             <div style={styles.subtitle}>Escolha o método de pagamento</div>
 
             {/* Opção 1: Cartão */}
@@ -305,7 +340,7 @@ export const Checkout = () => {
                   marginBottom: 20,
                 }}
               >
-                {items.map((item: any) => (
+                {items.map((item: CartItem) => (
                   <div key={item.id} style={styles.itemRow}>
                     {item.image && (
                       <img
@@ -347,14 +382,21 @@ export const Checkout = () => {
               </div>
               <div style={styles.summaryRow}>
                 <span>Frete</span>
-                <span style={{ color: "#10b981", fontWeight: "bold" }}>
-                  Grátis
+                <span
+                  style={{
+                    color: selectedShipping ? "#10b981" : colors.muted,
+                    fontWeight: "bold",
+                  }}
+                >
+                  {selectedShipping
+                    ? `R$ ${shippingCost.toFixed(2)}`
+                    : "Calcule o CEP acima"}
                 </span>
               </div>
 
               <div style={styles.totalRow}>
                 <span>Total a pagar</span>
-                <span>R$ {cartTotal.toFixed(2)}</span>
+                <span>R$ {totalComFrete.toFixed(2)}</span>
               </div>
             </div>
           </div>

@@ -57,3 +57,39 @@ export interface OrderItem {
   quantity: number;
   price: number;
 }
+
+// --- Frete (Melhor Envio) ---
+
+/** Item para cálculo de frete (dimensões em cm, peso em kg) */
+export interface ItemFrete {
+  width: number;
+  height: number;
+  length: number;
+  weight: number;
+  quantity?: number;
+  insurance_value?: number;
+}
+
+/** Opção de frete retornada pela API */
+export interface OpcaoFrete {
+  transportadora: string;
+  preco: number;
+  prazo_entrega_dias: number | null;
+}
+
+/** Request body para POST /frete */
+export interface FreteRequest {
+  cep_destino: string;
+  itens: ItemFrete[];
+}
+
+/** Response da API de frete */
+export interface FreteResponse {
+  opcoes: OpcaoFrete[];
+}
+
+/** Erro retornado pela API em 4xx/5xx */
+export interface FreteErrorBody {
+  error: string;
+  details?: string;
+}
