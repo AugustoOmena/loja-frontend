@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";
+import { AddressProvider } from "./contexts/AddressContext";
 
 // --- COMPONENTES GLOBAIS ---
 import { CartDrawer } from "./components/CartDrawer";
@@ -64,16 +65,19 @@ function App() {
                   Se tentar entrar aqui sem logar, vai pro Login
               ==================================================== */}
               <Route element={<PrivateRoute />}>
-                {/* Checkout Flow */}
-                <Route path="/checkout" element={<Checkout />} />
+                {/* Checkout Flow - AddressProvider só aqui para não afetar ProductDetails/StoreHome */}
                 <Route
-                  path="/checkout/pix-boleto"
-                  element={<PixBoletoCheckout />}
-                />
-                <Route
-                  path="/checkout/credit"
-                  element={<CreditCardCheckout />}
-                />
+                  path="/checkout"
+                  element={
+                    <AddressProvider>
+                      <Outlet />
+                    </AddressProvider>
+                  }
+                >
+                  <Route index element={<Checkout />} />
+                  <Route path="credit" element={<CreditCardCheckout />} />
+                  <Route path="pix-boleto" element={<PixBoletoCheckout />} />
+                </Route>
 
                 {/* Sub-páginas do Cliente (Fora do menu bottom se desejar, ou dentro) */}
                 <Route path="/pedidos/:type" element={<OrderList />} />

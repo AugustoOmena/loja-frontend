@@ -11,11 +11,14 @@ import {
   CheckCircle,
   Truck,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
+import { useAddress } from "../../contexts/AddressContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { cartItemsToFreteItens } from "../../hooks/useFrete";
 
 interface IdentificationType {
   id: string;
@@ -34,11 +37,14 @@ export const CreditCardCheckout = () => {
   const navigate = useNavigate();
 
   // CORREÇÃO 1: Adicionei 'items' aqui para poder enviar para a Lambda
-  const { cartTotal, clearCart, items } = useCart();
+  const { cartTotal, clearCart, items, selectedShipping } = useCart();
+  const { address } = useAddress();
 
   const { colors, theme } = useTheme();
 
-  const transactionAmount = cartTotal > 0 ? cartTotal : 100;
+  const shippingCost = selectedShipping?.preco ?? 0;
+  const totalComFrete = cartTotal + shippingCost;
+  const transactionAmount = totalComFrete > 0 ? totalComFrete : 100;
 
   const amountRef = useRef(transactionAmount);
   useEffect(() => {
@@ -143,7 +149,7 @@ export const CreditCardCheckout = () => {
 
       // @ts-ignore
       const mp = new window.MercadoPago(
-        "TEST-33d77029-c5e0-425f-b848-606ac9a9264f",
+        "TEST-33d77029-c5e0-425f-b848-606ac9a9264f"
       );
       mpRef.current = mp;
 
@@ -247,7 +253,7 @@ export const CreditCardCheckout = () => {
         if (firstSix) {
           const detectedId = await fetchPaymentMethodInfo(
             mpRef.current,
-            firstSix,
+            firstSix
           );
           if (detectedId) finalPaymentMethodId = detectedId;
         }
@@ -258,7 +264,7 @@ export const CreditCardCheckout = () => {
         finalPaymentMethodId = "credit_card";
       }
 
-      // CORREÇÃO 2: Enviando os Itens no Payload para a Lambda
+      // Envia itens + frete separado para o backend calcular corretamente
       const payload = {
         token: token.id,
         transaction_amount: transactionAmount,
@@ -280,6 +286,13 @@ export const CreditCardCheckout = () => {
           quantity: item.quantity,
           image: item.image,
         })),
+        frete: shippingCost,
+        cep: address.cep.replace(/\D/g, ""),
+        frete_service:
+          selectedShipping?.service ??
+          selectedShipping?.id ??
+          selectedShipping?.transportadora,
+        frete_itens: cartItemsToFreteItens(items),
       };
 
       const API_URL = import.meta.env.VITE_API_URL || "";
@@ -298,7 +311,7 @@ export const CreditCardCheckout = () => {
       } else {
         // Se a validação da Lambda falhar (ex: items missing), mostramos aqui
         setFormError(
-          result.error || result.status_detail || "Pagamento recusado.",
+          result.error || result.status_detail || "Pagamento recusado."
         );
       }
     } catch (error: any) {
@@ -514,6 +527,25 @@ export const CreditCardCheckout = () => {
           background-color: ${theme === "dark" ? "#0f172a" : "white"};
         }
       `}</style>
+
+      <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "0 15px" }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            background: "none",
+            border: "none",
+            color: colors.muted,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            marginBottom: 20,
+            fontSize: 14,
+          }}
+        >
+          <ArrowLeft size={18} /> Voltar
+        </button>
+      </div>
 
       <div style={styles.grid}>
         {/* FORMULÁRIO */}
@@ -764,11 +796,11 @@ export const CreditCardCheckout = () => {
           <div style={styles.card}>
             <div style={styles.summaryRow}>
               <span>Subtotal</span>
-              <span>R$ {transactionAmount.toFixed(2)}</span>
+              <span>R$ {cartTotal.toFixed(2)}</span>
             </div>
             <div style={styles.summaryRow}>
               <span>Frete</span>
-              <span>Grátis</span>
+              <span>R$ {shippingCost.toFixed(2)}</span>
             </div>
             <div
               style={{
@@ -778,7 +810,7 @@ export const CreditCardCheckout = () => {
             ></div>
             <div style={styles.summaryTotal}>
               <span>Total</span>
-              <span>R$ {transactionAmount.toFixed(2)}</span>
+              <span>R$ {totalComFrete.toFixed(2)}</span>
             </div>
           </div>
         </div>

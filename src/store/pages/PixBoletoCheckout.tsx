@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useCart } from "../../contexts/CartContext";
+import { useAddress } from "../../contexts/AddressContext";
+import { cartItemsToFreteItens } from "../../hooks/useFrete";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import {
@@ -201,17 +203,21 @@ const SuccessModal = ({ data, onClose, colors, theme }: any) => {
 };
 
 export const PixBoletoCheckout = () => {
-  const { items, cartTotal, clearCart } = useCart();
+  const { items, cartTotal, clearCart, selectedShipping } = useCart();
+  const { address } = useAddress();
   const navigate = useNavigate();
   const location = useLocation();
   const { colors, theme } = useTheme();
 
   const [method, setMethod] = useState<"pix" | "boleto">(
-    (location.state as any)?.defaultMethod || "pix",
+    (location.state as { defaultMethod?: "pix" | "boleto" })?.defaultMethod || "pix",
   );
 
   const [loading, setLoading] = useState(false);
-  const [successData, setSuccessData] = useState<any>(null);
+  const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
+
+  const shippingCost = selectedShipping?.preco ?? 0;
+  const totalComFrete = cartTotal + shippingCost;
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -235,6 +241,20 @@ export const PixBoletoCheckout = () => {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (address.cep || address.street || address.city) {
+      setFormData((prev) => ({
+        ...prev,
+        zipCode: address.cep || prev.zipCode,
+        street: address.street || prev.street,
+        number: address.number || prev.number,
+        neighborhood: address.neighborhood || prev.neighborhood,
+        city: address.city || prev.city,
+        state: address.state || prev.state,
+      }));
+    }
+  }, [address.cep, address.street, address.number, address.neighborhood, address.city, address.state]);
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,7 +296,7 @@ export const PixBoletoCheckout = () => {
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
 
       const payload = {
-        transaction_amount: cartTotal > 0 ? cartTotal : 0.1,
+        transaction_amount: totalComFrete > 0 ? totalComFrete : 0.1,
         payment_method_id: method === "pix" ? "pix" : "bolbradesco",
         user_id: user.id,
         payer: {
@@ -304,6 +324,10 @@ export const PixBoletoCheckout = () => {
           image: i.image || (i.images ? i.images[0] : null),
           size: i.size,
         })),
+        frete: shippingCost,
+        cep: formData.zipCode.replace(/\D/g, ""),
+        frete_service: selectedShipping?.service ?? selectedShipping?.id ?? selectedShipping?.transportadora,
+        frete_itens: cartItemsToFreteItens(safeItems),
       };
 
       const API_URL = import.meta.env.VITE_API_URL;
@@ -639,16 +663,46 @@ export const PixBoletoCheckout = () => {
                 marginTop: 20,
                 paddingTop: 20,
                 borderTop: `1px solid ${colors.border}`,
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 20,
-                fontWeight: "800",
               }}
             >
-              <span>Total a pagar</span>
-              <span style={{ color: "#10b981" }}>
-                R$ {cartTotal.toFixed(2)}
-              </span>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                  fontSize: 14,
+                  color: colors.muted,
+                }}
+              >
+                <span>Subtotal</span>
+                <span>R$ {cartTotal.toFixed(2)}</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                  fontSize: 14,
+                  color: colors.muted,
+                }}
+              >
+                <span>Frete</span>
+                <span>R$ {shippingCost.toFixed(2)}</span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginTop: 15,
+                  fontSize: 20,
+                  fontWeight: "800",
+                }}
+              >
+                <span>Total a pagar</span>
+                <span style={{ color: "#10b981" }}>
+                  R$ {totalComFrete.toFixed(2)}
+                </span>
+              </div>
             </div>
 
             <button type="submit" disabled={loading} style={styles.btn}>

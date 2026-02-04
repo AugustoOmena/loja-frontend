@@ -47,7 +47,7 @@ export const Dashboard = () => {
       const [productCountRes, userCountRes, orders] = await Promise.all([
         supabase.from("products").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
-        listAllBackoffice(user.id),
+        listAllBackoffice(user.id, { limit: 5000 }),
       ]);
 
       const totalRevenue =
