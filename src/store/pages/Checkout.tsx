@@ -402,7 +402,7 @@ export const Checkout = () => {
                 }}
               >
                 {items.map((item: CartItem) => (
-                  <div key={item.id} style={styles.itemRow}>
+                  <div key={`${item.id}-${item.size ?? "u"}`} style={styles.itemRow}>
                     {item.image && (
                       <img
                         src={item.image}
@@ -425,8 +425,22 @@ export const Checkout = () => {
                       >
                         {item.name}
                       </div>
-                      <div style={{ fontSize: 12, color: colors.muted }}>
-                        Qtd: {item.quantity}
+                      <div style={{ fontSize: 12, color: colors.muted, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        {item.size && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: "600",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              backgroundColor: colors.border,
+                              color: colors.text,
+                            }}
+                          >
+                            Tam: {item.size}
+                          </span>
+                        )}
+                        <span>Qtd: {item.quantity}</span>
                       </div>
                     </div>
                     <div style={{ fontSize: 14, fontWeight: "bold" }}>

@@ -26,8 +26,8 @@ interface CartContextType {
     size: string | null,
     maxQuantity?: number,
   ) => void;
-  removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, delta: number, maxQuantity?: number) => void;
+  removeFromCart: (id: number, size: string | null) => void;
+  updateQuantity: (id: number, size: string | null, delta: number, maxQuantity?: number) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
@@ -95,24 +95,25 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setIsCartOpen(true);
   };
 
-  const removeFromCart = (id: number) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const removeFromCart = (id: number, size: string | null) => {
+    setItems((prev) =>
+      prev.filter((i) => !(i.id === id && i.size === size)),
+    );
   };
 
-  const updateQuantity = (id: number, delta: number, maxQuantity?: number) => {
+  const updateQuantity = (
+    id: number,
+    size: string | null,
+    delta: number,
+    maxQuantity?: number,
+  ) => {
     setItems((prev) =>
       prev.map((i) => {
-        if (i.id === id) {
-          const newQty = i.quantity + delta;
-          // Não permite quantidade menor que 1
-          if (newQty < 1) return i;
-          // Não permite exceder o limite de estoque
-          if (maxQuantity !== undefined && newQty > maxQuantity) {
-            return i;
-          }
-          return { ...i, quantity: newQty };
-        }
-        return i;
+        if (i.id !== id || i.size !== size) return i;
+        const newQty = i.quantity + delta;
+        if (newQty < 1) return i;
+        if (maxQuantity !== undefined && newQty > maxQuantity) return i;
+        return { ...i, quantity: newQty };
       }),
     );
   };

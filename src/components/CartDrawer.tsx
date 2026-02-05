@@ -72,7 +72,7 @@ export const CartDrawer = () => {
       if (maxQty !== undefined) {
         setMaxQuantities((prev) => new Map(prev).set(itemKey, maxQty));
       }
-      updateQuantity(itemId, 1, maxQty);
+      updateQuantity(itemId, size, 1, maxQty);
     } finally {
       setLoadingProducts((prev) => {
         const newSet = new Set(prev);
@@ -329,7 +329,7 @@ export const CartDrawer = () => {
                     }}
                   >
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.id, item.size)}
                       style={{
                         border: "none",
                         background: "none",
@@ -342,7 +342,7 @@ export const CartDrawer = () => {
 
                     <div style={styles.qtyControl}>
                       <button
-                        onClick={() => updateQuantity(item.id, -1)}
+                        onClick={() => updateQuantity(item.id, item.size, -1)}
                         style={styles.qtyBtn}
                       >
                         <Minus size={14} />

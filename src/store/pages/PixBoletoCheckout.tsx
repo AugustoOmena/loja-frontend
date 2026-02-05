@@ -16,6 +16,7 @@ import {
   Download,
 } from "lucide-react";
 import { useTheme } from "../../contexts/ThemeContext";
+import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
 
 // --- MODAL DE SUCESSO ---
 const SuccessModal = ({ data, onClose, colors, theme }: any) => {
@@ -215,6 +216,7 @@ export const PixBoletoCheckout = () => {
 
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
+  const [errorModal, setErrorModal] = useState<{ message: string; details?: string } | null>(null);
 
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
@@ -338,16 +340,22 @@ export const PixBoletoCheckout = () => {
       });
 
       const result = await response.json();
-      if (!response.ok)
-        throw new Error(
-          result.error || result.message || "Erro no processamento",
-        );
+      if (!response.ok) {
+        setErrorModal({
+          message: result.error || result.message || "Erro no processamento",
+          details: result.details,
+        });
+        return;
+      }
 
       clearCart();
       setSuccessData(result);
     } catch (error: any) {
       console.error(error);
-      alert(error.message);
+      setErrorModal({
+        message: error.message || "Erro no processamento",
+        details: error.details,
+      });
     } finally {
       setLoading(false);
     }
@@ -456,6 +464,14 @@ export const PixBoletoCheckout = () => {
             onClose={() => navigate("/minha-conta")}
           />
         )}
+
+        <CheckoutErrorModal
+          open={!!errorModal}
+          message={errorModal?.message ?? ""}
+          details={errorModal?.details}
+          onClose={() => setErrorModal(null)}
+          colors={colors}
+        />
 
         <button
           onClick={() => navigate(-1)}
