@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
@@ -9,6 +10,7 @@ import {
   Image as ImageIcon,
   Loader2,
   AlertCircle,
+  ChevronDown,
 } from "lucide-react";
 import type { Product } from "../../types";
 import { supabase } from "../../services/supabaseClient";
@@ -18,22 +20,57 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { useFirebaseProductsInfinite } from "../../hooks/useFirebaseProductsInfinite";
 import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
 
+const STORE_HOME_STORAGE_KEY = "store-home-filters";
+const STORE_HOME_SCROLL_KEY = "store-home-scroll";
+
+const defaultFilters = {
+  name: "",
+  min_price: "",
+  max_price: "",
+  sort: "newest",
+  category: "",
+  sizes: [] as string[],
+};
+
+function loadStoredFilters() {
+  try {
+    const s = sessionStorage.getItem(STORE_HOME_STORAGE_KEY);
+    if (s) {
+      const parsed = JSON.parse(s) as Record<string, unknown>;
+      return {
+        ...defaultFilters,
+        name: typeof parsed.name === "string" ? parsed.name : defaultFilters.name,
+        min_price: typeof parsed.min_price === "string" ? parsed.min_price : defaultFilters.min_price,
+        max_price: typeof parsed.max_price === "string" ? parsed.max_price : defaultFilters.max_price,
+        sort: typeof parsed.sort === "string" ? parsed.sort : defaultFilters.sort,
+        category: typeof parsed.category === "string" ? parsed.category : defaultFilters.category,
+        sizes: Array.isArray(parsed.sizes) ? parsed.sizes.filter((x): x is string => typeof x === "string") : defaultFilters.sizes,
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return defaultFilters;
+}
+
 export const StoreHome = () => {
   const navigate = useNavigate();
   const { setIsCartOpen, cartCount } = useCart();
   const { colors, theme } = useTheme();
 
-  // --- ESTADOS ---
-  const [searchTermInput, setSearchTermInput] = useState("");
+  // --- ESTADOS (restaurados ao voltar da página do produto) ---
+  const [filters, setFilters] = useState(loadStoredFilters);
+  const [searchTermInput, setSearchTermInput] = useState(() => loadStoredFilters().name);
   const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  const [filters, setFilters] = useState({
-    name: "",
-    min_price: "",
-    max_price: "",
-    sort: "newest",
-    category: "",
-  });
+  const [sizeFilterOpen, setSizeFilterOpen] = useState(false);
+  const sizeFilterRef = useRef<HTMLDivElement>(null);
+  const sizeFilterTriggerRef = useRef<HTMLButtonElement>(null);
+  const [sizeFilterDropdownRect, setSizeFilterDropdownRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   const categories = [
     { id: "", label: "Todos" },
@@ -42,6 +79,36 @@ export const StoreHome = () => {
     { id: "acessorios", label: "Acessórios" },
     { id: "promocao", label: "Promoções" },
   ];
+
+  // --- PERSISTIR FILTROS (para restaurar ao voltar do produto) ---
+  useEffect(() => {
+    sessionStorage.setItem(STORE_HOME_STORAGE_KEY, JSON.stringify(filters));
+  }, [filters]);
+
+  // --- RESTAURAR POSIÇÃO DE SCROLL ao voltar para a vitrine ---
+  useEffect(() => {
+    try {
+      const s = sessionStorage.getItem(STORE_HOME_SCROLL_KEY);
+      if (s) {
+        const y = Number(s);
+        if (Number.isFinite(y) && y >= 0) {
+          sessionStorage.removeItem(STORE_HOME_SCROLL_KEY);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.scrollTo(0, y);
+            });
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleProductClick = (productId: number) => {
+    sessionStorage.setItem(STORE_HOME_SCROLL_KEY, String(window.scrollY));
+    navigate(`/produto/${productId}`);
+  };
 
   // --- AÇÕES ---
   useEffect(() => {
@@ -69,6 +136,71 @@ export const StoreHome = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const toggleSize = (size: string) => {
+    setFilters((prev) =>
+      prev.sizes.includes(size)
+        ? { ...prev, sizes: prev.sizes.filter((s) => s !== size) }
+        : { ...prev, sizes: [...prev.sizes, size] }
+    );
+  };
+
+  // Fechar dropdown ao clicar fora (só quando dropdown está fechado; quando aberto, fecha só pelo backdrop ou Escape)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sizeFilterOpen) return;
+      const target = e.target as Node;
+      if (sizeFilterRef.current && !sizeFilterRef.current.contains(target)) {
+        setSizeFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [sizeFilterOpen]);
+
+  // Posição do dropdown (portal) — atualiza ao abrir e ao scroll/resize
+  const updateSizeFilterDropdownRect = () => {
+    if (sizeFilterTriggerRef.current) {
+      const rect = sizeFilterTriggerRef.current.getBoundingClientRect();
+      setSizeFilterDropdownRect({
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: Math.max(rect.width, 180),
+      });
+    }
+  };
+  useEffect(() => {
+    if (sizeFilterOpen) {
+      updateSizeFilterDropdownRect();
+      window.addEventListener("scroll", updateSizeFilterDropdownRect, true);
+      window.addEventListener("resize", updateSizeFilterDropdownRect);
+      return () => {
+        window.removeEventListener("scroll", updateSizeFilterDropdownRect, true);
+        window.removeEventListener("resize", updateSizeFilterDropdownRect);
+      };
+    }
+    setSizeFilterDropdownRect(null);
+  }, [sizeFilterOpen]);
+
+  useEffect(() => {
+    if (!sizeFilterOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSizeFilterOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [sizeFilterOpen]);
+
+  // Bloquear scroll da página enquanto o dropdown de tamanho estiver aberto
+  useEffect(() => {
+    if (sizeFilterOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [sizeFilterOpen]);
+
   // --- FIREBASE REALTIME DATABASE COM PAGINAÇÃO ---
   const {
     products: allProducts,
@@ -78,6 +210,26 @@ export const StoreHome = () => {
     hasMore,
     isLoadingMore,
   } = useFirebaseProductsInfinite(40); // 40 produtos por página
+
+  // Tamanhos disponíveis (product.size + chaves de product.stock)
+  const availableSizes = useMemo(() => {
+    const set = new Set<string>();
+    allProducts.forEach((p) => {
+      if (p.size && p.size.trim()) set.add(p.size.trim());
+      if (p.stock && typeof p.stock === "object") {
+        Object.keys(p.stock).forEach((s) => s.trim() && set.add(s.trim()));
+      }
+    });
+    return Array.from(set).sort((a, b) => {
+      const order = ["PP", "P", "M", "G", "GG", "XG", "XXG"];
+      const ia = order.indexOf(a.toUpperCase());
+      const ib = order.indexOf(b.toUpperCase());
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  }, [allProducts]);
 
   // --- FILTROS CLIENT-SIDE (Rápido e sem latência de rede) ---
   const filteredProducts = useMemo(() => {
@@ -93,6 +245,21 @@ export const StoreHome = () => {
           ? product.category === filters.category
           : true;
 
+        // Filtra por tamanho (múltipla escolha: produto tem pelo menos um dos tamanhos)
+        const matchesSizes =
+          filters.sizes.length === 0
+            ? true
+            : filters.sizes.some((s) => {
+                if (product.size && product.size.trim() === s) return true;
+                if (
+                  product.stock &&
+                  typeof product.stock === "object" &&
+                  (product.stock[s] ?? 0) > 0
+                )
+                  return true;
+                return false;
+              });
+
         // Filtra por preço mínimo
         const matchesMinPrice = filters.min_price
           ? product.price >= Number(filters.min_price)
@@ -104,7 +271,11 @@ export const StoreHome = () => {
           : true;
 
         return (
-          matchesSearch && matchesCategory && matchesMinPrice && matchesMaxPrice
+          matchesSearch &&
+          matchesCategory &&
+          matchesSizes &&
+          matchesMinPrice &&
+          matchesMaxPrice
         );
       })
       .sort((a, b) => {
@@ -116,7 +287,7 @@ export const StoreHome = () => {
         // Os produtos mais recentes (IDs maiores) aparecem no final conforme são carregados
         return (a.id || 0) - (b.id || 0);
       });
-  }, [allProducts, filters]);
+  }, [allProducts, filters.name, filters.category, filters.sizes, filters.min_price, filters.max_price, filters.sort]);
 
   // --- SCROLL INFINITO ---
   // Hook carrega todos os produtos uma vez e revela em blocos; loadMore só aumenta visibleCount.
@@ -136,6 +307,7 @@ export const StoreHome = () => {
       const hasFilters = !!(
         filters.name ||
         filters.category ||
+        filters.sizes.length ||
         filters.min_price ||
         filters.max_price
       );
@@ -159,6 +331,7 @@ export const StoreHome = () => {
     filteredProducts.length,
     filters.name,
     filters.category,
+    filters.sizes.length,
     filters.min_price,
     filters.max_price,
     hasMore,
@@ -340,6 +513,75 @@ export const StoreHome = () => {
       gap: "4px",
       marginBottom: "4px",
     },
+    // Filtro de tamanho (row abaixo do header, scroll horizontal no mobile)
+    sizeFilterRow: {
+      display: "flex",
+      gap: "10px",
+      overflowX: "auto" as const,
+      paddingBottom: "12px",
+      paddingTop: "12px",
+      whiteSpace: "nowrap" as const,
+      scrollbarWidth: "none" as const,
+      marginBottom: "8px",
+    },
+    sizeFilterTrigger: (isActive: boolean) => ({
+      border: `1px solid ${isActive ? "transparent" : colors.border}`,
+      padding: "8px 14px",
+      borderRadius: "20px",
+      backgroundColor: isActive
+        ? "#ff4747"
+        : theme === "dark"
+          ? "#1e293b"
+          : "#f5f5f5",
+      color: isActive ? "white" : colors.text,
+      fontSize: "13px",
+      fontWeight: isActive ? "bold" : "normal",
+      cursor: "pointer",
+      transition: "0.2s",
+      flexShrink: 0,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+    }),
+    sizeFilterDropdown: (rect: { top: number; left: number; width: number }) => ({
+      position: "fixed" as const,
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      minWidth: "180px",
+      maxHeight: "min(280px, 50vh)",
+      overflowY: "auto" as const,
+      backgroundColor: colors.card,
+      border: `1px solid ${colors.border}`,
+      borderRadius: "12px",
+      boxShadow: "0 12px 40px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.08)",
+      zIndex: 1000,
+      padding: "8px",
+    }),
+    sizeFilterBackdrop: {
+      position: "fixed" as const,
+      inset: 0,
+      zIndex: 999,
+      backgroundColor: "rgba(0,0,0,0.15)",
+    },
+    sizeFilterOption: (selected: boolean) => ({
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "8px 12px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontSize: "13px",
+      backgroundColor: selected
+        ? theme === "dark"
+          ? "rgba(255,71,71,0.2)"
+          : "rgba(255,71,71,0.1)"
+        : "transparent",
+      color: colors.text,
+      border: "none",
+      width: "100%",
+      textAlign: "left" as const,
+    }),
   };
 
   return (
@@ -518,12 +760,44 @@ export const StoreHome = () => {
       <div
         style={{
           ...styles.container,
-          display: "flex",
-          gap: "20px",
           paddingTop: "150px",
           paddingBottom: "80px",
         }}
       >
+        {/* Filtro por tamanho — logo abaixo do header, scroll horizontal no mobile */}
+        <div
+          style={styles.sizeFilterRow}
+          className="hide-scroll"
+          ref={sizeFilterRef}
+        >
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <button
+              ref={sizeFilterTriggerRef}
+              type="button"
+              onClick={() => setSizeFilterOpen((o) => !o)}
+              style={styles.sizeFilterTrigger(filters.sizes.length > 0)}
+              aria-expanded={sizeFilterOpen}
+              aria-haspopup="listbox"
+            >
+              Tamanho{filters.sizes.length > 0 ? ` (${filters.sizes.length})` : ""}
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: sizeFilterOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.2s",
+                }}
+              />
+            </button>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "20px",
+            flex: 1,
+          }}
+        >
         <aside className="desktop-only" style={styles.sidebar}>
           <h3
             style={{
@@ -652,6 +926,7 @@ export const StoreHome = () => {
               {/* Badge de Resultados */}
               {filters.name ||
               filters.category ||
+              filters.sizes.length > 0 ||
               filters.min_price ||
               filters.max_price ? (
                 <div
@@ -693,7 +968,7 @@ export const StoreHome = () => {
                   <div
                     key={product.id}
                     style={styles.productCard}
-                    onClick={() => navigate(`/produto/${product.id}`)}
+                    onClick={() => product.id != null && handleProductClick(product.id)}
                   >
                     <div style={styles.imagePlaceholder}>
                       {product.images && product.images.length > 0 ? (
@@ -837,7 +1112,56 @@ export const StoreHome = () => {
             </>
           )}
         </main>
+        </div>
       </div>
+
+      {/* Dropdown de tamanho em portal — flutua sobre o conteúdo (estilo SHEIN) */}
+      {sizeFilterOpen &&
+        sizeFilterDropdownRect &&
+        availableSizes.length > 0 &&
+        createPortal(
+          <>
+            <div
+              style={styles.sizeFilterBackdrop}
+              onClick={() => setSizeFilterOpen(false)}
+              role="presentation"
+              aria-hidden
+            />
+            <div
+              style={styles.sizeFilterDropdown(sizeFilterDropdownRect)}
+              role="listbox"
+              aria-multiselectable="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {availableSizes.map((size) => {
+                const selected = filters.sizes.includes(size);
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    style={styles.sizeFilterOption(selected)}
+                    onClick={() => toggleSize(size)}
+                  >
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "4px",
+                        border: `2px solid ${selected ? "#ff4747" : colors.border}`,
+                        backgroundColor: selected ? "#ff4747" : "transparent",
+                        flexShrink: 0,
+                      }}
+                    />
+                    {size}
+                  </button>
+                );
+              })}
+            </div>
+          </>,
+          document.body
+        )}
 
       {/* --- CORREÇÃO AQUI: Passando a função que contém a lógica de login/perfil --- */}
       <MobileBottomNav onProfileClick={handleProfileClick} />
