@@ -80,6 +80,50 @@ export interface OrderItem {
   price: number;
 }
 
+/** Item do pedido no detalhe (GET por id). Campos retornados pela API. */
+export interface OrderItemDetail extends OrderItem {
+  /** URL da imagem do produto (campo retornado pela API) */
+  image_url?: string | null;
+  /** Compatibilidade: alguns fluxos podem enviar `image` */
+  image?: string | null;
+  order_id?: string;
+  product_id?: number;
+  price_at_purchase?: number;
+  color?: string | null;
+  size?: string | null;
+}
+
+/** Endereço de entrega retornado no detalhe do pedido (GET /pedidos/:id) */
+export interface OrderShippingAddress {
+  street_name?: string;
+  street_number?: string;
+  neighborhood?: string;
+  city?: string;
+  federal_unit?: string;
+  zip_code?: string;
+}
+
+/** Payload completo do pedido no GET por id (resposta da API) */
+export interface OrderDetailPayload {
+  id: string;
+  user_id: string;
+  status: string;
+  total_amount: number;
+  payment_method?: string | null;
+  payment_id?: string | null;
+  created_at: string;
+  updated_at?: string;
+  payer?: Record<string, unknown>;
+  installments?: number;
+  mp_payment_id?: string | null;
+  items?: OrderItemDetail[];
+  refund_requests?: unknown[];
+  user_email?: string | null;
+  shipping_address?: OrderShippingAddress | null;
+  tracking_code?: string | null;
+  shipping_service?: string | null;
+}
+
 // --- Frete (Melhor Envio) ---
 
 /** Item para cálculo de frete (dimensões em cm, peso em kg) */
