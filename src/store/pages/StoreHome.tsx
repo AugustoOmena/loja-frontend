@@ -85,7 +85,8 @@ export const StoreHome = () => {
     sessionStorage.setItem(STORE_HOME_STORAGE_KEY, JSON.stringify(filters));
   }, [filters]);
 
-  // --- RESTAURAR POSIÇÃO DE SCROLL ao voltar para a vitrine ---
+  // Ref com a posição de scroll a restaurar (lida ao montar, aplicada quando a lista existir)
+  const pendingScrollY = useRef<number | null>(null);
   useEffect(() => {
     try {
       const s = sessionStorage.getItem(STORE_HOME_SCROLL_KEY);
@@ -93,11 +94,7 @@ export const StoreHome = () => {
         const y = Number(s);
         if (Number.isFinite(y) && y >= 0) {
           sessionStorage.removeItem(STORE_HOME_SCROLL_KEY);
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              window.scrollTo(0, y);
-            });
-          });
+          pendingScrollY.current = y;
         }
       }
     } catch {
@@ -288,6 +285,21 @@ export const StoreHome = () => {
         return (a.id || 0) - (b.id || 0);
       });
   }, [allProducts, filters.name, filters.category, filters.sizes, filters.min_price, filters.max_price, filters.sort]);
+
+  // --- APLICAR SCROLL RESTAURADO quando a lista estiver renderizada ---
+  useEffect(() => {
+    const y = pendingScrollY.current;
+    if (y === null) return;
+    // Só aplica quando já temos produtos (lista montada) ou loading acabou (evita scroll em tela vazia)
+    if (filteredProducts.length > 0 || !isLoading) {
+      pendingScrollY.current = null;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, y);
+        });
+      });
+    }
+  }, [filteredProducts.length, isLoading]);
 
   // --- SCROLL INFINITO ---
   // Hook carrega todos os produtos uma vez e revela em blocos; loadMore só aumenta visibleCount.
