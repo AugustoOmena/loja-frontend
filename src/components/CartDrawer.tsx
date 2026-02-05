@@ -16,7 +16,7 @@ export const CartDrawer = () => {
   } = useCart();
 
   const navigate = useNavigate();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const [loadingProducts, setLoadingProducts] = useState<Set<number>>(
     new Set(),
   );
@@ -215,8 +215,8 @@ export const CartDrawer = () => {
     checkoutBtn: {
       width: "100%",
       padding: "15px",
-      backgroundColor: "#10b981", // Verde (Marca de sucesso)
-      color: "white",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       border: "none",
       borderRadius: "8px",
       fontWeight: "bold",
@@ -315,7 +315,12 @@ export const CartDrawer = () => {
                     >
                       {item.size && `Tamanho: ${item.size}`}
                     </div>
-                    <div style={{ fontWeight: "bold", color: "#ff4747" }}>
+                    <div
+                      style={{
+                        fontWeight: "bold",
+                        color: theme === "dark" ? colors.accent : colors.text,
+                      }}
+                    >
                       R$ {(item.price * item.quantity).toFixed(2)}
                     </div>
                   </div>
@@ -333,9 +338,10 @@ export const CartDrawer = () => {
                       style={{
                         border: "none",
                         background: "none",
-                        color: "#ef4444",
+                        color: colors.muted,
                         cursor: "pointer",
                       }}
+                      aria-label="Remover do carrinho"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -404,7 +410,13 @@ export const CartDrawer = () => {
               }}
             >
               <span>Total</span>
-              <span>R$ {cartTotal.toFixed(2)}</span>
+              <span
+                style={{
+                  color: theme === "dark" ? colors.accent : colors.text,
+                }}
+              >
+                R$ {cartTotal.toFixed(2)}
+              </span>
             </div>
             <button onClick={handleCheckout} style={styles.checkoutBtn}>
               Finalizar Compra

@@ -996,20 +996,22 @@ export const StoreHome = () => {
                       ) : (
                         <ImageIcon size={30} color={colors.muted} />
                       )}
-                      {(product.quantity || 0) < 5 && (
+                      {(product.quantity || 0) <= 3 && (product.quantity || 0) > 0 && (
                         <span
                           style={{
                             position: "absolute",
                             bottom: "5px",
                             right: "5px",
-                            backgroundColor: "rgba(0,0,0,0.6)",
+                            left: "5px",
+                            backgroundColor: "rgba(0,0,0,0.7)",
                             color: "white",
                             fontSize: "10px",
-                            padding: "2px 6px",
+                            padding: "4px 6px",
                             borderRadius: "4px",
+                            textAlign: "center",
                           }}
                         >
-                          Restam {product.quantity}
+                          Últimas {product.quantity} peças!
                         </span>
                       )}
                     </div>

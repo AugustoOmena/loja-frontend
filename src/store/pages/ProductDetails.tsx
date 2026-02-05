@@ -457,12 +457,12 @@ export const ProductDetails = () => {
                         disabled={isDisabled}
                         style={styles.sizeButton(isActive, isDisabled)}
                         title={
-                          isDisabled ? "Indisponível" : `${qty} em estoque`
+                          isDisabled ? "Indisponível" : qty <= 3 ? `Últimas ${qty} peças` : "Em estoque"
                         }
                       >
                         <span style={styles.sizeButtonLine(isActive)} />
                         {size}
-                        {!isDisabled && (
+                        {!isDisabled && qty <= 3 && (
                           <span
                             style={{
                               fontSize: "10px",
@@ -477,32 +477,40 @@ export const ProductDetails = () => {
                     );
                   })}
                 </div>
-                {selectedSize && (
-                  <div
-                    style={{
-                      marginTop: "10px",
-                      fontSize: "13px",
-                      color: colors.muted,
-                    }}
-                  >
-                    {getAvailableQuantity()} unidades disponíveis
-                  </div>
-                )}
+                {selectedSize && (() => {
+                  const qty = getAvailableQuantity();
+                  if (qty > 3) return null;
+                  return (
+                    <div
+                      style={{
+                        marginTop: "10px",
+                        fontSize: "13px",
+                        color: theme === "dark" ? colors.accent : "#b45309",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Últimas {qty} peças! Não vai ficar de bobeira, hein?
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <div style={{ margin: "25px 0" }}>
-                <div
-                  style={{
-                    fontSize: "14px",
-                    color: colors.text,
-                    marginBottom: "10px",
-                  }}
-                >
-                  <span style={styles.label}>Estoque:</span>{" "}
-                  <span style={{ fontWeight: "bold", color: theme === "dark" ? colors.accent : colors.text }}>
-                    {product.quantity || 0} unidades disponíveis
-                  </span>
-                </div>
+                {(() => {
+                  const qty = product.quantity || 0;
+                  if (qty > 3) return null;
+                  return (
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        color: theme === "dark" ? colors.accent : "#b45309",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Últimas {qty} peças! Não vai ficar de bobeira, hein?
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
