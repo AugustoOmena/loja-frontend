@@ -108,6 +108,8 @@ export const Products = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  /** Carregando produto completo ao editar (getById para trazer variantes) */
+  const [isLoadingProductForEdit, setIsLoadingProductForEdit] = useState(false);
 
   /** Variantes do produto (cor + tamanho + qtde). Sempre edição por variantes. */
   const [variants, setVariants] = useState<ProductVariant[]>([]);
@@ -143,7 +145,7 @@ export const Products = () => {
     onError: () => alert("Erro ao excluir"),
   });
 
-  const handleOpenModal = (product?: Product) => {
+  const handleOpenModal = async (product?: Product) => {
     if (product) {
       setCurrentProduct(product);
       setFormData({
@@ -155,22 +157,42 @@ export const Products = () => {
         material: product.material || "",
         pattern: product.pattern || "",
       });
-      // Variantes: usar as do backend ou deixar vazio (usuário deve adicionar ao editar)
-      const list = product.variants?.length
-        ? product.variants.map((v) => ({
-            color: v.color,
-            size: v.size,
-            stock_quantity: v.stock_quantity ?? 0,
-            sku: v.sku,
-          }))
-        : [];
-      setVariants(list);
+      setVariants(product.variants?.length ? [...product.variants] : []);
+      setIsModalOpen(true);
+      setIsLoadingProductForEdit(true);
+      try {
+        const full = await productService.getById(product.id!);
+        setCurrentProduct(full);
+        setFormData({
+          name: full.name,
+          description: full.description || "",
+          price: full.price.toString(),
+          category: full.category || "",
+          images: full.images || [],
+          material: full.material || "",
+          pattern: full.pattern || "",
+        });
+        const list = full.variants?.length
+          ? full.variants.map((v) => ({
+              color: v.color,
+              size: v.size,
+              stock_quantity: v.stock_quantity ?? 0,
+              sku: v.sku,
+            }))
+          : [];
+        setVariants(list);
+      } catch (e) {
+        console.error(e);
+        alert("Erro ao carregar dados do produto.");
+      } finally {
+        setIsLoadingProductForEdit(false);
+      }
     } else {
       setCurrentProduct(null);
       setFormData(initialFormState);
       setVariants([]);
+      setIsModalOpen(true);
     }
-    setIsModalOpen(true);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -810,6 +832,12 @@ export const Products = () => {
                 <X size={24} />
               </button>
             </div>
+            {isLoadingProductForEdit ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px", gap: "12px", color: colors.muted }}>
+                <Loader2 size={24} className="animate-spin" />
+                <span>Carregando produto...</span>
+              </div>
+            ) : (
             <form onSubmit={handleSave} style={styles.form}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Nome</label>
@@ -1073,6 +1101,7 @@ export const Products = () => {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
