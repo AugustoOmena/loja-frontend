@@ -288,6 +288,7 @@ export const CreditCardCheckout = () => {
           quantity: item.quantity,
           image: item.image,
           size: item.size ?? null,
+          color: item.color ?? null,
         })),
         frete: shippingCost,
         cep: address.cep.replace(/\D/g, ""),

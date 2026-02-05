@@ -17,6 +17,8 @@ export interface CartItem {
   image: string;
   quantity: number;
   size: string | null;
+  /** Cor da variante (quando produto tem variants por cor + tamanho). Null para itens antigos ou sem cor. */
+  color?: string | null;
 }
 
 interface CartContextType {
@@ -25,9 +27,10 @@ interface CartContextType {
     product: ProductInput,
     size: string | null,
     maxQuantity?: number,
+    color?: string | null,
   ) => void;
-  removeFromCart: (id: number, size: string | null) => void;
-  updateQuantity: (id: number, size: string | null, delta: number, maxQuantity?: number) => void;
+  removeFromCart: (id: number, size: string | null, color?: string | null) => void;
+  updateQuantity: (id: number, size: string | null, delta: number, maxQuantity?: number, color?: string | null) => void;
   clearCart: () => void;
   cartTotal: number;
   cartCount: number;
@@ -61,25 +64,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     product: ProductInput,
     size: string | null,
     maxQuantity?: number,
+    color?: string | null,
   ) => {
+    const colorNorm = color ?? null;
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === product.id && i.size === size);
+      const existing = prev.find(
+        (i) =>
+          i.id === product.id &&
+          i.size === size &&
+          (i.color ?? null) === colorNorm
+      );
 
       if (existing) {
-        // Se já existe, aumenta quantidade respeitando o limite
         const newQuantity = existing.quantity + 1;
-        if (maxQuantity !== undefined && newQuantity > maxQuantity) {
-          // Não adiciona se exceder o limite
-          return prev;
-        }
+        if (maxQuantity !== undefined && newQuantity > maxQuantity) return prev;
         return prev.map((i) =>
-          i.id === product.id && i.size === size
+          i.id === product.id && i.size === size && (i.color ?? null) === colorNorm
             ? { ...i, quantity: newQuantity }
             : i,
         );
       }
 
-      // Se não existe, adiciona novo item (sempre quantidade 1)
       return [
         ...prev,
         {
@@ -89,15 +94,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           image: product.images?.[0] || "",
           quantity: 1,
           size,
+          color: colorNorm,
         },
       ];
     });
     setIsCartOpen(true);
   };
 
-  const removeFromCart = (id: number, size: string | null) => {
+  const removeFromCart = (id: number, size: string | null, color?: string | null) => {
+    const colorNorm = color ?? null;
     setItems((prev) =>
-      prev.filter((i) => !(i.id === id && i.size === size)),
+      prev.filter(
+        (i) =>
+          !(i.id === id && i.size === size && (i.color ?? null) === colorNorm)
+      ),
     );
   };
 
@@ -106,10 +116,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     size: string | null,
     delta: number,
     maxQuantity?: number,
+    color?: string | null,
   ) => {
+    const colorNorm = color ?? null;
     setItems((prev) =>
       prev.map((i) => {
-        if (i.id !== id || i.size !== size) return i;
+        if (
+          i.id !== id ||
+          i.size !== size ||
+          (i.color ?? null) !== colorNorm
+        )
+          return i;
         const newQty = i.quantity + delta;
         if (newQty < 1) return i;
         if (maxQuantity !== undefined && newQty > maxQuantity) return i;

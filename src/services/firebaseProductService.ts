@@ -1,7 +1,53 @@
 // src/services/firebaseProductService.ts
 import { ref, onValue, get, query, orderByKey, limitToFirst, startAfter, type DataSnapshot } from "firebase/database";
 import { db } from "./firebase";
-import type { Product } from "../types";
+import type { Product, ProductVariant } from "../types";
+
+/** Payload bruto do Firebase: variants com `stock` (não stock_quantity), id pode ser string. */
+type FirebaseVariant = { color?: string; size?: string; stock?: number; stock_quantity?: number; sku?: string };
+
+/**
+ * Normaliza um produto vindo do Firebase para o tipo Product da aplicação.
+ * - Converte variants[].stock em stock_quantity
+ * - Garante id numérico
+ * - Preenche defaults para price, images, category, description se ausentes
+ */
+function normalizeFirebaseProduct(key: string, data: Record<string, unknown> | null): Product {
+  const id = Number(key);
+  if (!data || typeof data !== "object") {
+    return {
+      id,
+      name: "",
+      price: 0,
+      category: "",
+      images: [],
+      size: null,
+    };
+  }
+  const raw = data as Record<string, unknown>;
+  const rawVariants = raw.variants as FirebaseVariant[] | undefined;
+  const variants: ProductVariant[] | undefined = Array.isArray(rawVariants)
+    ? rawVariants.map((v) => ({
+        color: v.color ?? "",
+        size: v.size ?? "Único",
+        stock_quantity: v.stock_quantity ?? v.stock ?? 0,
+        sku: v.sku,
+      }))
+    : undefined;
+
+  return {
+    ...(raw as Omit<Product, "id" | "variants">),
+    id,
+    name: typeof raw.name === "string" ? raw.name : "",
+    price: typeof raw.price === "number" ? raw.price : 0,
+    category: typeof raw.category === "string" ? raw.category : "",
+    images: Array.isArray(raw.images) ? (raw.images as string[]) : [],
+    description: typeof raw.description === "string" ? raw.description : undefined,
+    material: typeof raw.material === "string" ? raw.material : undefined,
+    pattern: typeof raw.print === "string" ? raw.print : (raw.pattern as string | undefined),
+    variants,
+  };
+}
 
 /**
  * CQRS - READ LAYER (Query)
@@ -50,12 +96,8 @@ export function subscribeToProducts(
           }
 
           // Firebase retorna um objeto: { "id1": {...}, "id2": {...} }
-          // Precisamos converter para array: [{id: "id1", ...}, {id: "id2", ...}]
           const productsArray: Product[] = Object.entries(data).map(
-            ([id, productData]) => ({
-              ...(productData as Omit<Product, "id">),
-              id: Number(id), // Converte o ID para número (se for numérico)
-            })
+            ([key, productData]) => normalizeFirebaseProduct(key, productData as Record<string, unknown>)
           );
 
           console.log(`✅ ${productsArray.length} produtos carregados do Firebase`);
@@ -118,10 +160,7 @@ export async function getProductsOnce(): Promise<Product[]> {
           }
 
           const productsArray: Product[] = Object.entries(data).map(
-            ([id, productData]) => ({
-              ...(productData as Omit<Product, "id">),
-              id: Number(id),
-            })
+            ([key, productData]) => normalizeFirebaseProduct(key, productData as Record<string, unknown>)
           );
 
           resolve(productsArray);
@@ -162,10 +201,7 @@ export async function getProductById(id: number): Promise<Product | null> {
       return null;
     }
 
-    const product: Product = {
-      ...(data as Omit<Product, "id">),
-      id: id,
-    };
+    const product = normalizeFirebaseProduct(String(id), data as Record<string, unknown>);
 
     console.log(`✅ Produto ${id} carregado`);
     return product;
@@ -196,10 +232,7 @@ export async function getAllProductsSorted(): Promise<Product[]> {
       const key = child.key;
       if (key == null) return;
       const productData = child.val();
-      productsArray.push({
-        ...(productData as Omit<Product, "id">),
-        id: Number(key),
-      });
+      productsArray.push(normalizeFirebaseProduct(key, productData as Record<string, unknown>));
     });
 
     // Ordenação numérica por id para exibição consistente (independente da ordem das chaves no Firebase)
@@ -245,10 +278,7 @@ export async function getProductsPaginated(
       const key = child.key;
       if (key != null) keysInOrder.push(key);
       const productData = child.val();
-      productsArray.push({
-        ...(productData as Omit<Product, "id">),
-        id: Number(child.key),
-      });
+      productsArray.push(normalizeFirebaseProduct(key, productData as Record<string, unknown>));
     });
 
     const hasMore = keysInOrder.length > limit;

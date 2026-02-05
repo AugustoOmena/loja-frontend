@@ -1,3 +1,14 @@
+/** Variante do produto: cor + tamanho + quantidade (e opcionalmente sku). Firebase envia `stock`, backend pode enviar `stock_quantity`. */
+export interface ProductVariant {
+  color: string;
+  size: string;
+  /** Backend / app */
+  stock_quantity?: number;
+  /** Firebase Realtime Database (normalizado para stock_quantity no service) */
+  stock?: number;
+  sku?: string;
+}
+
 export interface Product {
   id?: number;
   name: string;
@@ -6,10 +17,21 @@ export interface Product {
   size: string | null;
   category: string;
   images: string[];
-  quantity: number;
-  stock?: Record<string, number>;
+  /** Total de unidades (pode vir calculado do backend a partir de variants) */
+  quantity?: number;
   created_at?: string;
+  /** Material (ex: Poliamida, Algodão) */
+  material?: string;
+  /** Estampa (ex: Onça, Listrado) */
+  pattern?: string;
+  /** Lista de variantes (cor + tamanho + estoque). Modelo novo do backend. */
+  variants?: ProductVariant[];
 }
+
+/** Payload para criar produto (sem id). Variantes obrigatórias. */
+export type ProductInput = Omit<Product, 'id'> & {
+  variants: ProductVariant[];
+};
 
 // Resposta paginada da API
 export interface PaginatedResponse<T> {

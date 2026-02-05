@@ -325,6 +325,7 @@ export const PixBoletoCheckout = () => {
           quantity: Number(i.quantity),
           image: i.image || (i.images ? i.images[0] : null),
           size: i.size,
+          color: i.color ?? null,
         })),
         frete: shippingCost,
         cep: formData.zipCode.replace(/\D/g, ""),

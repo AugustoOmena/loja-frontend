@@ -19,6 +19,7 @@ import { MobileBottomNav } from "../../components/MobileBottomNav";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useFirebaseProductsInfinite } from "../../hooks/useFirebaseProductsInfinite";
 import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
+import { getProductQuantity, getStockBySize } from "../../utils/productHelpers";
 
 const STORE_HOME_STORAGE_KEY = "store-home-filters";
 const STORE_HOME_SCROLL_KEY = "store-home-scroll";
@@ -208,14 +209,13 @@ export const StoreHome = () => {
     isLoadingMore,
   } = useFirebaseProductsInfinite(40); // 40 produtos por página
 
-  // Tamanhos disponíveis (product.size + chaves de product.stock)
+  // Tamanhos disponíveis (product.size + chaves de stock por variantes)
   const availableSizes = useMemo(() => {
     const set = new Set<string>();
     allProducts.forEach((p) => {
       if (p.size && p.size.trim()) set.add(p.size.trim());
-      if (p.stock && typeof p.stock === "object") {
-        Object.keys(p.stock).forEach((s) => s.trim() && set.add(s.trim()));
-      }
+      const stock = getStockBySize(p);
+      Object.keys(stock).forEach((s) => s.trim() && set.add(s.trim()));
     });
     return Array.from(set).sort((a, b) => {
       const order = ["PP", "P", "M", "G", "GG", "XG", "XXG"];
@@ -248,12 +248,8 @@ export const StoreHome = () => {
             ? true
             : filters.sizes.some((s) => {
                 if (product.size && product.size.trim() === s) return true;
-                if (
-                  product.stock &&
-                  typeof product.stock === "object" &&
-                  (product.stock[s] ?? 0) > 0
-                )
-                  return true;
+                const stock = getStockBySize(product);
+                if ((stock[s] ?? 0) > 0) return true;
                 return false;
               });
 
@@ -996,7 +992,7 @@ export const StoreHome = () => {
                       ) : (
                         <ImageIcon size={30} color={colors.muted} />
                       )}
-                      {(product.quantity || 0) <= 3 && (product.quantity || 0) > 0 && (
+                      {getProductQuantity(product) <= 3 && getProductQuantity(product) > 0 && (
                         <span
                           style={{
                             position: "absolute",
@@ -1011,7 +1007,7 @@ export const StoreHome = () => {
                             textAlign: "center",
                           }}
                         >
-                          Últimas {product.quantity} peças!
+                          Últimas {getProductQuantity(product)} peças!
                         </span>
                       )}
                     </div>
