@@ -30,6 +30,7 @@ export const ProductDetails = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [isSizeGuideHovered, setIsSizeGuideHovered] = useState(false);
 
   const {
     data: product,
@@ -67,17 +68,11 @@ export const ProductDetails = () => {
       : (product?.quantity || 0) > 0;
   }, [hasStockBySize, availableSizes.length, product?.quantity]);
 
-  // Se só tiver tamanho "Único" disponível, pré-seleciona automaticamente
+  // Pré-seleciona o primeiro tamanho disponível por padrão
   useEffect(() => {
-    if (
-      product &&
-      hasStockBySize &&
-      availableSizes.length === 1 &&
-      availableSizes[0] === "Único" &&
-      !selectedSize
-    ) {
-      setSelectedSize("Único");
-    }
+    if (!product || !hasStockBySize || availableSizes.length === 0) return;
+    const currentValid = selectedSize && availableSizes.includes(selectedSize);
+    if (!currentValid) setSelectedSize(availableSizes[0]);
   }, [product, hasStockBySize, availableSizes, selectedSize]);
 
   // Log do produto para debug
@@ -219,24 +214,37 @@ export const ProductDetails = () => {
       marginBottom: "10px",
       color: colors.text,
     },
-    sizeButton: (isActive: boolean, isDisabled: boolean) => ({
-      padding: "10px 20px",
-      border: isActive ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`,
-      backgroundColor: isActive
-        ? theme === "dark"
+    sizeButton: (isActive: boolean, isDisabled: boolean) => {
+      const isLight = theme === "light";
+      const borderColor = isLight ? "#1a1a1a" : colors.border;
+      return {
+        position: "relative" as const,
+        overflow: "hidden",
+        padding: "10px 20px",
+        border: `1px solid ${borderColor}`,
+        backgroundColor: isActive && !isLight
           ? "rgba(244, 214, 54, 0.2)"
-          : "rgba(244, 214, 54, 0.15)"
-        : isDisabled
-          ? theme === "dark"
-            ? colors.card
-            : "#f5f5f5"
-          : colors.card,
-      borderRadius: "6px",
-      fontWeight: isActive ? "bold" : "normal",
-      color: isDisabled ? colors.muted : isActive ? colors.accent : colors.text,
-      cursor: isDisabled ? "not-allowed" : "pointer",
-      transition: "0.2s",
-      opacity: isDisabled ? 0.5 : 1,
+          : isDisabled
+            ? theme === "dark"
+              ? colors.card
+              : "#f0efe9"
+            : colors.card,
+        borderRadius: "6px",
+        fontWeight: isActive ? "bold" : "normal",
+        color: isDisabled ? colors.muted : isLight ? colors.text : isActive ? colors.accent : colors.text,
+        cursor: isDisabled ? "not-allowed" : "pointer",
+        transition: "0.2s",
+        opacity: isDisabled ? 0.5 : 1,
+      };
+    },
+    sizeButtonLine: (active: boolean) => ({
+      position: "absolute" as const,
+      bottom: 0,
+      left: 0,
+      height: "2px",
+      width: active ? "100%" : "0%",
+      backgroundColor: theme === "dark" ? colors.accent : "#1a1a1a",
+      transition: "width 0.2s ease-out",
     }),
     addToCartBtn: {
       width: "100%",
@@ -267,6 +275,7 @@ export const ProductDetails = () => {
       cursor: "not-allowed",
     },
     sizeGuideBtn: {
+      position: "relative" as const,
       display: "inline-flex",
       alignItems: "center",
       gap: "8px",
@@ -279,8 +288,17 @@ export const ProductDetails = () => {
       fontSize: "14px",
       fontWeight: "500",
       cursor: "pointer",
-      transition: "all 0.2s",
+      overflow: "hidden",
     },
+    sizeGuideBtnLine: (hovered: boolean) => ({
+      position: "absolute" as const,
+      bottom: 0,
+      left: 0,
+      height: "2px",
+      width: hovered ? "100%" : "0%",
+      backgroundColor: colors.accent,
+      transition: "width 0.25s ease-out",
+    }),
   };
 
   if (isLoading)
@@ -427,9 +445,6 @@ export const ProductDetails = () => {
             {/* SELEÇÃO DE TAMANHO */}
             {hasStockBySize ? (
               <div style={{ margin: "25px 0" }}>
-                <span style={styles.label}>
-                  Tamanho: {selectedSize || "Selecione um tamanho"}
-                </span>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   {Object.keys(product.stock || {}).map((size) => {
                     const isActive = selectedSize === size;
@@ -445,6 +460,7 @@ export const ProductDetails = () => {
                           isDisabled ? "Indisponível" : `${qty} em estoque`
                         }
                       >
+                        <span style={styles.sizeButtonLine(isActive)} />
                         {size}
                         {!isDisabled && (
                           <span
@@ -495,15 +511,10 @@ export const ProductDetails = () => {
               type="button"
               onClick={() => setIsSizeGuideOpen(true)}
               style={styles.sizeGuideBtn}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = colors.accent;
-                e.currentTarget.style.color = colors.accent;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = colors.border;
-                e.currentTarget.style.color = colors.text;
-              }}
+              onMouseEnter={() => setIsSizeGuideHovered(true)}
+              onMouseLeave={() => setIsSizeGuideHovered(false)}
             >
+              <span style={styles.sizeGuideBtnLine(isSizeGuideHovered)} />
               <Ruler size={18} strokeWidth={2} />
               Tabela de medidas
             </button>
@@ -525,9 +536,7 @@ export const ProductDetails = () => {
                 </button>
               ) : (
                 <button disabled style={styles.disabledBtn}>
-                  {needsSizeSelection && !selectedSize
-                    ? "Selecione um tamanho"
-                    : "Produto Indisponível"}
+                  Produto Indisponível
                 </button>
               )}
             </div>
