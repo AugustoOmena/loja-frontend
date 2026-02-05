@@ -7,10 +7,19 @@ import {
   Star,
   Loader2,
   Image as ImageIcon,
+  Ruler,
 } from "lucide-react";
 import { getProductById } from "../../services/firebaseProductService";
 import { useCart } from "../../contexts/CartContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { SizeGuideDrawer } from "../../components/SizeGuideDrawer";
+
+const SIZE_GUIDE_MODA_PRAIA = [
+  { tamanho: "P", num: "36-38", busto: "80-88", cintura: "60-69", quadril: "88-98" },
+  { tamanho: "M", num: "40-42", busto: "89-96", cintura: "70-79", quadril: "99-109" },
+  { tamanho: "G", num: "44-46", busto: "97-105", cintura: "80-89", quadril: "110-120" },
+  { tamanho: "GG", num: "48-50", busto: "106-114", cintura: "90-99", quadril: "121-131" },
+];
 
 export const ProductDetails = () => {
   const { id } = useParams();
@@ -20,6 +29,7 @@ export const ProductDetails = () => {
   const { addToCart } = useCart();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
 
   const {
     data: product,
@@ -256,6 +266,21 @@ export const ProductDetails = () => {
       fontWeight: "bold",
       cursor: "not-allowed",
     },
+    sizeGuideBtn: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "10px 18px",
+      marginTop: "12px",
+      border: `1px solid ${colors.border}`,
+      borderRadius: "12px",
+      backgroundColor: colors.card,
+      color: colors.text,
+      fontSize: "14px",
+      fontWeight: "500",
+      cursor: "pointer",
+      transition: "all 0.2s",
+    },
   };
 
   if (isLoading)
@@ -465,6 +490,24 @@ export const ProductDetails = () => {
               </div>
             )}
 
+            {/* TABELA DE MEDIDAS */}
+            <button
+              type="button"
+              onClick={() => setIsSizeGuideOpen(true)}
+              style={styles.sizeGuideBtn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = colors.accent;
+                e.currentTarget.style.color = colors.accent;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = colors.border;
+                e.currentTarget.style.color = colors.text;
+              }}
+            >
+              <Ruler size={18} strokeWidth={2} />
+              Tabela de medidas
+            </button>
+
             {/* BOTÃO DE AÇÃO */}
             <div style={{ marginTop: "30px" }}>
               {hasAvailableStock && !needsSizeSelection ? (
@@ -491,6 +534,12 @@ export const ProductDetails = () => {
           </div>
         </div>
       </div>
+
+      <SizeGuideDrawer
+        open={isSizeGuideOpen}
+        onClose={() => setIsSizeGuideOpen(false)}
+        rows={SIZE_GUIDE_MODA_PRAIA}
+      />
     </div>
   );
 };
