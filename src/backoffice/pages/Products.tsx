@@ -27,8 +27,9 @@ import {
 import { useTheme } from "../../contexts/ThemeContext";
 import { getProductQuantity } from "../../utils/productHelpers";
 
-// Opções para Cor (nome -> hex). Cores claras: borda fina cinza para contraste.
+// Opções para Cor (nome -> hex). "Todas" para itens sem cor. Cores claras: borda fina cinza.
 const COLOR_MAP: Record<string, string> = {
+  Todas: "#9CA3AF",
   AZUL: "#2563EB",
   "AZUL MARINHO": "#1E3A8A",
   "AZUL MÉDIO": "#60A5FA",
