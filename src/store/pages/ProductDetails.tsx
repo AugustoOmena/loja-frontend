@@ -165,7 +165,7 @@ export const ProductDetails = () => {
       objectFit: "cover" as const,
       borderRadius: "8px",
       cursor: "pointer",
-      border: isActive ? "2px solid #ff4747" : `1px solid ${colors.border}`,
+      border: isActive ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`,
       backgroundColor: colors.card,
       opacity: isActive ? 1 : 0.7,
     }),
@@ -181,13 +181,13 @@ export const ProductDetails = () => {
       alignItems: "center",
       gap: "5px",
       margin: "10px 0",
-      color: "#facc15",
+      color: colors.accent,
       fontSize: "14px",
     },
     price: {
       fontSize: "32px",
       fontWeight: "bold",
-      color: "#ff4747",
+      color: theme === "dark" ? colors.accent : colors.text,
       margin: "20px 0",
     },
     installments: {
@@ -211,27 +211,27 @@ export const ProductDetails = () => {
     },
     sizeButton: (isActive: boolean, isDisabled: boolean) => ({
       padding: "10px 20px",
-      border: isActive ? "2px solid #ff4747" : `1px solid ${colors.border}`,
+      border: isActive ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`,
       backgroundColor: isActive
         ? theme === "dark"
-          ? "rgba(255, 71, 71, 0.15)"
-          : "#fff1f2"
+          ? "rgba(244, 214, 54, 0.2)"
+          : "rgba(244, 214, 54, 0.15)"
         : isDisabled
           ? theme === "dark"
-            ? "#1e293b"
-            : "#f1f5f9"
+            ? colors.card
+            : "#f5f5f5"
           : colors.card,
       borderRadius: "6px",
       fontWeight: isActive ? "bold" : "normal",
-      color: isDisabled ? colors.muted : isActive ? "#ff4747" : colors.text,
+      color: isDisabled ? colors.muted : isActive ? colors.accent : colors.text,
       cursor: isDisabled ? "not-allowed" : "pointer",
       transition: "0.2s",
       opacity: isDisabled ? 0.5 : 1,
     }),
     addToCartBtn: {
       width: "100%",
-      backgroundColor: "#ff4747",
-      color: "white",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       border: "none",
       padding: "16px",
       borderRadius: "30px",
@@ -242,12 +242,12 @@ export const ProductDetails = () => {
       justifyContent: "center",
       gap: "10px",
       cursor: "pointer",
-      boxShadow: "0 4px 15px rgba(255, 71, 71, 0.3)",
+      boxShadow: theme === "dark" ? "0 4px 15px rgba(244, 214, 54, 0.25)" : "0 4px 15px rgba(244, 214, 54, 0.3)",
       transition: "transform 0.1s",
     },
     disabledBtn: {
       width: "100%",
-      backgroundColor: theme === "dark" ? "#1e293b" : "#e2e8f0",
+      backgroundColor: theme === "dark" ? colors.card : "#e5e5e5",
       color: colors.muted,
       border: "none",
       padding: "16px",
@@ -261,7 +261,7 @@ export const ProductDetails = () => {
   if (isLoading)
     return (
       <div style={styles.loaderWrapper}>
-        <Loader2 className="animate-spin" size={40} color="#ff4747" />
+        <Loader2 className="animate-spin" size={40} color={colors.accent} />
       </div>
     );
 
@@ -384,7 +384,7 @@ export const ProductDetails = () => {
             <h1 style={styles.title}>{product.name}</h1>
 
             <div style={styles.rating}>
-              <Star fill="#facc15" size={16} />{" "}
+              <Star fill={colors.accent} color={colors.accent} size={16} />{" "}
               <span>4.8 (120 avaliações)</span>
             </div>
 
@@ -458,7 +458,7 @@ export const ProductDetails = () => {
                   }}
                 >
                   <span style={styles.label}>Estoque:</span>{" "}
-                  <span style={{ fontWeight: "bold", color: "#ff4747" }}>
+                  <span style={{ fontWeight: "bold", color: theme === "dark" ? colors.accent : colors.text }}>
                     {product.quantity || 0} unidades disponíveis
                   </span>
                 </div>

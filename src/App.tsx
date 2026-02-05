@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+} from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";

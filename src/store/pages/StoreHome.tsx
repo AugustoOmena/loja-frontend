@@ -378,14 +378,14 @@ export const StoreHome = () => {
     // Barra de Pesquisa
     searchContainer: {
       flex: 1,
-      backgroundColor: theme === "dark" ? "#0f172a" : "#f0f0f0",
+      backgroundColor: theme === "dark" ? "#262626" : "#f5f5f5",
       borderRadius: "20px",
       display: "flex",
       alignItems: "center",
       padding: "8px 15px",
       gap: "10px",
       margin: "0 15px",
-      border: `1px solid ${theme === "dark" ? colors.border : "transparent"}`,
+      border: `1px solid ${colors.border}`,
     },
     searchInput: {
       border: "none",
@@ -410,11 +410,11 @@ export const StoreHome = () => {
       padding: "8px 16px",
       borderRadius: "20px",
       backgroundColor: isActive
-        ? "#ff4747"
+        ? colors.accent
         : theme === "dark"
-          ? "#1e293b"
+          ? colors.card
           : "#f5f5f5",
-      color: isActive ? "white" : colors.text,
+      color: isActive ? colors.accentText : colors.text,
       fontSize: "13px",
       fontWeight: isActive ? "bold" : "normal",
       cursor: "pointer",
@@ -501,15 +501,15 @@ export const StoreHome = () => {
     priceRow: {
       display: "flex",
       alignItems: "baseline",
-      color: "#ff4747",
+      color: theme === "dark" ? colors.accent : colors.text,
       fontWeight: "bold",
     },
     cartBadge: {
       position: "absolute" as const,
       top: "-8px",
       right: "-8px",
-      backgroundColor: "#ff4747",
-      color: "white",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       fontSize: "10px",
       width: "18px",
       height: "18px",
@@ -541,11 +541,11 @@ export const StoreHome = () => {
       padding: "8px 14px",
       borderRadius: "20px",
       backgroundColor: isActive
-        ? "#ff4747"
+        ? colors.accent
         : theme === "dark"
-          ? "#1e293b"
+          ? colors.card
           : "#f5f5f5",
-      color: isActive ? "white" : colors.text,
+      color: isActive ? colors.accentText : colors.text,
       fontSize: "13px",
       fontWeight: isActive ? "bold" : "normal",
       cursor: "pointer",
@@ -586,8 +586,8 @@ export const StoreHome = () => {
       fontSize: "13px",
       backgroundColor: selected
         ? theme === "dark"
-          ? "rgba(255,71,71,0.2)"
-          : "rgba(255,71,71,0.1)"
+          ? "rgba(244,214,54,0.25)"
+          : "rgba(244,214,54,0.2)"
         : "transparent",
       color: colors.text,
       border: "none",
@@ -884,22 +884,22 @@ export const StoreHome = () => {
               style={{
                 padding: "30px",
                 textAlign: "center",
-                backgroundColor: theme === "dark" ? "#7f1d1d" : "#fee2e2",
-                border: `1px solid ${theme === "dark" ? "#991b1b" : "#fecaca"}`,
+                backgroundColor: theme === "dark" ? "rgba(244,214,54,0.15)" : "rgba(244,214,54,0.12)",
+                border: `1px solid ${theme === "dark" ? "rgba(244,214,54,0.4)" : "rgba(244,214,54,0.35)"}`,
                 borderRadius: "8px",
                 margin: "20px 0",
               }}
             >
               <AlertCircle
                 size={40}
-                color={theme === "dark" ? "#fca5a5" : "#dc2626"}
+                color={colors.accent}
                 style={{ margin: "0 auto 15px" }}
               />
               <h3
                 style={{
                   fontSize: "16px",
                   fontWeight: "bold",
-                  color: theme === "dark" ? "#fca5a5" : "#dc2626",
+                  color: colors.text,
                   marginBottom: "8px",
                 }}
               >
@@ -908,7 +908,7 @@ export const StoreHome = () => {
               <p
                 style={{
                   fontSize: "14px",
-                  color: theme === "dark" ? "#fca5a5" : "#dc2626",
+                  color: colors.muted,
                   marginBottom: "15px",
                 }}
               >
@@ -918,8 +918,8 @@ export const StoreHome = () => {
                 onClick={() => window.location.reload()}
                 style={{
                   padding: "10px 20px",
-                  backgroundColor: theme === "dark" ? "#991b1b" : "#dc2626",
-                  color: "white",
+                  backgroundColor: colors.accent,
+                  color: colors.accentText,
                   border: "none",
                   borderRadius: "6px",
                   cursor: "pointer",
@@ -1016,7 +1016,7 @@ export const StoreHome = () => {
                     <div style={styles.cardBody}>
                       <div style={styles.productTitle}>{product.name}</div>
                       <div style={styles.ratingRow}>
-                        <Star size={10} fill="#facc15" color="#facc15" />
+                        <Star size={10} fill={colors.accent} color={colors.accent} />
                         <span
                           style={{
                             fontSize: "10px",
@@ -1161,8 +1161,8 @@ export const StoreHome = () => {
                         width: "16px",
                         height: "16px",
                         borderRadius: "4px",
-                        border: `2px solid ${selected ? "#ff4747" : colors.border}`,
-                        backgroundColor: selected ? "#ff4747" : "transparent",
+                        border: `2px solid ${selected ? colors.accent : colors.border}`,
+                        backgroundColor: selected ? colors.accent : "transparent",
                         flexShrink: 0,
                       }}
                     />
