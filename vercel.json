@@ -6,12 +6,11 @@
   "headers": [
     {
       "source": "/index.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     }
-  ]
+  ],
+  "images": {
+    "sizes": [1],
+    "remotePatterns": []
+  }
 }

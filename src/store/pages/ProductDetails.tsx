@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import {
   ChevronLeft,
+  ChevronRight,
+  ChevronDown,
   ShoppingCart,
   Star,
   Loader2,
@@ -23,10 +25,34 @@ import {
 } from "../../utils/productHelpers";
 
 const SIZE_GUIDE_MODA_PRAIA = [
-  { tamanho: "P", num: "36-38", busto: "80-88", cintura: "60-69", quadril: "88-98" },
-  { tamanho: "M", num: "40-42", busto: "89-96", cintura: "70-79", quadril: "99-109" },
-  { tamanho: "G", num: "44-46", busto: "97-105", cintura: "80-89", quadril: "110-120" },
-  { tamanho: "GG", num: "48-50", busto: "106-114", cintura: "90-99", quadril: "121-131" },
+  {
+    tamanho: "P",
+    num: "36-38",
+    busto: "80-88",
+    cintura: "60-69",
+    quadril: "88-98",
+  },
+  {
+    tamanho: "M",
+    num: "40-42",
+    busto: "89-96",
+    cintura: "70-79",
+    quadril: "99-109",
+  },
+  {
+    tamanho: "G",
+    num: "44-46",
+    busto: "97-105",
+    cintura: "80-89",
+    quadril: "110-120",
+  },
+  {
+    tamanho: "GG",
+    num: "48-50",
+    busto: "106-114",
+    cintura: "90-99",
+    quadril: "121-131",
+  },
 ];
 
 export const ProductDetails = () => {
@@ -40,6 +66,9 @@ export const ProductDetails = () => {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isSizeGuideHovered, setIsSizeGuideHovered] = useState(false);
+  const [descAccordionOpen, setDescAccordionOpen] = useState(false);
+  const [materialAccordionOpen, setMaterialAccordionOpen] = useState(false);
+  const [estampaAccordionOpen, setEstampaAccordionOpen] = useState(false);
 
   const {
     data: product,
@@ -58,7 +87,10 @@ export const ProductDetails = () => {
   });
 
   const stockBySize = useMemo(() => getStockBySize(product), [product]);
-  const hasStockBySize = useMemo(() => hasStockBySizeHelper(product), [product]);
+  const hasStockBySize = useMemo(
+    () => hasStockBySizeHelper(product),
+    [product]
+  );
   const availableColors = useMemo(() => getAvailableColors(product), [product]);
   const hasColors = availableColors.length > 0;
 
@@ -92,7 +124,6 @@ export const ProductDetails = () => {
     const currentValid = selectedSize && availableSizes.includes(selectedSize);
     if (!currentValid) setSelectedSize(availableSizes[0]);
   }, [product, availableSizes, selectedSize]);
-
 
   const styles = {
     // --- NOVO: WRAPPER EXTERNO (Cobre a tela toda com a cor do tema) ---
@@ -169,7 +200,9 @@ export const ProductDetails = () => {
       objectFit: "cover" as const,
       borderRadius: "8px",
       cursor: "pointer",
-      border: isActive ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`,
+      border: isActive
+        ? `2px solid ${colors.accent}`
+        : `1px solid ${colors.border}`,
       backgroundColor: colors.card,
       opacity: isActive ? 1 : 0.7,
     }),
@@ -200,13 +233,6 @@ export const ProductDetails = () => {
       fontWeight: "normal",
       marginTop: "5px",
     },
-    description: {
-      marginBottom: "20px",
-      lineHeight: "1.6",
-      color: colors.text,
-      fontSize: "15px",
-      opacity: 0.9,
-    },
     label: {
       fontWeight: "600",
       display: "block",
@@ -221,16 +247,23 @@ export const ProductDetails = () => {
         overflow: "hidden",
         padding: "10px 20px",
         border: `1px solid ${borderColor}`,
-        backgroundColor: isActive && !isLight
-          ? "rgba(244, 214, 54, 0.2)"
-          : isDisabled
+        backgroundColor:
+          isActive && !isLight
+            ? "rgba(244, 214, 54, 0.2)"
+            : isDisabled
             ? theme === "dark"
               ? colors.card
               : "#f0efe9"
             : colors.card,
         borderRadius: "6px",
         fontWeight: isActive ? "bold" : "normal",
-        color: isDisabled ? colors.muted : isLight ? colors.text : isActive ? colors.accent : colors.text,
+        color: isDisabled
+          ? colors.muted
+          : isLight
+          ? colors.text
+          : isActive
+          ? colors.accent
+          : colors.text,
         cursor: isDisabled ? "not-allowed" : "pointer",
         transition: "0.2s",
         opacity: isDisabled ? 0.5 : 1,
@@ -259,7 +292,10 @@ export const ProductDetails = () => {
       justifyContent: "center",
       gap: "10px",
       cursor: "pointer",
-      boxShadow: theme === "dark" ? "0 4px 15px rgba(244, 214, 54, 0.25)" : "0 4px 15px rgba(244, 214, 54, 0.3)",
+      boxShadow:
+        theme === "dark"
+          ? "0 4px 15px rgba(244, 214, 54, 0.25)"
+          : "0 4px 15px rgba(244, 214, 54, 0.3)",
       transition: "transform 0.1s",
     },
     disabledBtn: {
@@ -328,9 +364,21 @@ export const ProductDetails = () => {
       </div>
     );
 
+  const images = product?.images && product.images.length > 0 ? product.images : [];
   const mainImage =
-    selectedImage ||
-    (product?.images && product.images.length > 0 ? product.images[0] : null);
+    selectedImage || (images.length > 0 ? images[0] : null);
+  const currentIndex = mainImage ? Math.max(0, images.indexOf(mainImage)) : 0;
+  const hasMultipleImages = images.length > 1;
+  const goPrev = () => {
+    if (!hasMultipleImages) return;
+    const prevIndex = (currentIndex - 1 + images.length) % images.length;
+    setSelectedImage(images[prevIndex]);
+  };
+  const goNext = () => {
+    if (!hasMultipleImages) return;
+    const nextIndex = (currentIndex + 1) % images.length;
+    setSelectedImage(images[nextIndex]);
+  };
 
   const getAvailableQuantity = (): number => {
     if (!product) return 0;
@@ -393,15 +441,69 @@ export const ProductDetails = () => {
         <div style={styles.grid}>
           {/* --- COLUNA 1: GALERIA --- */}
           <div>
-            <div style={styles.mainImageContainer}>
-              {mainImage ? (
-                <img
-                  src={mainImage}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  alt={product.name}
-                />
-              ) : (
-                <ImageIcon size={60} color={colors.muted} />
+            <div style={{ position: "relative" }}>
+              <div style={styles.mainImageContainer}>
+                {mainImage ? (
+                  <img
+                    src={mainImage}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    alt={product.name}
+                  />
+                ) : (
+                  <ImageIcon size={60} color={colors.muted} />
+                )}
+              </div>
+              {hasMultipleImages && (
+                <>
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    aria-label="Imagem anterior"
+                    style={{
+                      position: "absolute",
+                      left: "8px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      border: "none",
+                      backgroundColor: theme === "dark" ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.9)",
+                      color: theme === "dark" ? "#fafafa" : colors.text,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    aria-label="Próxima imagem"
+                    style={{
+                      position: "absolute",
+                      right: "8px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      border: "none",
+                      backgroundColor: theme === "dark" ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.9)",
+                      color: theme === "dark" ? "#fafafa" : colors.text,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                </>
               )}
             </div>
 
@@ -436,10 +538,6 @@ export const ProductDetails = () => {
               </div>
             </div>
 
-            <div style={styles.description}>
-              {product.description || "Sem descrição detalhada."}
-            </div>
-
             {/* SELEÇÃO DE COR (quando o produto tem variantes por cor) */}
             {hasColors && (
               <div style={{ margin: "25px 0" }}>
@@ -467,61 +565,66 @@ export const ProductDetails = () => {
             )}
 
             {/* SELEÇÃO DE TAMANHO */}
-            {(hasStockBySize || hasColors) ? (
+            {hasStockBySize || hasColors ? (
               <div style={{ margin: "25px 0" }}>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {(hasColors
-                    ? availableSizes
-                    : Object.keys(stockBySize)
-                  ).map((size) => {
-                    const isActive = selectedSize === size;
-                    const qty = hasColors && selectedColor
-                      ? getVariantStock(product, selectedColor, size)
-                      : stockBySize[size] ?? 0;
-                    const isDisabled = qty === 0;
-                    return (
-                      <button
-                        key={size}
-                        onClick={() => !isDisabled && setSelectedSize(size)}
-                        disabled={isDisabled}
-                        style={styles.sizeButton(isActive, isDisabled)}
-                        title={
-                          isDisabled ? "Indisponível" : qty <= 3 ? `Últimas ${qty} peças` : "Em estoque"
-                        }
-                      >
-                        <span style={styles.sizeButtonLine(isActive)} />
-                        {size}
-                        {!isDisabled && qty <= 3 && (
-                          <span
-                            style={{
-                              fontSize: "10px",
-                              marginLeft: "4px",
-                              opacity: 0.7,
-                            }}
-                          >
-                            ({qty})
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  {(hasColors ? availableSizes : Object.keys(stockBySize)).map(
+                    (size) => {
+                      const isActive = selectedSize === size;
+                      const qty =
+                        hasColors && selectedColor
+                          ? getVariantStock(product, selectedColor, size)
+                          : stockBySize[size] ?? 0;
+                      const isDisabled = qty === 0;
+                      return (
+                        <button
+                          key={size}
+                          onClick={() => !isDisabled && setSelectedSize(size)}
+                          disabled={isDisabled}
+                          style={styles.sizeButton(isActive, isDisabled)}
+                          title={
+                            isDisabled
+                              ? "Indisponível"
+                              : qty <= 3
+                              ? `Últimas ${qty} peças`
+                              : "Em estoque"
+                          }
+                        >
+                          <span style={styles.sizeButtonLine(isActive)} />
+                          {size}
+                          {!isDisabled && qty <= 3 && (
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                marginLeft: "4px",
+                                opacity: 0.7,
+                              }}
+                            >
+                              ({qty})
+                            </span>
+                          )}
+                        </button>
+                      );
+                    }
+                  )}
                 </div>
-                {(selectedSize || (hasColors && selectedColor)) && (() => {
-                  const qty = getAvailableQuantity();
-                  if (qty > 3) return null;
-                  return (
-                    <div
-                      style={{
-                        marginTop: "10px",
-                        fontSize: "13px",
-                        color: theme === "dark" ? colors.accent : "#b45309",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Últimas {qty} peças! Não vai ficar de bobeira, hein?
-                    </div>
-                  );
-                })()}
+                {(selectedSize || (hasColors && selectedColor)) &&
+                  (() => {
+                    const qty = getAvailableQuantity();
+                    if (qty > 3) return null;
+                    return (
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          fontSize: "13px",
+                          color: theme === "dark" ? colors.accent : "#b45309",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Últimas {qty} peças! Não vai ficar de bobeira, hein?
+                      </div>
+                    );
+                  })()}
                 {/* Quantidade disponível para a variante selecionada */}
                 {selectedSize && (
                   <div
@@ -530,11 +633,7 @@ export const ProductDetails = () => {
                       fontSize: "13px",
                       color: colors.muted,
                     }}
-                  >
-                    {hasColors && selectedColor
-                      ? `${getAvailableQuantity()} un. disponíveis (${selectedColor} · ${selectedSize})`
-                      : `${getAvailableQuantity()} un. disponíveis (${selectedSize})`}
-                  </div>
+                  ></div>
                 )}
               </div>
             ) : (
@@ -593,6 +692,173 @@ export const ProductDetails = () => {
                 </button>
               )}
             </div>
+
+            {/* ACORDEÕES: Descrição, Material, Estampa (só exibem se houver conteúdo) */}
+            {product.description && product.description.trim() !== "" && (
+              <div
+                style={{
+                  marginTop: "20px",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setDescAccordionOpen((o) => !o)}
+                  aria-expanded={descAccordionOpen}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 16px",
+                    border: "none",
+                    background: colors.card,
+                    color: colors.text,
+                    fontSize: "15px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  Descrição
+                  <ChevronDown
+                    size={20}
+                    color={colors.muted}
+                    style={{
+                      flexShrink: 0,
+                      transform: descAccordionOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s",
+                    }}
+                  />
+                </button>
+                {descAccordionOpen && (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderTop: `1px solid ${colors.border}`,
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {product.description}
+                  </div>
+                )}
+              </div>
+            )}
+            {product.material && product.material.trim() !== "" && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setMaterialAccordionOpen((o) => !o)}
+                  aria-expanded={materialAccordionOpen}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 16px",
+                    border: "none",
+                    background: colors.card,
+                    color: colors.text,
+                    fontSize: "15px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  Material
+                  <ChevronDown
+                    size={20}
+                    color={colors.muted}
+                    style={{
+                      flexShrink: 0,
+                      transform: materialAccordionOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s",
+                    }}
+                  />
+                </button>
+                {materialAccordionOpen && (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderTop: `1px solid ${colors.border}`,
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {product.material}
+                  </div>
+                )}
+              </div>
+            )}
+            {product.pattern && product.pattern.trim() !== "" && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setEstampaAccordionOpen((o) => !o)}
+                  aria-expanded={estampaAccordionOpen}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 16px",
+                    border: "none",
+                    background: colors.card,
+                    color: colors.text,
+                    fontSize: "15px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  Estampa
+                  <ChevronDown
+                    size={20}
+                    color={colors.muted}
+                    style={{
+                      flexShrink: 0,
+                      transform: estampaAccordionOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s",
+                    }}
+                  />
+                </button>
+                {estampaAccordionOpen && (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderTop: `1px solid ${colors.border}`,
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {product.pattern}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

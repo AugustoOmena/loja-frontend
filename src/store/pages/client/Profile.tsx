@@ -35,7 +35,9 @@ export const Profile = () => {
     const fetchCounts = async () => {
       try {
         const orders = await listByUser({ userId: user.id });
-        const paymentCount = orders.filter((o) => o.status === "pending").length;
+        const paymentCount = orders.filter(
+          (o) => o.status === "pending"
+        ).length;
         const shippingCount = orders.filter((o) =>
           ["approved", "in_process"].includes(o.status)
         ).length;
@@ -106,19 +108,19 @@ export const Profile = () => {
       paddingBottom: "80px",
     },
 
-    // Header Wrapper (Fundo Azul Total)
+    // Header Wrapper
     headerWrapper: {
-      backgroundColor: theme === "dark" ? "#1e293b" : "#0f172a",
+      backgroundColor: theme === "dark" ? colors.card : "#171717",
       width: "100%",
       display: "flex",
-      justifyContent: "center", // Centraliza o conteúdo interno
+      justifyContent: "center",
     },
     // Header Conteúdo (Limitado a 1000px)
     headerContent: {
       width: "100%",
       maxWidth: "1000px",
-      padding: "30px 20px 60px 20px", // Mantém o padding original
-      color: "white",
+      padding: "30px 20px 60px 20px",
+      color: theme === "dark" ? colors.text : "#fafafa",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "flex-start",
@@ -153,7 +155,7 @@ export const Profile = () => {
     headerBtn: {
       background: "transparent",
       border: "none",
-      color: "white",
+      color: theme === "dark" ? colors.text : "#fafafa",
       cursor: "pointer",
       alignItems: "center",
       gap: "4px",
@@ -164,14 +166,23 @@ export const Profile = () => {
 
     statusCard: {
       backgroundColor: colors.card,
-      // MUDANÇA: Removemos margem lateral fixa. Usamos width 100% do pai.
       marginTop: "-40px",
       borderRadius: "12px",
       padding: "20px 10px",
       boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+      border: `1px solid ${colors.border}`,
+      width: "100%",
+    },
+    statusCardTitle: {
+      fontSize: "14px",
+      fontWeight: "600",
+      color: colors.text,
+      marginBottom: "16px",
+      paddingLeft: "4px",
+    },
+    statusCardRow: {
       display: "flex",
       justifyContent: "space-between",
-      border: `1px solid ${colors.border}`,
       width: "100%",
     },
     menuItem: {
@@ -192,8 +203,8 @@ export const Profile = () => {
       position: "absolute" as const,
       top: "-5px",
       right: "5px",
-      backgroundColor: "#ef4444",
-      color: "white",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       fontSize: "10px",
       fontWeight: "bold",
       width: "16px",
@@ -262,6 +273,8 @@ export const Profile = () => {
       <div style={styles.bodyContainer}>
         {/* MEUS PEDIDOS STATUS */}
         <div style={styles.statusCard}>
+          <div style={styles.statusCardTitle}>Meus pedidos</div>
+          <div style={styles.statusCardRow}>
           {menuItems.map((item, index) => (
             <div
               key={index}
@@ -277,6 +290,7 @@ export const Profile = () => {
               )}
             </div>
           ))}
+          </div>
         </div>
 
         {/* ÁREA FUTURA */}

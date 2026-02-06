@@ -27,6 +27,13 @@ export const Settings = () => {
       backgroundColor: colors.bg,
       fontFamily: "sans-serif",
     },
+    wrapper: {
+      maxWidth: "600px",
+      margin: "0 auto",
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column" as const,
+    },
     header: {
       backgroundColor: colors.card,
       padding: "15px",
@@ -59,25 +66,27 @@ export const Settings = () => {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <button onClick={() => navigate("/minha-conta")} style={styles.backBtn}>
-          <ChevronLeft size={24} />
-        </button>
-        <span style={styles.title}>Configurações</span>
-      </div>
-
-      <div style={styles.section}>
-        <div style={styles.item} onClick={toggleTheme}>
-          <span>Tema do App</span>
-          {theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}
+      <div style={styles.wrapper}>
+        <div style={styles.header}>
+          <button onClick={() => navigate("/minha-conta")} style={styles.backBtn}>
+            <ChevronLeft size={24} />
+          </button>
+          <span style={styles.title}>Configurações</span>
         </div>
 
-        <div
-          style={{ ...styles.item, color: "#ef4444", borderColor: "#ef4444" }}
-          onClick={handleLogout}
-        >
-          <span>Sair da Conta</span>
-          <LogOut size={20} />
+        <div style={styles.section}>
+          <div style={styles.item} onClick={toggleTheme}>
+            <span>Tema do App</span>
+            {theme === "dark" ? <Moon size={20} /> : <Sun size={20} />}
+          </div>
+
+          <div
+            style={{ ...styles.item, color: "#ef4444", borderColor: "#ef4444" }}
+            onClick={handleLogout}
+          >
+            <span>Sair da Conta</span>
+            <LogOut size={20} />
+          </div>
         </div>
       </div>
     </div>

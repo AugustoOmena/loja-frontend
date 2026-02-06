@@ -13,7 +13,7 @@ export const MobileBottomNav = ({ onProfileClick }: MobileBottomNavProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { setIsCartOpen, cartCount } = useCart();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
 
   // Função auxiliar para lidar com o clique no perfil
   const handleUserClick = () => {
@@ -52,7 +52,7 @@ export const MobileBottomNav = ({ onProfileClick }: MobileBottomNavProps) => {
       justifyContent: "center",
       background: "none",
       border: "none",
-      color: isActive ? "#ff4747" : colors.muted,
+      color: isActive ? (theme === "dark" ? colors.accent : colors.text) : colors.muted,
       fontSize: "10px",
       gap: "4px",
       cursor: "pointer",
@@ -62,8 +62,8 @@ export const MobileBottomNav = ({ onProfileClick }: MobileBottomNavProps) => {
       position: "absolute" as const,
       top: "-5px",
       right: "-5px",
-      backgroundColor: "#ff4747",
-      color: "white",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       fontSize: "10px",
       fontWeight: "bold",
       width: "16px",
