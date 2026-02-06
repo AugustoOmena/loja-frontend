@@ -1,4 +1,4 @@
-import type { Product, ProductVariant } from "../types";
+import type { Product } from "../types";
 
 /** Produto legado pode ter stock no nível raiz (backend antigo). */
 type ProductWithLegacy = Product & { stock?: Record<string, number> };
