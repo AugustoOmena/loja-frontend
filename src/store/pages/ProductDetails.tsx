@@ -742,6 +742,7 @@ export const ProductDetails = () => {
                       color: colors.text,
                       fontSize: "14px",
                       lineHeight: 1.6,
+                      whiteSpace: "pre-line",
                     }}
                   >
                     {product.description}
