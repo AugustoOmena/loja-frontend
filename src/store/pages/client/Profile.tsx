@@ -197,8 +197,11 @@ export const Profile = () => {
       alignItems: "center",
       gap: "8px",
       cursor: "pointer",
-      position: "relative" as const,
       flex: 1,
+    },
+    iconWrapper: {
+      position: "relative" as const,
+      display: "inline-flex",
     },
     menuLabel: {
       fontSize: "11px",
@@ -207,8 +210,8 @@ export const Profile = () => {
     },
     badge: {
       position: "absolute" as const,
-      top: "-5px",
-      right: "5px",
+      top: "-6px",
+      right: "-6px",
       backgroundColor: colors.accent,
       color: colors.accentText,
       fontSize: "10px",
@@ -287,13 +290,15 @@ export const Profile = () => {
               style={styles.menuItem}
               onClick={() => navigate(item.route)}
             >
-              <div style={{ color: colors.text }}>{item.icon}</div>
+              <div style={styles.iconWrapper}>
+                <div style={{ color: colors.text }}>{item.icon}</div>
+                {item.count > 0 && (
+                  <div style={styles.badge}>
+                    {item.count > 9 ? "9+" : item.count}
+                  </div>
+                )}
+              </div>
               <span style={styles.menuLabel}>{item.label}</span>
-              {item.count > 0 && (
-                <div style={styles.badge}>
-                  {item.count > 9 ? "9+" : item.count}
-                </div>
-              )}
             </div>
           ))}
           </div>
