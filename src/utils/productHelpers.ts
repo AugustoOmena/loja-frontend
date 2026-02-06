@@ -121,3 +121,27 @@ export function getVariantStock(
   const key = variantKey(color.trim() || "Único", size.trim() || "Único");
   return getStockByColorAndSize(product)[key] ?? 0;
 }
+
+/** Cor de fundo da bolinha no card (nome em português → hex). Usado em StoreHome e RecommendedProducts. */
+export function getColorDotFill(colorName: string): string {
+  const c = colorName.toLowerCase().trim();
+  const map: Record<string, string> = {
+    azul: "#2563EB",
+    "azul marinho": "#1E3A8A",
+    "azul médio": "#60A5FA",
+    bege: "#D4C4A8",
+    cereja: "#9F1239",
+    coral: "#FF7F50",
+    laranja: "#F97316",
+    manteiga: "#FEF3C7",
+    "off-white": "#F8FAFC",
+    preto: "#000000",
+    "rosa escuro": "#BE185D",
+    verde: "#22C55E",
+    "verde militar": "#4D5906",
+  };
+  for (const [key, hex] of Object.entries(map)) {
+    if (c.includes(key)) return hex;
+  }
+  return "#b0a090";
+}

@@ -3,6 +3,7 @@ import { Loader2, Heart, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useFirebaseProductsInfinite } from "../hooks/useFirebaseProductsInfinite";
 import { useIntersectionObserver } from "../hooks/useIntersectionObserver";
+import { getAvailableColors, getProductQuantity, getColorDotFill } from "../utils/productHelpers";
 
 export const RecommendedProducts = () => {
   const navigate = useNavigate();
@@ -166,13 +167,59 @@ export const RecommendedProducts = () => {
                 style={styles.card}
                 onClick={() => navigate(`/produto/${product.id}`)}
               >
-                <img
-                  src={product.images?.[0] || "https://placehold.co/150"}
-                  alt={product.name}
-                  style={styles.image}
-                />
+                <div style={{ position: "relative", width: "100%" }}>
+                  <img
+                    src={product.images?.[0] || "https://placehold.co/150"}
+                    alt={product.name}
+                    style={styles.image}
+                  />
+                  {getProductQuantity(product) <= 3 && getProductQuantity(product) > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: "5px",
+                        left: "5px",
+                        right: "5px",
+                        backgroundColor: "rgba(0,0,0,0.7)",
+                        color: "white",
+                        fontSize: "10px",
+                        padding: "4px 6px",
+                        borderRadius: "4px",
+                        textAlign: "center",
+                      }}
+                    >
+                      Últimas {getProductQuantity(product)} peças!
+                    </span>
+                  )}
+                </div>
                 <div style={styles.info}>
                   <div style={styles.name}>{product.name}</div>
+                  {getAvailableColors(product).length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "4px",
+                        marginBottom: "6px",
+                        alignItems: "center",
+                      }}
+                    >
+                      {getAvailableColors(product).map((color) => (
+                        <span
+                          key={color}
+                          title={color}
+                          style={{
+                            width: "9px",
+                            height: "9px",
+                            borderRadius: "50%",
+                            backgroundColor: getColorDotFill(color),
+                            border: `1px solid ${colors.border}`,
+                            flexShrink: 0,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                   <div style={styles.price}>R$ {product.price.toFixed(2)}</div>
                   <div style={styles.installments}>
                     6x R$ {(product.price / 6).toFixed(2)}
