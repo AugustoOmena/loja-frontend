@@ -24,6 +24,30 @@ import { getProductQuantity, getStockBySize, getAvailableColors } from "../../ut
 const STORE_HOME_STORAGE_KEY = "store-home-filters";
 const STORE_HOME_SCROLL_KEY = "store-home-scroll";
 
+/** Cor de fundo da bolinha no card (nome em português → hex). */
+function getColorDotFill(colorName: string): string {
+  const c = colorName.toLowerCase().trim();
+  const map: Record<string, string> = {
+    azul: "#2563EB",
+    "azul marinho": "#1E3A8A",
+    "azul médio": "#60A5FA",
+    bege: "#D4C4A8",
+    cereja: "#9F1239",
+    coral: "#FF7F50",
+    laranja: "#F97316",
+    manteiga: "#FEF3C7",
+    "off-white": "#F8FAFC",
+    preto: "#000000",
+    "rosa escuro": "#BE185D",
+    verde: "#22C55E",
+    "verde militar": "#4D5906",
+  };
+  for (const [key, hex] of Object.entries(map)) {
+    if (c.includes(key)) return hex;
+  }
+  return "#b0a090";
+}
+
 const defaultFilters = {
   name: "",
   min_price: "",
@@ -1216,6 +1240,32 @@ export const StoreHome = () => {
                           4.8 (Novo)
                         </span>
                       </div>
+                      {getAvailableColors(product).length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "4px",
+                            marginTop: "6px",
+                            alignItems: "center",
+                          }}
+                        >
+                          {getAvailableColors(product).map((color) => (
+                            <span
+                              key={color}
+                              title={color}
+                              style={{
+                                width: "9px",
+                                height: "9px",
+                                borderRadius: "50%",
+                                backgroundColor: getColorDotFill(color),
+                                border: `1px solid ${colors.border}`,
+                                flexShrink: 0,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
                       <div style={styles.priceRow}>
                         <span style={{ fontSize: "12px", marginRight: "2px" }}>
                           R$
