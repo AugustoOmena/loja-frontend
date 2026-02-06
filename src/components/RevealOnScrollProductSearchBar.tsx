@@ -70,8 +70,7 @@ export function RevealOnScrollProductSearchBar({
           left: 0,
           right: 0,
           zIndex: 99,
-          maxWidth: "1200px",
-          margin: "0 auto",
+          width: "100%",
           backgroundColor: colors.card,
           boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
           borderBottom: `1px solid ${colors.border}`,
@@ -81,9 +80,10 @@ export function RevealOnScrollProductSearchBar({
           transition: "opacity 0.3s ease-out, transform 0.3s ease-out",
         }}
       >
-        {topSlot}
-        <div style={{ padding: "10px 15px" }}>
-          <ProductSearchAndCategories
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          {topSlot}
+          <div style={{ padding: "10px 15px" }}>
+            <ProductSearchAndCategories
             searchValue={searchValue}
             onSearchChange={onSearchChange}
             onSearchSubmit={onSearchSubmit}
@@ -91,6 +91,7 @@ export function RevealOnScrollProductSearchBar({
             onCategoryChange={onCategoryChange}
             categories={categories}
           />
+          </div>
         </div>
       </div>
     </>
