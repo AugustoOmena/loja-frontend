@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { listByUser } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -14,12 +14,18 @@ import {
   Home,
 } from "lucide-react";
 import { RecommendedProducts } from "../../../components/RecommendedProducts";
+import { RevealOnScrollProductSearchBar } from "../../../components/RevealOnScrollProductSearchBar";
 import { MobileBottomNav } from "../../../components/MobileBottomNav";
+import { STORE_CATEGORIES } from "../../../constants/storeCategories";
 
 export const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { colors, theme } = useTheme();
+
+  const recommendedSectionRef = useRef<HTMLDivElement>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [categoryId, setCategoryId] = useState("");
 
   const [counts, setCounts] = useState({
     payment: 0,
@@ -296,9 +302,23 @@ export const Profile = () => {
         {/* ÁREA FUTURA */}
         <div style={styles.placeholderArea}></div>
 
-        {/* PRODUTOS RECOMENDADOS */}
-        {/* O padding lateral aqui já vem do componente, então fica alinhado */}
-        <RecommendedProducts />
+        {/* PRODUTOS RECOMENDADOS — barra aparece quando "Você vai adorar" sai do topo */}
+        <RevealOnScrollProductSearchBar
+          anchorRef={recommendedSectionRef}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onSearchSubmit={() => {}}
+          categoryId={categoryId}
+          onCategoryChange={setCategoryId}
+          categories={STORE_CATEGORIES}
+          showWhenAnchorOutOfView
+        />
+        <RecommendedProducts
+          scrollAnchorRef={recommendedSectionRef}
+          searchQuery={searchValue}
+          categoryId={categoryId}
+          scrollStorageKey="profile-recommended-scroll"
+        />
       </div>
 
       {/* MENU INFERIOR */}

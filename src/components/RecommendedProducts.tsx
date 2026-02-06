@@ -1,3 +1,5 @@
+import type { RefObject } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import { Loader2, Heart, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -5,9 +7,21 @@ import { useFirebaseProductsInfinite } from "../hooks/useFirebaseProductsInfinit
 import { useIntersectionObserver } from "../hooks/useIntersectionObserver";
 import { getAvailableColors, getProductQuantity, getColorDotFill } from "../utils/productHelpers";
 
-export const RecommendedProducts = () => {
+interface RecommendedProductsProps {
+  /** Ref anexado a um sentinel logo após o título "Você vai adorar". Usado para revelar a barra de pesquisa quando esse ponto sai do topo da tela. */
+  scrollAnchorRef?: RefObject<HTMLDivElement | null>;
+  /** Filtro por texto no nome do produto (ex.: da barra de pesquisa). */
+  searchQuery?: string;
+  /** Filtro por categoria (id, ex.: "biquinis"). Vazio = todos. */
+  categoryId?: string;
+  /** Se definido, salva o scroll ao clicar em um produto e restaura ao voltar (sessionStorage). Ex.: "profile-recommended-scroll". */
+  scrollStorageKey?: string;
+}
+
+export const RecommendedProducts = ({ scrollAnchorRef, searchQuery = "", categoryId = "", scrollStorageKey }: RecommendedProductsProps) => {
   const navigate = useNavigate();
   const { colors, theme } = useTheme();
+  const pendingScrollY = useRef<number | null>(null);
 
   // --- FIREBASE REALTIME DATABASE COM PAGINAÇÃO ---
   const {
@@ -18,6 +32,18 @@ export const RecommendedProducts = () => {
     hasMore,
     isLoadingMore,
   } = useFirebaseProductsInfinite(20); // 20 produtos por página para produtos recomendados
+
+  // --- FILTRO CLIENT-SIDE (pesquisa + categoria) ---
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const q = (searchQuery ?? "").trim().toLowerCase();
+      const matchesSearch = !q || (product.name ?? "").toLowerCase().includes(q);
+      const cat = (categoryId ?? "").trim().toLowerCase();
+      const productCat = (product.category ?? "").trim().toLowerCase();
+      const matchesCategory = !cat || productCat === cat;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, searchQuery, categoryId]);
 
   // --- SCROLL INFINITO ---
   const observerEnabled = hasMore && !isLoading;
@@ -31,6 +57,43 @@ export const RecommendedProducts = () => {
     observerEnabled,
     isLoadingMore,
   );
+
+  // Restaurar scroll ao voltar do produto (quando scrollStorageKey está definido)
+  useEffect(() => {
+    if (!scrollStorageKey) return;
+    try {
+      const s = sessionStorage.getItem(scrollStorageKey);
+      if (s) {
+        const y = Number(s);
+        if (Number.isFinite(y) && y >= 0) {
+          sessionStorage.removeItem(scrollStorageKey);
+          pendingScrollY.current = y;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [scrollStorageKey]);
+
+  useEffect(() => {
+    if (pendingScrollY.current === null || isLoading || error) return;
+    const y = pendingScrollY.current;
+    pendingScrollY.current = null;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: y, behavior: "auto" });
+    });
+  }, [isLoading, error]);
+
+  const handleProductClick = (productId: number) => {
+    if (scrollStorageKey) {
+      try {
+        sessionStorage.setItem(scrollStorageKey, String(window.scrollY));
+      } catch {
+        // ignore
+      }
+    }
+    navigate(`/produto/${productId}`);
+  };
 
   const styles = {
     // AQUI ESTÁ A MUDANÇA: padding lateral de 15px
@@ -98,6 +161,14 @@ export const RecommendedProducts = () => {
         <Heart size={20} fill="#ef4444" color="#ef4444" />
         Você vai adorar
       </h3>
+      {/* Sentinel: quando este ponto sai do topo da tela, a barra de pesquisa pode aparecer (RevealOnScrollProductSearchBar com showWhenAnchorOutOfView). */}
+      {scrollAnchorRef && (
+        <div
+          ref={scrollAnchorRef}
+          style={{ height: 0, margin: 0, padding: 0, overflow: "hidden" }}
+          aria-hidden
+        />
+      )}
 
       {/* Estado de Loading */}
       {isLoading && (
@@ -161,11 +232,11 @@ export const RecommendedProducts = () => {
       {!isLoading && !error && (
         <>
           <div className="rec-grid">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <div
                 key={product.id}
                 style={styles.card}
-                onClick={() => navigate(`/produto/${product.id}`)}
+                onClick={() => product.id != null && handleProductClick(product.id)}
               >
                 <div style={{ position: "relative", width: "100%" }}>
                   <img
@@ -230,7 +301,7 @@ export const RecommendedProducts = () => {
           </div>
 
           {/* Empty State */}
-          {products.length === 0 && (
+          {filteredProducts.length === 0 && (
             <div
               style={{
                 textAlign: "center",
@@ -250,13 +321,15 @@ export const RecommendedProducts = () => {
                   marginBottom: "5px",
                 }}
               >
-                Nenhum produto recomendado encontrado
+                {searchQuery || categoryId
+                  ? "Nenhum produto encontrado com esses filtros"
+                  : "Nenhum produto recomendado encontrado"}
               </p>
             </div>
           )}
 
           {/* Loading More Indicator */}
-          {products.length > 0 && (
+          {filteredProducts.length > 0 && (
             <div
               ref={loadMoreRef}
               style={{

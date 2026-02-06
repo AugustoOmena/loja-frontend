@@ -16,6 +16,8 @@ import type { Product } from "../../types";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 import { MobileBottomNav } from "../../components/MobileBottomNav";
+import { ProductSearchBar, ProductCategoryPills } from "../../components/ProductSearchAndCategories";
+import { STORE_CATEGORIES } from "../../constants/storeCategories";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useFirebaseProductsInfinite } from "../../hooks/useFirebaseProductsInfinite";
 import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
@@ -98,13 +100,7 @@ export const StoreHome = () => {
     width: number;
   } | null>(null);
 
-  const categories = [
-    { id: "", label: "Todos" },
-    { id: "biquinis", label: "Biquínis" },
-    { id: "saidas", label: "Saídas de Praia" },
-    { id: "acessorios", label: "Acessórios" },
-    { id: "promocao", label: "Promoções" },
-  ];
+  const categories = STORE_CATEGORIES;
 
   // --- PERSISTIR FILTROS (para restaurar ao voltar do produto) ---
   useEffect(() => {
@@ -501,52 +497,6 @@ export const StoreHome = () => {
       margin: "0 auto",
       padding: "0 15px",
     },
-    // Barra de Pesquisa
-    searchContainer: {
-      flex: 1,
-      backgroundColor: theme === "dark" ? "#262626" : "#f5f5f5",
-      borderRadius: "20px",
-      display: "flex",
-      alignItems: "center",
-      padding: "8px 15px",
-      gap: "10px",
-      margin: "0 15px",
-      border: `1px solid ${colors.border}`,
-    },
-    searchInput: {
-      border: "none",
-      background: "transparent",
-      width: "100%",
-      outline: "none",
-      fontSize: "14px",
-      color: colors.text,
-    },
-    // Categorias
-    categoriesRow: {
-      display: "flex",
-      gap: "10px",
-      overflowX: "auto" as const,
-      paddingBottom: "15px",
-      paddingTop: "5px",
-      whiteSpace: "nowrap" as const,
-      scrollbarWidth: "none" as const,
-    },
-    categoryPill: (isActive: boolean) => ({
-      border: `1px solid ${isActive ? "transparent" : colors.border}`,
-      padding: "8px 16px",
-      borderRadius: "20px",
-      backgroundColor: isActive
-        ? colors.accent
-        : theme === "dark"
-          ? colors.card
-          : "#f5f5f5",
-      color: isActive ? colors.accentText : colors.text,
-      fontSize: "13px",
-      fontWeight: isActive ? "bold" : "normal",
-      cursor: "pointer",
-      transition: "0.2s",
-      flexShrink: 0,
-    }),
 
     // Sidebar
     sidebar: {
@@ -761,25 +711,12 @@ export const StoreHome = () => {
               />
             </div>
 
-            <div style={styles.searchContainer}>
-              <input
-                placeholder="O que você procura?"
-                value={searchTermInput}
-                onChange={(e) => setSearchTermInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                style={styles.searchInput}
-              />
-              <button
-                onClick={handleSearch}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                <Search size={18} color={colors.muted} />
-              </button>
-            </div>
+            <ProductSearchBar
+              searchValue={searchTermInput}
+              onSearchChange={setSearchTermInput}
+              onSearchSubmit={handleSearch}
+              style={{ margin: "0 15px" }}
+            />
 
             <div
               className="desktop-only"
@@ -881,17 +818,11 @@ export const StoreHome = () => {
             </div>
           </div>
 
-          <div style={styles.categoriesRow} className="hide-scroll">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategoryClick(cat.id)}
-                style={styles.categoryPill(filters.category === cat.id)}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          <ProductCategoryPills
+            categoryId={filters.category}
+            onCategoryChange={handleCategoryClick}
+            categories={categories}
+          />
         </div>
       </div>
 
