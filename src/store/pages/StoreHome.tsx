@@ -28,7 +28,7 @@ const defaultFilters = {
   name: "",
   min_price: "",
   max_price: "",
-  sort: "newest",
+  sort: "price_asc",
   category: "",
   sizes: [] as string[],
   colors: [] as string[],
@@ -45,7 +45,7 @@ function loadStoredFilters() {
         name: typeof parsed.name === "string" ? parsed.name : defaultFilters.name,
         min_price: typeof parsed.min_price === "string" ? parsed.min_price : defaultFilters.min_price,
         max_price: typeof parsed.max_price === "string" ? parsed.max_price : defaultFilters.max_price,
-        sort: typeof parsed.sort === "string" ? parsed.sort : defaultFilters.sort,
+        sort: typeof parsed.sort === "string" && (parsed.sort === "price_asc" || parsed.sort === "price_desc") ? parsed.sort : defaultFilters.sort,
         category: typeof parsed.category === "string" ? parsed.category : defaultFilters.category,
         sizes: Array.isArray(parsed.sizes) ? parsed.sizes.filter((x): x is string => typeof x === "string") : defaultFilters.sizes,
         colors: Array.isArray(parsed.colors) ? parsed.colors.filter((x): x is string => typeof x === "string") : defaultFilters.colors,
@@ -348,9 +348,9 @@ export const StoreHome = () => {
           ? product.name.toLowerCase().includes(filters.name.toLowerCase())
           : true;
 
-        // Filtra por categoria
+        // Filtra por categoria (comparação normalizada: trim + case-insensitive)
         const matchesCategory = filters.category
-          ? product.category === filters.category
+          ? (product.category ?? "").trim().toLowerCase() === filters.category.trim().toLowerCase()
           : true;
 
         // Filtra por tamanho (múltipla escolha: produto tem pelo menos um dos tamanhos)
@@ -399,13 +399,12 @@ export const StoreHome = () => {
         );
       })
       .sort((a, b) => {
-        // Ordenação
-        if (filters.sort === "qty_asc") {
-          return (a.quantity || 0) - (b.quantity || 0);
+        // Ordenação por preço
+        if (filters.sort === "price_desc") {
+          return b.price - a.price; // Maior preço primeiro
         }
-        // Default: mantém a ordem de carregamento (crescente por ID)
-        // Os produtos mais recentes (IDs maiores) aparecem no final conforme são carregados
-        return (a.id || 0) - (b.id || 0);
+        // price_asc (default): menor preço primeiro
+        return a.price - b.price;
       });
   }, [allProducts, filters.name, filters.category, filters.sizes, filters.colors, filters.patterns, filters.min_price, filters.max_price, filters.sort]);
 
@@ -965,6 +964,24 @@ export const StoreHome = () => {
               />
             </button>
           </div>
+          {/* Ordenar por — visível em todos os viewports (no mobile o sidebar está oculto) */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <label htmlFor="store-sort" style={{ display: "none" }}>Ordenar por</label>
+            <select
+              id="store-sort"
+              aria-label="Ordenar por"
+              style={{
+                ...styles.sizeFilterTrigger(false),
+                appearance: "auto",
+                minWidth: "140px",
+              }}
+              value={filters.sort}
+              onChange={(e) => setFilters((prev) => ({ ...prev, sort: e.target.value }))}
+            >
+              <option value="price_asc">Menor preço</option>
+              <option value="price_desc">Maior preço</option>
+            </select>
+          </div>
         </div>
 
         <div
@@ -1015,8 +1032,8 @@ export const StoreHome = () => {
               value={filters.sort}
               onChange={(e) => setFilters({ ...filters, sort: e.target.value })}
             >
-              <option value="newest">Mais Recentes</option>
-              <option value="qty_asc">Menor Estoque</option>
+              <option value="price_asc">Menor preço</option>
+              <option value="price_desc">Maior preço</option>
             </select>
           </div>
         </aside>
