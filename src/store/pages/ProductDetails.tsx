@@ -7,10 +7,27 @@ import {
   Star,
   Loader2,
   Image as ImageIcon,
+  Ruler,
 } from "lucide-react";
 import { getProductById } from "../../services/firebaseProductService";
 import { useCart } from "../../contexts/CartContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { SizeGuideDrawer } from "../../components/SizeGuideDrawer";
+import {
+  getProductQuantity,
+  getStockBySize,
+  hasStockBySize as hasStockBySizeHelper,
+  getAvailableColors,
+  getSizesForColor,
+  getVariantStock,
+} from "../../utils/productHelpers";
+
+const SIZE_GUIDE_MODA_PRAIA = [
+  { tamanho: "P", num: "36-38", busto: "80-88", cintura: "60-69", quadril: "88-98" },
+  { tamanho: "M", num: "40-42", busto: "89-96", cintura: "70-79", quadril: "99-109" },
+  { tamanho: "G", num: "44-46", busto: "97-105", cintura: "80-89", quadril: "110-120" },
+  { tamanho: "GG", num: "48-50", busto: "106-114", cintura: "90-99", quadril: "121-131" },
+];
 
 export const ProductDetails = () => {
   const { id } = useParams();
@@ -19,7 +36,10 @@ export const ProductDetails = () => {
 
   const { addToCart } = useCart();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [isSizeGuideHovered, setIsSizeGuideHovered] = useState(false);
 
   const {
     data: product,
@@ -37,58 +57,42 @@ export const ProductDetails = () => {
     staleTime: 1000 * 60 * 5, // Cache por 5 minutos
   });
 
-  // Verifica se o produto tem estoque por tamanho (usando useMemo para estabilizar)
-  const hasStockBySize = useMemo(() => {
-    return product?.stock && Object.keys(product.stock).length > 0;
-  }, [product?.stock]);
+  const stockBySize = useMemo(() => getStockBySize(product), [product]);
+  const hasStockBySize = useMemo(() => hasStockBySizeHelper(product), [product]);
+  const availableColors = useMemo(() => getAvailableColors(product), [product]);
+  const hasColors = availableColors.length > 0;
 
-  // Obtém tamanhos disponíveis (com estoque > 0) - usando useMemo
   const availableSizes = useMemo(() => {
-    if (!hasStockBySize || !product?.stock) return [];
-    return Object.entries(product.stock)
+    if (!product) return [];
+    if (hasColors && selectedColor) {
+      return getSizesForColor(product, selectedColor);
+    }
+    if (!hasStockBySize) return [];
+    return Object.entries(stockBySize)
       .filter(([_, qty]) => qty > 0)
       .map(([size]) => size);
-  }, [hasStockBySize, product?.stock]);
+  }, [product, hasStockBySize, stockBySize, hasColors, selectedColor]);
 
-  // Verifica se há estoque disponível
+  const totalQty = useMemo(() => getProductQuantity(product), [product]);
   const hasAvailableStock = useMemo(() => {
-    return hasStockBySize
-      ? availableSizes.length > 0
-      : (product?.quantity || 0) > 0;
-  }, [hasStockBySize, availableSizes.length, product?.quantity]);
+    return hasStockBySize ? availableSizes.length > 0 : totalQty > 0;
+  }, [hasStockBySize, availableSizes.length, totalQty]);
 
-  // Se só tiver tamanho "Único" disponível, pré-seleciona automaticamente
+  // Pré-seleciona primeira cor e primeiro tamanho quando disponíveis
   useEffect(() => {
-    if (
-      product &&
-      hasStockBySize &&
-      availableSizes.length === 1 &&
-      availableSizes[0] === "Único" &&
-      !selectedSize
-    ) {
-      setSelectedSize("Único");
+    if (!product) return;
+    if (hasColors && availableColors.length > 0 && !selectedColor) {
+      setSelectedColor(availableColors[0]);
     }
-  }, [product, hasStockBySize, availableSizes, selectedSize]);
+    if (!hasColors && selectedColor) setSelectedColor(null);
+  }, [product, hasColors, availableColors, selectedColor]);
 
-  // Log do produto para debug
   useEffect(() => {
-    if (product) {
-      console.log("📦 Produto carregado:", {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: product.quantity,
-        stock: product.stock,
-        size: product.size,
-        category: product.category,
-        images: product.images,
-        description: product.description,
-        hasStockBySize,
-        availableSizes,
-        selectedSize,
-      });
-    }
-  }, [product, hasStockBySize, availableSizes, selectedSize]);
+    if (!product || availableSizes.length === 0) return;
+    const currentValid = selectedSize && availableSizes.includes(selectedSize);
+    if (!currentValid) setSelectedSize(availableSizes[0]);
+  }, [product, availableSizes, selectedSize]);
+
 
   const styles = {
     // --- NOVO: WRAPPER EXTERNO (Cobre a tela toda com a cor do tema) ---
@@ -165,7 +169,7 @@ export const ProductDetails = () => {
       objectFit: "cover" as const,
       borderRadius: "8px",
       cursor: "pointer",
-      border: isActive ? "2px solid #ff4747" : `1px solid ${colors.border}`,
+      border: isActive ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`,
       backgroundColor: colors.card,
       opacity: isActive ? 1 : 0.7,
     }),
@@ -181,13 +185,13 @@ export const ProductDetails = () => {
       alignItems: "center",
       gap: "5px",
       margin: "10px 0",
-      color: "#facc15",
+      color: colors.accent,
       fontSize: "14px",
     },
     price: {
       fontSize: "32px",
       fontWeight: "bold",
-      color: "#ff4747",
+      color: theme === "dark" ? colors.accent : colors.text,
       margin: "20px 0",
     },
     installments: {
@@ -209,29 +213,42 @@ export const ProductDetails = () => {
       marginBottom: "10px",
       color: colors.text,
     },
-    sizeButton: (isActive: boolean, isDisabled: boolean) => ({
-      padding: "10px 20px",
-      border: isActive ? "2px solid #ff4747" : `1px solid ${colors.border}`,
-      backgroundColor: isActive
-        ? theme === "dark"
-          ? "rgba(255, 71, 71, 0.15)"
-          : "#fff1f2"
-        : isDisabled
-          ? theme === "dark"
-            ? "#1e293b"
-            : "#f1f5f9"
-          : colors.card,
-      borderRadius: "6px",
-      fontWeight: isActive ? "bold" : "normal",
-      color: isDisabled ? colors.muted : isActive ? "#ff4747" : colors.text,
-      cursor: isDisabled ? "not-allowed" : "pointer",
-      transition: "0.2s",
-      opacity: isDisabled ? 0.5 : 1,
+    sizeButton: (isActive: boolean, isDisabled: boolean) => {
+      const isLight = theme === "light";
+      const borderColor = isLight ? "#1a1a1a" : colors.border;
+      return {
+        position: "relative" as const,
+        overflow: "hidden",
+        padding: "10px 20px",
+        border: `1px solid ${borderColor}`,
+        backgroundColor: isActive && !isLight
+          ? "rgba(244, 214, 54, 0.2)"
+          : isDisabled
+            ? theme === "dark"
+              ? colors.card
+              : "#f0efe9"
+            : colors.card,
+        borderRadius: "6px",
+        fontWeight: isActive ? "bold" : "normal",
+        color: isDisabled ? colors.muted : isLight ? colors.text : isActive ? colors.accent : colors.text,
+        cursor: isDisabled ? "not-allowed" : "pointer",
+        transition: "0.2s",
+        opacity: isDisabled ? 0.5 : 1,
+      };
+    },
+    sizeButtonLine: (active: boolean) => ({
+      position: "absolute" as const,
+      bottom: 0,
+      left: 0,
+      height: "2px",
+      width: active ? "100%" : "0%",
+      backgroundColor: theme === "dark" ? colors.accent : "#1a1a1a",
+      transition: "width 0.2s ease-out",
     }),
     addToCartBtn: {
       width: "100%",
-      backgroundColor: "#ff4747",
-      color: "white",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       border: "none",
       padding: "16px",
       borderRadius: "30px",
@@ -242,12 +259,12 @@ export const ProductDetails = () => {
       justifyContent: "center",
       gap: "10px",
       cursor: "pointer",
-      boxShadow: "0 4px 15px rgba(255, 71, 71, 0.3)",
+      boxShadow: theme === "dark" ? "0 4px 15px rgba(244, 214, 54, 0.25)" : "0 4px 15px rgba(244, 214, 54, 0.3)",
       transition: "transform 0.1s",
     },
     disabledBtn: {
       width: "100%",
-      backgroundColor: theme === "dark" ? "#1e293b" : "#e2e8f0",
+      backgroundColor: theme === "dark" ? colors.card : "#e5e5e5",
       color: colors.muted,
       border: "none",
       padding: "16px",
@@ -256,12 +273,37 @@ export const ProductDetails = () => {
       fontWeight: "bold",
       cursor: "not-allowed",
     },
+    sizeGuideBtn: {
+      position: "relative" as const,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "10px 18px",
+      marginTop: "12px",
+      border: `1px solid ${colors.border}`,
+      borderRadius: "12px",
+      backgroundColor: colors.card,
+      color: colors.text,
+      fontSize: "14px",
+      fontWeight: "500",
+      cursor: "pointer",
+      overflow: "hidden",
+    },
+    sizeGuideBtnLine: (hovered: boolean) => ({
+      position: "absolute" as const,
+      bottom: 0,
+      left: 0,
+      height: "2px",
+      width: hovered ? "100%" : "0%",
+      backgroundColor: colors.accent,
+      transition: "width 0.25s ease-out",
+    }),
   };
 
   if (isLoading)
     return (
       <div style={styles.loaderWrapper}>
-        <Loader2 className="animate-spin" size={40} color="#ff4747" />
+        <Loader2 className="animate-spin" size={40} color={colors.accent} />
       </div>
     );
 
@@ -290,13 +332,15 @@ export const ProductDetails = () => {
     selectedImage ||
     (product?.images && product.images.length > 0 ? product.images[0] : null);
 
-  // Obtém quantidade disponível para o tamanho selecionado ou quantidade geral
   const getAvailableQuantity = (): number => {
     if (!product) return 0;
-    if (hasStockBySize && selectedSize && product.stock) {
-      return product.stock[selectedSize] || 0;
+    if (hasColors && selectedColor && selectedSize) {
+      return getVariantStock(product, selectedColor, selectedSize);
     }
-    return product.quantity || 0;
+    if (hasStockBySize && selectedSize) {
+      return stockBySize[selectedSize] ?? 0;
+    }
+    return totalQty;
   };
 
   // Verifica se precisa selecionar tamanho antes de adicionar
@@ -305,39 +349,36 @@ export const ProductDetails = () => {
   // - Não é o caso especial de só ter "Único" (que já é pré-selecionado) E
   // - Ainda não selecionou um tamanho
   const needsSizeSelection =
-    hasStockBySize &&
+    (hasStockBySize || hasColors) &&
     !(availableSizes.length === 1 && availableSizes[0] === "Único") &&
     !selectedSize;
 
-  // Obtém a quantidade máxima disponível para o tamanho selecionado
+  const needsColorSelection = hasColors && !selectedColor;
+
   const getMaxQuantityForSize = (): number | undefined => {
     if (!product) return undefined;
-
-    if (hasStockBySize && product.stock) {
-      const sizeKey = selectedSize || product.size || "Único";
-      return product.stock[sizeKey] || 0;
+    if (hasColors && selectedColor && selectedSize) {
+      return getVariantStock(product, selectedColor, selectedSize);
     }
-
-    return product.quantity || 0;
+    if (hasStockBySize) {
+      const sizeKey = selectedSize || product.size || "Único";
+      return stockBySize[sizeKey] ?? 0;
+    }
+    return totalQty;
   };
 
   const handleAddToCart = () => {
     if (!product || !hasAvailableStock) return;
-
-    // Se precisa selecionar tamanho e não selecionou, não adiciona
-    if (needsSizeSelection && !selectedSize) {
-      return;
-    }
+    if (needsSizeSelection && !selectedSize) return;
+    if (needsColorSelection && !selectedColor) return;
 
     const sizeToAdd = selectedSize || product.size || "Único";
+    const colorToAdd = selectedColor ?? null;
     const maxQuantity = getMaxQuantityForSize();
 
-    // Valida se há estoque disponível antes de adicionar
-    if (maxQuantity !== undefined && maxQuantity <= 0) {
-      return; // Não adiciona se não há estoque
-    }
+    if (maxQuantity !== undefined && maxQuantity <= 0) return;
 
-    addToCart(product, sizeToAdd, maxQuantity);
+    addToCart(product, sizeToAdd, maxQuantity, colorToAdd);
   };
 
   return (
@@ -384,7 +425,7 @@ export const ProductDetails = () => {
             <h1 style={styles.title}>{product.name}</h1>
 
             <div style={styles.rating}>
-              <Star fill="#facc15" size={16} />{" "}
+              <Star fill={colors.accent} color={colors.accent} size={16} />{" "}
               <span>4.8 (120 avaliações)</span>
             </div>
 
@@ -399,16 +440,44 @@ export const ProductDetails = () => {
               {product.description || "Sem descrição detalhada."}
             </div>
 
-            {/* SELEÇÃO DE TAMANHO */}
-            {hasStockBySize ? (
+            {/* SELEÇÃO DE COR (quando o produto tem variantes por cor) */}
+            {hasColors && (
               <div style={{ margin: "25px 0" }}>
-                <span style={styles.label}>
-                  Tamanho: {selectedSize || "Selecione um tamanho"}
-                </span>
+                <span style={styles.label}>Cor</span>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {Object.keys(product.stock || {}).map((size) => {
+                  {availableColors.map((color) => {
+                    const isActive = selectedColor === color;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setSelectedColor(color);
+                          setSelectedSize(null);
+                        }}
+                        style={styles.sizeButton(isActive, false)}
+                      >
+                        <span style={styles.sizeButtonLine(isActive)} />
+                        {color}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* SELEÇÃO DE TAMANHO */}
+            {(hasStockBySize || hasColors) ? (
+              <div style={{ margin: "25px 0" }}>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  {(hasColors
+                    ? availableSizes
+                    : Object.keys(stockBySize)
+                  ).map((size) => {
                     const isActive = selectedSize === size;
-                    const qty = product.stock?.[size] || 0;
+                    const qty = hasColors && selectedColor
+                      ? getVariantStock(product, selectedColor, size)
+                      : stockBySize[size] ?? 0;
                     const isDisabled = qty === 0;
                     return (
                       <button
@@ -417,11 +486,12 @@ export const ProductDetails = () => {
                         disabled={isDisabled}
                         style={styles.sizeButton(isActive, isDisabled)}
                         title={
-                          isDisabled ? "Indisponível" : `${qty} em estoque`
+                          isDisabled ? "Indisponível" : qty <= 3 ? `Últimas ${qty} peças` : "Em estoque"
                         }
                       >
+                        <span style={styles.sizeButtonLine(isActive)} />
                         {size}
-                        {!isDisabled && (
+                        {!isDisabled && qty <= 3 && (
                           <span
                             style={{
                               fontSize: "10px",
@@ -436,38 +506,75 @@ export const ProductDetails = () => {
                     );
                   })}
                 </div>
+                {(selectedSize || (hasColors && selectedColor)) && (() => {
+                  const qty = getAvailableQuantity();
+                  if (qty > 3) return null;
+                  return (
+                    <div
+                      style={{
+                        marginTop: "10px",
+                        fontSize: "13px",
+                        color: theme === "dark" ? colors.accent : "#b45309",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Últimas {qty} peças! Não vai ficar de bobeira, hein?
+                    </div>
+                  );
+                })()}
+                {/* Quantidade disponível para a variante selecionada */}
                 {selectedSize && (
                   <div
                     style={{
-                      marginTop: "10px",
+                      marginTop: "8px",
                       fontSize: "13px",
                       color: colors.muted,
                     }}
                   >
-                    {getAvailableQuantity()} unidades disponíveis
+                    {hasColors && selectedColor
+                      ? `${getAvailableQuantity()} un. disponíveis (${selectedColor} · ${selectedSize})`
+                      : `${getAvailableQuantity()} un. disponíveis (${selectedSize})`}
                   </div>
                 )}
               </div>
             ) : (
               <div style={{ margin: "25px 0" }}>
-                <div
-                  style={{
-                    fontSize: "14px",
-                    color: colors.text,
-                    marginBottom: "10px",
-                  }}
-                >
-                  <span style={styles.label}>Estoque:</span>{" "}
-                  <span style={{ fontWeight: "bold", color: "#ff4747" }}>
-                    {product.quantity || 0} unidades disponíveis
-                  </span>
-                </div>
+                {(() => {
+                  const qty = totalQty;
+                  if (qty > 3) return null;
+                  return (
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        color: theme === "dark" ? colors.accent : "#b45309",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Últimas {qty} peças! Não vai ficar de bobeira, hein?
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
+            {/* TABELA DE MEDIDAS */}
+            <button
+              type="button"
+              onClick={() => setIsSizeGuideOpen(true)}
+              style={styles.sizeGuideBtn}
+              onMouseEnter={() => setIsSizeGuideHovered(true)}
+              onMouseLeave={() => setIsSizeGuideHovered(false)}
+            >
+              <span style={styles.sizeGuideBtnLine(isSizeGuideHovered)} />
+              <Ruler size={18} strokeWidth={2} />
+              Tabela de medidas
+            </button>
+
             {/* BOTÃO DE AÇÃO */}
             <div style={{ marginTop: "30px" }}>
-              {hasAvailableStock && !needsSizeSelection ? (
+              {hasAvailableStock &&
+              !needsSizeSelection &&
+              !needsColorSelection ? (
                 <button
                   onClick={handleAddToCart}
                   style={styles.addToCartBtn}
@@ -482,15 +589,19 @@ export const ProductDetails = () => {
                 </button>
               ) : (
                 <button disabled style={styles.disabledBtn}>
-                  {needsSizeSelection && !selectedSize
-                    ? "Selecione um tamanho"
-                    : "Produto Indisponível"}
+                  Produto Indisponível
                 </button>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      <SizeGuideDrawer
+        open={isSizeGuideOpen}
+        onClose={() => setIsSizeGuideOpen(false)}
+        rows={SIZE_GUIDE_MODA_PRAIA}
+      />
     </div>
   );
 };

@@ -13,12 +13,10 @@ import {
   ArrowUpDown,
   Image as ImageIcon,
   Loader2,
-  CheckSquare,
-  Square,
 } from "lucide-react";
 import { productService } from "../../services/productService";
 import { uploadService } from "../../services/uploadService";
-import type { Product, ProductFilters } from "../../types";
+import type { Product, ProductFilters, ProductInput, ProductVariant } from "../../types";
 import { useDebounce } from "../../hooks/useDebounce";
 import {
   useQuery,
@@ -27,6 +25,49 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { useTheme } from "../../contexts/ThemeContext";
+import { getProductQuantity } from "../../utils/productHelpers";
+
+// Opções para Cor (nome -> hex). "Todas" para itens sem cor. Cores claras: borda fina cinza.
+const COLOR_MAP: Record<string, string> = {
+  Todas: "#9CA3AF",
+  AZUL: "#2563EB",
+  "AZUL MARINHO": "#1E3A8A",
+  "AZUL MÉDIO": "#60A5FA",
+  BEGE: "#D4C4A8",
+  CEREJA: "#9F1239",
+  CORAL: "#FF7F50",
+  LARANJA: "#F97316",
+  MANTEIGA: "#FEF3C7",
+  "OFF-WHITE": "#F8FAFC",
+  PRETO: "#000000",
+  "ROSA ESCURO": "#BE185D",
+  VERDE: "#22C55E",
+  "VERDE MILITAR": "#4D5906",
+};
+const LIGHT_COLORS = new Set(["OFF-WHITE", "MANTEIGA"]);
+const COLOR_OPTIONS = Object.keys(COLOR_MAP);
+
+const PATTERNS = [
+  "Onça", "Oncinha", "Zebra", "Leopardo", "Animal Print",
+  "Poá", "Listrado", "Xadrez", "Vichy", "Floral",
+  "Folhagem", "Costela de Adão", "Coqueiros", "Tropical",
+  "Fundo do Mar", "Frutas", "Caju", "Geométrico",
+  "Abstrato", "Tie Dye", "Étnico", "Olho Grego",
+  "Neon", "Degradê",
+];
+
+const MATERIALS = [
+  "Poliamida", "Poliéster", "Lycra", "Cirrê", "Suplex",
+  "Fluity", "Lurex", "Canelado", "Atoalhado", "Jacquard",
+  "Tule", "Linho", "Algodão", "Viscose", "Viscolinho",
+  "Crochê", "Tricô", "Renda",
+];
+
+const SIZES = [
+  "PP", "P", "M", "G", "GG", "XGG",
+  "36", "38", "40", "42", "44", "46", "48",
+  "Único",
+];
 
 export const Products = () => {
   const { colors, theme } = useTheme();
@@ -68,18 +109,11 @@ export const Products = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  /** Carregando produto completo ao editar (getById para trazer variantes) */
+  const [isLoadingProductForEdit, setIsLoadingProductForEdit] = useState(false);
 
-  // Estado para controlar se tem variação (P, M, G) ou estoque único
-  const [hasVariations, setHasVariations] = useState(false);
-
-  // Estado para gerenciar os inputs de estoque
-  const [stockInputs, setStockInputs] = useState<{ [key: string]: number }>({
-    Único: 0,
-    P: 0,
-    M: 0,
-    G: 0,
-    GG: 0,
-  });
+  /** Variantes do produto (cor + tamanho + qtde). Sempre edição por variantes. */
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   const initialFormState = {
     name: "",
@@ -87,12 +121,14 @@ export const Products = () => {
     price: "",
     category: "",
     images: [] as string[],
+    material: "",
+    pattern: "",
   };
   const [formData, setFormData] = useState(initialFormState);
 
   // Mutações
   const saveMutation = useMutation({
-    mutationFn: (payload: any) => {
+    mutationFn: (payload: ProductInput) => {
       if (currentProduct?.id)
         return productService.update({ ...payload, id: currentProduct.id });
       return productService.create(payload);
@@ -110,7 +146,7 @@ export const Products = () => {
     onError: () => alert("Erro ao excluir"),
   });
 
-  const handleOpenModal = (product?: Product) => {
+  const handleOpenModal = async (product?: Product) => {
     if (product) {
       setCurrentProduct(product);
       setFormData({
@@ -119,33 +155,45 @@ export const Products = () => {
         price: product.price.toString(),
         category: product.category || "",
         images: product.images || [],
+        material: product.material || "",
+        pattern: product.pattern || "",
       });
-
-      // Lógica para popular o estoque existente
-      const existingStock = product.stock || {}; // Supondo que o tipo Product já tenha stock?: Record<string, number>
-
-      // Verifica se tem chaves de tamanho para decidir se ativa o modo variação
-      const hasSizeKeys = Object.keys(existingStock).some((k) =>
-        ["P", "M", "G", "GG"].includes(k),
-      );
-      setHasVariations(hasSizeKeys);
-
-      setStockInputs({
-        Único:
-          existingStock["Único"] || (hasSizeKeys ? 0 : product.quantity) || 0,
-        P: existingStock["P"] || 0,
-        M: existingStock["M"] || 0,
-        G: existingStock["G"] || 0,
-        GG: existingStock["GG"] || 0,
-      });
+      setVariants(product.variants?.length ? [...product.variants] : []);
+      setIsModalOpen(true);
+      setIsLoadingProductForEdit(true);
+      try {
+        const full = await productService.getById(product.id!);
+        setCurrentProduct(full);
+        setFormData({
+          name: full.name,
+          description: full.description || "",
+          price: full.price.toString(),
+          category: full.category || "",
+          images: full.images || [],
+          material: full.material || "",
+          pattern: full.pattern || "",
+        });
+        const list = full.variants?.length
+          ? full.variants.map((v) => ({
+              color: v.color,
+              size: v.size,
+              stock_quantity: v.stock_quantity ?? 0,
+              sku: v.sku,
+            }))
+          : [];
+        setVariants(list);
+      } catch (e) {
+        console.error(e);
+        alert("Erro ao carregar dados do produto.");
+      } finally {
+        setIsLoadingProductForEdit(false);
+      }
     } else {
-      // Novo Produto
       setCurrentProduct(null);
       setFormData(initialFormState);
-      setHasVariations(false); // Padrão: Sem variação
-      setStockInputs({ Único: 0, P: 0, M: 0, G: 0, GG: 0 });
+      setVariants([]);
+      setIsModalOpen(true);
     }
-    setIsModalOpen(true);
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,37 +222,48 @@ export const Products = () => {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Monta o objeto stock baseado no modo (Com ou Sem variação)
-    let finalStock: { [key: string]: number } = {};
-
-    if (hasVariations) {
-      // Filtra apenas os tamanhos que têm quantidade > 0 ou salva todos zerados
-      finalStock = {
-        P: Number(stockInputs["P"]) || 0,
-        M: Number(stockInputs["M"]) || 0,
-        G: Number(stockInputs["G"]) || 0,
-        GG: Number(stockInputs["GG"]) || 0,
-      };
-    } else {
-      finalStock = {
-        Único: Number(stockInputs["Único"]) || 0,
-      };
+    if (variants.length === 0) {
+      alert("Adicione ao menos uma variante (cor + tamanho + quantidade).");
+      return;
     }
-
-    const payload = {
+    const payload: ProductInput = {
       name: formData.name,
-      description: formData.description,
+      description: formData.description || undefined,
       price: parseFloat(formData.price),
-      category: formData.category,
+      size: null,
+      category: formData.category ?? "",
       images: formData.images,
-      stock: finalStock, // Enviamos o JSON pronto
-      // O quantity total o Backend calcula, mas podemos mandar pra garantir
-      quantity: Object.values(finalStock).reduce((a, b) => a + b, 0),
+      quantity: totalStock,
+      material: formData.material || undefined,
+      pattern: formData.pattern || undefined,
+      variants: variants.map((v) => ({
+        color: v.color,
+        size: v.size,
+        stock_quantity: Number(v.stock_quantity) || 0,
+        ...(v.sku ? { sku: v.sku } : {}),
+      })),
     };
-
     saveMutation.mutate(payload);
   };
+
+  const addVariant = () => {
+    setVariants((prev) => [
+      ...prev,
+      { color: COLOR_OPTIONS[0] ?? "", size: SIZES[0] ?? "", stock_quantity: 0 },
+    ]);
+  };
+
+  const updateVariant = (index: number, field: keyof ProductVariant, value: string | number) => {
+    setVariants((prev) =>
+      prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+    );
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const totalStock = variants.reduce((s, v) => s + (Number(v.stock_quantity) || 0), 0);
 
   const handleDelete = (id: number) => {
     if (confirm("Excluir este produto?")) deleteMutation.mutate(id);
@@ -684,11 +743,10 @@ export const Products = () => {
                         display: "flex",
                         alignItems: "center",
                         gap: "5px",
-                        color:
-                          (product.quantity || 0) < 5 ? "#ef4444" : colors.text,
+                        color: getProductQuantity(product) < 5 ? "#ef4444" : colors.text,
                       }}
                     >
-                      <Package size={16} /> {product.quantity || 0}
+                      <Package size={16} /> {getProductQuantity(product)}
                     </div>
                   </td>
                   <td style={styles.td}>
@@ -775,6 +833,12 @@ export const Products = () => {
                 <X size={24} />
               </button>
             </div>
+            {isLoadingProductForEdit ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px", gap: "12px", color: colors.muted }}>
+                <Loader2 size={24} className="animate-spin" />
+                <span>Carregando produto...</span>
+              </div>
+            ) : (
             <form onSubmit={handleSave} style={styles.form}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Nome</label>
@@ -816,87 +880,134 @@ export const Products = () => {
                 </select>
               </div>
 
-              {/* --- GESTÃO DE ESTOQUE ATUALIZADA --- */}
               <div style={styles.formGroup}>
-                <label style={styles.label}>Estoque e Grade</label>
-
-                {/* Toggle Simples */}
-                <div
-                  onClick={() => setHasVariations(!hasVariations)}
-                  style={styles.toggleContainer}
+                <label style={styles.label}>Material</label>
+                <select
+                  value={formData.material}
+                  onChange={(e) =>
+                    setFormData({ ...formData, material: e.target.value })
+                  }
+                  style={styles.input}
                 >
-                  {hasVariations ? (
-                    <CheckSquare size={18} color="#ff4747" />
-                  ) : (
-                    <Square size={18} color={colors.muted} />
-                  )}
-                  <span style={{ fontSize: "14px", color: colors.text }}>
-                    Produto tem variação de tamanho? (P, M, G...)
-                  </span>
-                </div>
+                  <option value="">Selecione...</option>
+                  {MATERIALS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                {hasVariations ? (
-                  <div style={styles.stockGrid}>
-                    {["P", "M", "G", "GG"].map((size) => (
-                      <div
-                        key={size}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: "30px",
-                            fontWeight: "bold",
-                            fontSize: "14px",
-                            color: colors.muted,
-                          }}
-                        >
-                          {size}
-                        </span>
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="0"
-                          value={stockInputs[size] || ""}
-                          onChange={(e) =>
-                            setStockInputs({
-                              ...stockInputs,
-                              [size]: Number(e.target.value),
-                            })
-                          }
-                          style={styles.input}
-                        />
-                      </div>
-                    ))}
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Estampa</label>
+                <select
+                  value={formData.pattern}
+                  onChange={(e) =>
+                    setFormData({ ...formData, pattern: e.target.value })
+                  }
+                  style={styles.input}
+                >
+                  <option value="">Selecione...</option>
+                  {PATTERNS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* --- Estoque e Variantes --- */}
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Estoque e Variantes</label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "13px", color: colors.muted }}>
+                    Total: <b style={{ color: colors.text }}>{totalStock}</b> unidades
+                  </span>
+                  <button
+                    type="button"
+                    onClick={addVariant}
+                    style={{ ...styles.secondaryButton, padding: "6px 12px", fontSize: "13px" }}
+                  >
+                    <Plus size={14} /> Adicionar variante
+                  </button>
+                </div>
+                {variants.length === 0 ? (
+                  <div style={{ padding: "12px", border: `1px dashed ${colors.border}`, borderRadius: "6px", color: colors.muted, fontSize: "14px" }}>
+                    Nenhuma variante. Clique em &quot;Adicionar variante&quot;.
                   </div>
                 ) : (
-                  <div>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Quantidade Total"
-                      value={stockInputs["Único"] || ""}
-                      onChange={(e) =>
-                        setStockInputs({
-                          ...stockInputs,
-                          Único: Number(e.target.value),
-                        })
-                      }
-                      style={styles.input}
-                    />
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: colors.muted,
-                        marginTop: "4px",
-                        display: "block",
-                      }}
-                    >
-                      Quantidade para produto tamanho único.
-                    </span>
+                  <div style={{ border: `1px solid ${colors.border}`, borderRadius: "6px", overflow: "hidden" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: "13px" }}>
+                      <thead>
+                        <tr style={{ backgroundColor: theme === "dark" ? "#1e293b" : "#f8fafc", borderBottom: `1px solid ${colors.border}` }}>
+                          <th style={{ ...styles.th, padding: "8px 10px" }}>Cor</th>
+                          <th style={{ ...styles.th, padding: "8px 10px" }}>Tamanho</th>
+                          <th style={{ ...styles.th, padding: "8px 10px" }}>Qtde</th>
+                          <th style={{ ...styles.th, padding: "8px 10px", width: "44px" }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {variants.map((v, idx) => (
+                          <tr key={idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                            <td style={{ padding: "8px 10px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                {v.color && COLOR_MAP[v.color] && (
+                                  <span
+                                    style={{
+                                      width: "16px",
+                                      height: "16px",
+                                      borderRadius: "50%",
+                                      backgroundColor: COLOR_MAP[v.color],
+                                      border: LIGHT_COLORS.has(v.color) ? `1px solid ${colors.border}` : "none",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                                <select
+                                  value={v.color}
+                                  onChange={(e) => updateVariant(idx, "color", e.target.value)}
+                                  style={{ ...styles.input, padding: "6px 8px", minWidth: "120px" }}
+                                >
+                                  {COLOR_OPTIONS.map((name) => (
+                                    <option key={name} value={name}>{name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </td>
+                            <td style={{ padding: "8px 10px" }}>
+                              <select
+                                value={v.size}
+                                onChange={(e) => updateVariant(idx, "size", e.target.value)}
+                                style={{ ...styles.input, padding: "6px 8px", minWidth: "80px" }}
+                              >
+                                {SIZES.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ padding: "8px 10px" }}>
+                              <input
+                                type="number"
+                                min={0}
+                                value={v.stock_quantity === 0 ? "" : v.stock_quantity}
+                                onChange={(e) => updateVariant(idx, "stock_quantity", Number(e.target.value) || 0)}
+                                style={{ ...styles.input, padding: "6px 8px", width: "70px" }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px" }}>
+                              <button
+                                type="button"
+                                onClick={() => removeVariant(idx)}
+                                style={styles.iconButton}
+                                title="Remover variante"
+                              >
+                                <Trash2 size={16} color="#ef4444" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -991,6 +1102,7 @@ export const Products = () => {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

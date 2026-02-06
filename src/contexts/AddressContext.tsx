@@ -22,14 +22,18 @@ const DEFAULT_ADDRESS: ShippingAddress = {
 
 interface AddressContextType {
   address: ShippingAddress;
-  setAddress: (addr: ShippingAddress | ((prev: ShippingAddress) => ShippingAddress)) => void;
+  setAddress: (
+    addr: ShippingAddress | ((prev: ShippingAddress) => ShippingAddress)
+  ) => void;
   updateField: <K extends keyof ShippingAddress>(
     field: K,
-    value: ShippingAddress[K],
+    value: ShippingAddress[K]
   ) => void;
 }
 
-const AddressContext = createContext<AddressContextType>({} as AddressContextType);
+const AddressContext = createContext<AddressContextType>(
+  {} as AddressContextType
+);
 
 export const AddressProvider = ({ children }: { children: ReactNode }) => {
   const [address, setAddressState] = useState<ShippingAddress>(() => {
@@ -54,28 +58,25 @@ export const AddressProvider = ({ children }: { children: ReactNode }) => {
   }, [address]);
 
   const setAddress = useCallback(
-    (updater: ShippingAddress | ((prev: ShippingAddress) => ShippingAddress)) => {
+    (
+      updater: ShippingAddress | ((prev: ShippingAddress) => ShippingAddress)
+    ) => {
       setAddressState((prev) =>
-        typeof updater === "function" ? updater(prev) : updater,
+        typeof updater === "function" ? updater(prev) : updater
       );
     },
-    [],
+    []
   );
 
   const updateField = useCallback(
-    <K extends keyof ShippingAddress>(
-      field: K,
-      value: ShippingAddress[K],
-    ) => {
+    <K extends keyof ShippingAddress>(field: K, value: ShippingAddress[K]) => {
       setAddressState((prev) => ({ ...prev, [field]: value }));
     },
-    [],
+    []
   );
 
   return (
-    <AddressContext.Provider
-      value={{ address, setAddress, updateField }}
-    >
+    <AddressContext.Provider value={{ address, setAddress, updateField }}>
       {children}
     </AddressContext.Provider>
   );

@@ -13,6 +13,8 @@ interface ThemeContextType {
     text: string;
     muted: string;
     border: string;
+    accent: string;
+    accentText: string;
   };
 }
 
@@ -39,18 +41,22 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const colors =
     theme === "light"
       ? {
-          bg: "#f8fafc", // Fundo Claro (Slate 50) - Mais moderno que fff
-          card: "#ffffff", // Branco puro
-          text: "#1e293b", // Slate 800
-          muted: "#64748b", // Slate 500
-          border: "#e2e8f0", // Slate 200
+          bg: "#ffffff", // Predominância branco
+          card: "#ffffff",
+          text: "#0f0f0f", // Preto suave
+          muted: "#525252", // Neutro 600
+          border: "#e5e5e5", // Neutro 200
+          accent: "#F4D636", // Amarelo loja praia
+          accentText: "#0f0f0f", // Preto sobre amarelo
         }
       : {
-          bg: "#0f172a", // Slate 900
-          card: "#1e293b", // Slate 800
-          text: "#f8fafc", // Slate 50
-          muted: "#94a3b8", // Slate 400
-          border: "#334155", // Slate 700
+          bg: "#0a0a0a", // Preto suave
+          card: "#171717", // Neutro 900
+          text: "#fafafa", // Quase branco
+          muted: "#a3a3a3", // Neutro 400
+          border: "#262626", // Neutro 800
+          accent: "#F4D636",
+          accentText: "#0f0f0f",
         };
 
   return (

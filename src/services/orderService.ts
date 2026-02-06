@@ -2,10 +2,18 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export interface OrderItemApi {
   id: string;
+  order_id?: string;
+  product_id?: number;
   product_name: string;
   name?: string;
   quantity: number;
   price: number;
+  /** URL da imagem (campo retornado pela API no GET por id) */
+  image_url?: string | null;
+  image?: string | null;
+  price_at_purchase?: number;
+  color?: string | null;
+  size?: string | null;
 }
 
 /** Endereço de entrega (quando retornado no detalhe do pedido) */
@@ -20,15 +28,23 @@ export interface OrderAddressApi {
 
 export interface OrderApi {
   id: string;
-  created_at: string;
+  user_id: string;
   status: string;
   total_amount: number;
-  user_id: string;
-  payment_id?: string;
+  payment_method?: string | null;
+  payment_id?: string | null;
+  created_at: string;
+  updated_at?: string;
+  payer?: Record<string, unknown>;
+  installments?: number;
+  mp_payment_id?: string | null;
   items?: OrderItemApi[];
-  user_email?: string;
-  /** Endereço de entrega (detalhe do pedido) */
-  shipping_address?: OrderAddressApi;
+  refund_requests?: unknown[];
+  user_email?: string | null;
+  /** Endereço de entrega (detalhe do pedido; pode ser null) */
+  shipping_address?: OrderAddressApi | null;
+  tracking_code?: string | null;
+  shipping_service?: string | null;
 }
 
 const backofficeHeaders = {

@@ -16,6 +16,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
+import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
 import { useAddress } from "../../contexts/AddressContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { cartItemsToFreteItens } from "../../hooks/useFrete";
@@ -57,6 +58,7 @@ export const CreditCardCheckout = () => {
   const [, setIssuers] = useState<Issuer[]>([]);
   const [installments, setInstallments] = useState<PayerCost[]>([]);
   const [formError, setFormError] = useState("");
+  const [errorModal, setErrorModal] = useState<{ message: string; details?: string } | null>(null);
   const [isMpLoaded, setIsMpLoaded] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -285,6 +287,8 @@ export const CreditCardCheckout = () => {
           price: item.price,
           quantity: item.quantity,
           image: item.image,
+          size: item.size ?? null,
+          color: item.color ?? null,
         })),
         frete: shippingCost,
         cep: address.cep.replace(/\D/g, ""),
@@ -309,14 +313,19 @@ export const CreditCardCheckout = () => {
         setShowSuccess(true);
         setTimeout(() => navigate("/minha-conta"), 3000);
       } else {
-        // Se a validação da Lambda falhar (ex: items missing), mostramos aqui
-        setFormError(
-          result.error || result.status_detail || "Pagamento recusado."
-        );
+        setFormError("");
+        setErrorModal({
+          message: result.error || result.status_detail || "Pagamento recusado.",
+          details: result.details,
+        });
       }
     } catch (error: any) {
       console.error(error);
-      setFormError(error.message || "Erro ao processar pagamento.");
+      setFormError("");
+      setErrorModal({
+        message: error.message || "Erro ao processar pagamento.",
+        details: error.details,
+      });
     } finally {
       setLoading(false);
     }
@@ -815,6 +824,14 @@ export const CreditCardCheckout = () => {
           </div>
         </div>
       </div>
+
+      <CheckoutErrorModal
+        open={!!errorModal}
+        message={errorModal?.message ?? ""}
+        details={errorModal?.details}
+        onClose={() => setErrorModal(null)}
+        colors={colors}
+      />
     </div>
   );
 };

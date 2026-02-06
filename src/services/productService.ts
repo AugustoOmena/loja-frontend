@@ -1,4 +1,4 @@
-import type { Product, PaginatedResponse, ProductFilters } from '../types';
+import type { Product, ProductInput, PaginatedResponse, ProductFilters } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -17,7 +17,7 @@ export const productService = {
     if (!response.ok) throw new Error('Erro ao buscar produtos');
     return response.json();
   },
-  create: async (product: Omit<Product, 'id'>) => {
+  create: async (product: ProductInput) => {
     const response = await fetch(`${API_URL}/produtos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

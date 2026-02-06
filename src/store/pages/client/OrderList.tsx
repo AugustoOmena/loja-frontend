@@ -7,8 +7,9 @@ import {
 } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
-import { ChevronLeft, Package, Clock, X, MapPin } from "lucide-react";
+import { ChevronLeft, Package, Clock, X } from "lucide-react";
 import { RecommendedProducts } from "../../../components/RecommendedProducts";
+import { OrderDetails } from "../../../components/OrderDetails";
 
 // Tipos de lista baseados na rota
 const SCREEN_CONFIG: Record<
@@ -40,16 +41,6 @@ const SCREEN_CONFIG: Record<
     statuses: ["returned"],
     emptyMsg: "Nenhuma devolução ativa.",
   },
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Aguardando Pagamento",
-  approved: "Aprovado",
-  in_process: "Em processamento",
-  shipped: "Enviado",
-  delivered: "Entregue",
-  completed: "Concluído",
-  returned: "Devolução",
 };
 
 const contentWidth = { maxWidth: "1000px", margin: "0 auto", padding: "0 20px" };
@@ -176,11 +167,6 @@ export const OrderList = () => {
     },
   };
 
-  const addr = modalOrder?.shipping_address;
-  const hasAddress =
-    addr &&
-    (addr.street_name || addr.city || addr.zip_code || addr.neighborhood);
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -253,15 +239,16 @@ export const OrderList = () => {
 
       {modalOrder && (
         <div
+          className="order-detail-overlay"
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
+            backgroundColor: "rgba(0,0,0,0.45)",
             zIndex: 50,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "20px",
+            padding: "16px",
           }}
           onClick={closeModal}
           onKeyDown={(e) => e.key === "Escape" && closeModal()}
@@ -270,34 +257,40 @@ export const OrderList = () => {
           aria-labelledby="order-modal-title"
         >
           <div
+            className="order-detail-modal"
             style={{
               backgroundColor: colors.card,
-              borderRadius: "12px",
+              borderRadius: "20px",
               maxWidth: "480px",
               width: "100%",
-              maxHeight: "90vh",
-              overflow: "auto",
+              maxHeight: "92dvh",
+              minHeight: "280px",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
               border: `1px solid ${colors.border}`,
-              boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+              boxShadow: "0 24px 48px rgba(0,0,0,0.18)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
-                padding: "16px 20px",
+                padding: "18px 20px",
                 borderBottom: `1px solid ${colors.border}`,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                flexShrink: 0,
               }}
             >
               <h2
                 id="order-modal-title"
                 style={{
                   margin: 0,
-                  fontSize: "18px",
-                  fontWeight: "bold",
+                  fontSize: "20px",
+                  fontWeight: "700",
                   color: colors.text,
+                  letterSpacing: "-0.02em",
                 }}
               >
                 Pedido #{modalOrder.id}
@@ -305,162 +298,19 @@ export const OrderList = () => {
               <button
                 type="button"
                 onClick={closeModal}
-                style={{ ...styles.backBtn, padding: "4px" }}
+                style={{
+                  ...styles.backBtn,
+                  padding: "8px",
+                  borderRadius: "10px",
+                  backgroundColor: colors.bg,
+                }}
                 aria-label="Fechar"
               >
                 <X size={22} />
               </button>
             </div>
-
-            <div style={{ padding: "20px" }}>
-              {detailLoading ? (
-                <div
-                  style={{
-                    padding: "24px",
-                    textAlign: "center",
-                    color: colors.muted,
-                  }}
-                >
-                  Carregando detalhes...
-                </div>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      color: colors.muted,
-                      marginBottom: "16px",
-                    }}
-                  >
-                    {new Date(modalOrder.created_at).toLocaleDateString(
-                      "pt-BR",
-                      { dateStyle: "long" }
-                    )}
-                    {" · "}
-                    {STATUS_LABEL[modalOrder.status] || modalOrder.status}
-                  </div>
-
-                  {hasAddress && (
-                    <div
-                      style={{
-                        marginBottom: "20px",
-                        padding: "12px",
-                        backgroundColor: colors.bg,
-                        borderRadius: "8px",
-                        border: `1px solid ${colors.border}`,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          marginBottom: "8px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          color: colors.text,
-                        }}
-                      >
-                        <MapPin size={16} />
-                        Endereço de entrega
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          color: colors.text,
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {[
-                          addr!.street_name &&
-                            (addr!.street_number
-                              ? `${addr.street_name}, ${addr.street_number}`
-                              : addr.street_name),
-                          addr!.neighborhood,
-                          addr!.city &&
-                            (addr!.federal_unit
-                              ? `${addr.city} - ${addr.federal_unit}`
-                              : addr.city),
-                          addr!.zip_code && `CEP ${addr.zip_code}`,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </div>
-                    </div>
-                  )}
-
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: colors.text,
-                      marginBottom: "10px",
-                    }}
-                  >
-                    Produtos
-                  </div>
-                  <ul
-                    style={{
-                      listStyle: "none",
-                      margin: 0,
-                      padding: 0,
-                      marginBottom: "16px",
-                    }}
-                  >
-                    {(modalOrder.items && modalOrder.items.length > 0
-                      ? modalOrder.items
-                      : []
-                    ).map((item) => (
-                      <li
-                        key={item.id}
-                        style={{
-                          padding: "10px 0",
-                          borderBottom: `1px solid ${colors.border}`,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                          gap: "12px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "14px",
-                            color: colors.text,
-                            flex: 1,
-                          }}
-                        >
-                          {item.product_name || item.name || "Produto"} x{" "}
-                          {item.quantity}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: colors.text,
-                          }}
-                        >
-                          R$ {(item.price * item.quantity).toFixed(2)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div
-                    style={{
-                      paddingTop: "12px",
-                      borderTop: `2px solid ${colors.border}`,
-                      fontSize: "16px",
-                      fontWeight: "bold",
-                      color: colors.text,
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span>Total</span>
-                    <span>R$ {modalOrder.total_amount.toFixed(2)}</span>
-                  </div>
-                </>
-              )}
+            <div style={{ overflow: "auto", flex: 1 }}>
+              <OrderDetails order={modalOrder} loading={detailLoading} />
             </div>
           </div>
         </div>

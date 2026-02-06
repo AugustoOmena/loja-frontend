@@ -3,6 +3,11 @@ import { useCart } from "../contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../contexts/ThemeContext";
 import { getProductById } from "../services/firebaseProductService";
+import {
+  getProductQuantity,
+  getStockBySize,
+  getVariantStock,
+} from "../utils/productHelpers";
 import { useState } from "react";
 
 export const CartDrawer = () => {
@@ -16,17 +21,20 @@ export const CartDrawer = () => {
   } = useCart();
 
   const navigate = useNavigate();
-  const { colors } = useTheme();
-  const [loadingProducts, setLoadingProducts] = useState<Set<number>>(
+  const { colors, theme } = useTheme();
+  const [loadingProducts, setLoadingProducts] = useState<Set<string>>(
     new Set(),
   );
   const [maxQuantities, setMaxQuantities] = useState<Map<string, number>>(
     new Map(),
   );
 
-  // Função auxiliar para criar chave única (id + size)
-  const getItemKey = (id: number, size: string | null) =>
-    `${id}-${size || "Único"}`;
+  /** Chave única do item: id + size + color (para variantes). */
+  const getItemKey = (
+    id: number,
+    size: string | null,
+    color?: string | null
+  ) => `${id}-${size || "Único"}-${color ?? "Único"}`;
 
   if (!isCartOpen) return null;
 
@@ -35,60 +43,63 @@ export const CartDrawer = () => {
     navigate("/checkout");
   };
 
-  // Busca a quantidade máxima disponível para um item
+  // Busca a quantidade máxima: por variante (cor + tamanho) ou por tamanho/total
   const getMaxQuantity = async (
     itemId: number,
     size: string | null,
+    color?: string | null,
   ): Promise<number | undefined> => {
     try {
       const product = await getProductById(itemId);
       if (!product) return undefined;
-
-      // Se tem estoque por tamanho
-      if (product.stock && Object.keys(product.stock).length > 0) {
-        const sizeKey = size || "Único";
-        return product.stock[sizeKey] || 0;
+      const colorNorm = color?.trim() || null;
+      if (colorNorm && product.variants?.length) {
+        const stock = getVariantStock(product, colorNorm, size || "Único");
+        return stock;
       }
-
-      // Se não tem estoque por tamanho, usa quantity geral
-      return product.quantity || 0;
+      const stockBySize = getStockBySize(product);
+      if (Object.keys(stockBySize).length > 0) {
+        const sizeKey = size || "Único";
+        return stockBySize[sizeKey] ?? 0;
+      }
+      return getProductQuantity(product);
     } catch (error) {
       console.error("Erro ao buscar produto para validação:", error);
       return undefined;
     }
   };
 
-  // Handler para aumentar quantidade com validação
   const handleIncreaseQuantity = async (
     itemId: number,
     size: string | null,
+    color?: string | null,
   ) => {
-    const itemKey = getItemKey(itemId, size);
-    if (loadingProducts.has(itemId)) return; // Evita múltiplas chamadas simultâneas
+    const itemKey = getItemKey(itemId, size, color);
+    if (loadingProducts.has(itemKey)) return;
 
-    setLoadingProducts((prev) => new Set(prev).add(itemId));
+    setLoadingProducts((prev) => new Set(prev).add(itemKey));
     try {
-      const maxQty = await getMaxQuantity(itemId, size);
+      const maxQty = await getMaxQuantity(itemId, size, color);
       if (maxQty !== undefined) {
         setMaxQuantities((prev) => new Map(prev).set(itemKey, maxQty));
       }
-      updateQuantity(itemId, 1, maxQty);
+      updateQuantity(itemId, size, 1, maxQty, color);
     } finally {
       setLoadingProducts((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
+        const next = new Set(prev);
+        next.delete(itemKey);
+        return next;
       });
     }
   };
 
-  // Verifica se o item atingiu o limite máximo
   const isAtMaxQuantity = (item: {
     id: number;
     size: string | null;
     quantity: number;
+    color?: string | null;
   }) => {
-    const itemKey = getItemKey(item.id, item.size);
+    const itemKey = getItemKey(item.id, item.size, item.color);
     const maxQty = maxQuantities.get(itemKey);
     return maxQty !== undefined && item.quantity >= maxQty;
   };
@@ -215,8 +226,8 @@ export const CartDrawer = () => {
     checkoutBtn: {
       width: "100%",
       padding: "15px",
-      backgroundColor: "#10b981", // Verde (Marca de sucesso)
-      color: "white",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       border: "none",
       borderRadius: "8px",
       fontWeight: "bold",
@@ -281,8 +292,11 @@ export const CartDrawer = () => {
             <div
               style={{ display: "flex", flexDirection: "column", gap: "15px" }}
             >
-              {items.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} style={styles.cartItem}>
+              {items.map((item) => (
+                <div
+                  key={getItemKey(item.id, item.size, item.color)}
+                  style={styles.cartItem}
+                >
                   <div style={styles.imageWrapper}>
                     {item.image ? (
                       <img
@@ -313,9 +327,20 @@ export const CartDrawer = () => {
                         marginBottom: "8px",
                       }}
                     >
-                      {item.size && `Tamanho: ${item.size}`}
+                      {item.color && item.size
+                        ? `Cor: ${item.color} · Tamanho: ${item.size}`
+                        : item.color
+                          ? `Cor: ${item.color}`
+                          : item.size
+                            ? `Tamanho: ${item.size}`
+                            : "—"}
                     </div>
-                    <div style={{ fontWeight: "bold", color: "#ff4747" }}>
+                    <div
+                      style={{
+                        fontWeight: "bold",
+                        color: theme === "dark" ? colors.accent : colors.text,
+                      }}
+                    >
                       R$ {(item.price * item.quantity).toFixed(2)}
                     </div>
                   </div>
@@ -329,20 +354,31 @@ export const CartDrawer = () => {
                     }}
                   >
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() =>
+                        removeFromCart(item.id, item.size, item.color)
+                      }
                       style={{
                         border: "none",
                         background: "none",
-                        color: "#ef4444",
+                        color: colors.muted,
                         cursor: "pointer",
                       }}
+                      aria-label="Remover do carrinho"
                     >
                       <Trash2 size={18} />
                     </button>
 
                     <div style={styles.qtyControl}>
                       <button
-                        onClick={() => updateQuantity(item.id, -1)}
+                        onClick={() =>
+                          updateQuantity(
+                            item.id,
+                            item.size,
+                            -1,
+                            undefined,
+                            item.color
+                          )
+                        }
                         style={styles.qtyBtn}
                       >
                         <Minus size={14} />
@@ -359,10 +395,16 @@ export const CartDrawer = () => {
                       </span>
                       <button
                         onClick={() =>
-                          handleIncreaseQuantity(item.id, item.size)
+                          handleIncreaseQuantity(
+                            item.id,
+                            item.size,
+                            item.color
+                          )
                         }
                         disabled={
-                          loadingProducts.has(item.id) || isAtMaxQuantity(item)
+                          loadingProducts.has(
+                            getItemKey(item.id, item.size, item.color)
+                          ) || isAtMaxQuantity(item)
                         }
                         title={
                           isAtMaxQuantity(item) ? "Estoque máximo atingido" : ""
@@ -370,13 +412,15 @@ export const CartDrawer = () => {
                         style={{
                           ...styles.qtyBtn,
                           opacity:
-                            loadingProducts.has(item.id) ||
-                            isAtMaxQuantity(item)
+                            loadingProducts.has(
+                              getItemKey(item.id, item.size, item.color)
+                            ) || isAtMaxQuantity(item)
                               ? 0.5
                               : 1,
                           cursor:
-                            loadingProducts.has(item.id) ||
-                            isAtMaxQuantity(item)
+                            loadingProducts.has(
+                              getItemKey(item.id, item.size, item.color)
+                            ) || isAtMaxQuantity(item)
                               ? "not-allowed"
                               : "pointer",
                         }}
@@ -404,7 +448,13 @@ export const CartDrawer = () => {
               }}
             >
               <span>Total</span>
-              <span>R$ {cartTotal.toFixed(2)}</span>
+              <span
+                style={{
+                  color: theme === "dark" ? colors.accent : colors.text,
+                }}
+              >
+                R$ {cartTotal.toFixed(2)}
+              </span>
             </div>
             <button onClick={handleCheckout} style={styles.checkoutBtn}>
               Finalizar Compra
