@@ -28,7 +28,7 @@ const defaultFilters = {
   name: "",
   min_price: "",
   max_price: "",
-  sort: "price_asc",
+  sort: "", // sem ordenação
   category: "",
   sizes: [] as string[],
   colors: [] as string[],
@@ -45,7 +45,7 @@ function loadStoredFilters() {
         name: typeof parsed.name === "string" ? parsed.name : defaultFilters.name,
         min_price: typeof parsed.min_price === "string" ? parsed.min_price : defaultFilters.min_price,
         max_price: typeof parsed.max_price === "string" ? parsed.max_price : defaultFilters.max_price,
-        sort: typeof parsed.sort === "string" && (parsed.sort === "price_asc" || parsed.sort === "price_desc") ? parsed.sort : defaultFilters.sort,
+        sort: typeof parsed.sort === "string" && ["", "price_asc", "price_desc", "recommended"].includes(parsed.sort) ? parsed.sort : defaultFilters.sort,
         category: typeof parsed.category === "string" ? parsed.category : defaultFilters.category,
         sizes: Array.isArray(parsed.sizes) ? parsed.sizes.filter((x): x is string => typeof x === "string") : defaultFilters.sizes,
         colors: Array.isArray(parsed.colors) ? parsed.colors.filter((x): x is string => typeof x === "string") : defaultFilters.colors,
@@ -399,12 +399,12 @@ export const StoreHome = () => {
         );
       })
       .sort((a, b) => {
-        // Ordenação por preço
-        if (filters.sort === "price_desc") {
-          return b.price - a.price; // Maior preço primeiro
-        }
-        // price_asc (default): menor preço primeiro
-        return a.price - b.price;
+        // Sem ordenação: mantém a ordem original
+        if (filters.sort === "") return 0;
+        if (filters.sort === "price_desc") return b.price - a.price; // Maior preço
+        if (filters.sort === "price_asc") return a.price - b.price;  // Menor preço
+        if (filters.sort === "recommended") return (b.id || 0) - (a.id || 0); // Recomendados / mais relevantes (mais recentes primeiro)
+        return 0;
       });
   }, [allProducts, filters.name, filters.category, filters.sizes, filters.colors, filters.patterns, filters.min_price, filters.max_price, filters.sort]);
 
@@ -978,8 +978,10 @@ export const StoreHome = () => {
               value={filters.sort}
               onChange={(e) => setFilters((prev) => ({ ...prev, sort: e.target.value }))}
             >
+              <option value="">Ordenar por</option>
               <option value="price_asc">Menor preço</option>
               <option value="price_desc">Maior preço</option>
+              <option value="recommended">Recomendados</option>
             </select>
           </div>
         </div>
@@ -1032,8 +1034,10 @@ export const StoreHome = () => {
               value={filters.sort}
               onChange={(e) => setFilters({ ...filters, sort: e.target.value })}
             >
+              <option value="">Ordenar por</option>
               <option value="price_asc">Menor preço</option>
               <option value="price_desc">Maior preço</option>
+              <option value="recommended">Recomendados</option>
             </select>
           </div>
         </aside>
