@@ -30,19 +30,31 @@ import { getProductQuantity } from "../../utils/productHelpers";
 // Opções para Cor (nome -> hex). "Todas" para itens sem cor. Cores claras: borda fina cinza.
 const COLOR_MAP: Record<string, string> = {
   Todas: "#9CA3AF",
+  AMARELO: "#EAB308",
   AZUL: "#2563EB",
   "AZUL MARINHO": "#1E3A8A",
   "AZUL MÉDIO": "#60A5FA",
   BEGE: "#D4C4A8",
+  BRANCO: "#FFFFFF",
+  BORDO: "#722F37",
   CEREJA: "#9F1239",
+  CINZA: "#6B7280",
   CORAL: "#FF7F50",
+  DOURADO: "#D97706",
   LARANJA: "#F97316",
+  LILÁS: "#A78BFA",
   MANTEIGA: "#FEF3C7",
+  MARROM: "#78350F",
+  MOSTARDA: "#CA8A04",
   "OFF-WHITE": "#F8FAFC",
   PRETO: "#000000",
+  ROSA: "#EC4899",
   "ROSA ESCURO": "#BE185D",
+  ROXO: "#7C3AED",
+  SALMÃO: "#FDA4AF",
   VERDE: "#22C55E",
   "VERDE MILITAR": "#4D5906",
+  VERMELHO: "#DC2626",
 };
 const LIGHT_COLORS = new Set(["OFF-WHITE", "MANTEIGA"]);
 const COLOR_OPTIONS = Object.keys(COLOR_MAP);
