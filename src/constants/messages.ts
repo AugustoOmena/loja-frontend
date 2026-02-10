@@ -38,6 +38,13 @@ export const messages = {
   paymentDeclined: "Pagamento recusado.",
   paymentProcessingError: "Erro no processamento do pagamento.",
   paymentTryAgain: "Erro no processamento. Tente novamente.",
+
+  /** Pagamento – mensagens durante processamento (ciclo suave no botão) */
+  processingPayment: [
+    "Estamos processando seu pagamento...",
+    "Já é quase seu...",
+    "Quase lá...",
+  ] as const,
 } as const;
 
 export type MessageKey = keyof typeof messages;

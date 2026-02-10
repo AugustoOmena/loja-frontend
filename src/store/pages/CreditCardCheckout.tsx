@@ -10,7 +10,6 @@ import {
   AlertCircle,
   CheckCircle,
   Truck,
-  Loader2,
   ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +21,7 @@ import { messages } from "../../constants/messages";
 import { useAddress } from "../../contexts/AddressContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { cartItemsToFreteItens } from "../../hooks/useFrete";
+import { useProcessingMessage } from "../../hooks/useProcessingMessage";
 
 interface IdentificationType {
   id: string;
@@ -55,6 +55,7 @@ export const CreditCardCheckout = () => {
   }, [transactionAmount]);
 
   const [loading, setLoading] = useState(false);
+  const { displayIndex, opacity } = useProcessingMessage(loading, messages.processingPayment.length);
   const [docTypes, setDocTypes] = useState<IdentificationType[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [, setIssuers] = useState<Issuer[]>([]);
@@ -74,6 +75,9 @@ export const CreditCardCheckout = () => {
   });
 
   const mpRef = useRef<any>(null);
+  const mpFieldsRef = useRef<{ cardNumber?: any; expirationDate?: any; securityCode?: any }>({});
+  /** Chave única por montagem: garante containers novos ao voltar para outra compra */
+  const [mpMountKey] = useState(() => "mp-" + Date.now());
 
   // Redireciona se carrinho vazio
   useEffect(() => {
@@ -176,6 +180,11 @@ export const CreditCardCheckout = () => {
         placeholder: "123",
         style: { fontSize: "14px", color: inputColor },
       });
+      mpFieldsRef.current = {
+        cardNumber: cardNumberElement,
+        expirationDate: expirationDateElement,
+        securityCode: securityCodeElement,
+      };
 
       const waitForContainers = () =>
         document.getElementById("cardNumber-mount");
@@ -222,6 +231,12 @@ export const CreditCardCheckout = () => {
 
     init();
     return () => {
+      const fields = mpFieldsRef.current;
+      if (fields?.cardNumber?.unmount) fields.cardNumber.unmount();
+      if (fields?.expirationDate?.unmount) fields.expirationDate.unmount();
+      if (fields?.securityCode?.unmount) fields.securityCode.unmount();
+      mpFieldsRef.current = {};
+      cleanupMounts();
       mpRef.current = null;
     };
   }, [theme]);
@@ -639,38 +654,40 @@ export const CreditCardCheckout = () => {
               onSubmit={handlePay}
               style={{ display: "flex", flexDirection: "column", gap: "20px" }}
             >
-              {/* --- CAMPOS DO CARTÃO --- */}
-              <div>
-                <label style={styles.label}>Número do Cartão</label>
-                <div id="cardNumber-mount" className="mp-input-container"></div>
-                {paymentMethodId && (
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#166534",
-                      marginTop: "4px",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Bandeira: {paymentMethodId.toUpperCase()}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: "flex", gap: "15px" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Validade</label>
-                  <div
-                    id="expirationDate-mount"
-                    className="mp-input-container"
-                  ></div>
+              {/* --- CAMPOS DO CARTÃO (key força nós novos ao reentrar na tela) --- */}
+              <div key={mpMountKey}>
+                <div>
+                  <label style={styles.label}>Número do Cartão</label>
+                  <div id="cardNumber-mount" className="mp-input-container"></div>
+                  {paymentMethodId && (
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#166534",
+                        marginTop: "4px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Bandeira: {paymentMethodId.toUpperCase()}
+                    </div>
+                  )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={styles.label}>CVV</label>
-                  <div
-                    id="securityCode-mount"
-                    className="mp-input-container"
-                  ></div>
+
+                <div style={{ display: "flex", gap: "15px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>Validade</label>
+                    <div
+                      id="expirationDate-mount"
+                      className="mp-input-container"
+                    ></div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>CVV</label>
+                    <div
+                      id="securityCode-mount"
+                      className="mp-input-container"
+                    ></div>
+                  </div>
                 </div>
               </div>
 
@@ -782,14 +799,33 @@ export const CreditCardCheckout = () => {
               <button
                 type="submit"
                 disabled={loading || !isMpLoaded}
-                style={styles.payButton}
+                style={{
+                  ...styles.payButton,
+                  gap: 10,
+                  flexWrap: "nowrap",
+                }}
               >
                 {loading ? (
-                  <Loader2 className="animate-spin" />
+                  <>
+                    <span
+                      style={{
+                        opacity,
+                        transition: "opacity 0.28s ease",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      {messages.processingPayment[displayIndex]}
+                    </span>
+                  </>
                 ) : (
-                  `Pagar R$ ${transactionAmount.toFixed(2)}`
+                  <>
+                    {`Pagar R$ ${transactionAmount.toFixed(2)}`}
+                    <ShieldCheck size={20} />
+                  </>
                 )}
-                {!loading && <ShieldCheck size={20} />}
               </button>
 
               {/* --- RODAPÉ DE SEGURANÇA --- */}

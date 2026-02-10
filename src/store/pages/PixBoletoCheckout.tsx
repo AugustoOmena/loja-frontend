@@ -7,7 +7,6 @@ import { supabase } from "../../services/supabaseClient";
 import {
   QrCode,
   FileText,
-  Loader2,
   CheckCircle,
   MapPin,
   User,
@@ -25,6 +24,7 @@ import {
 } from "../../utils/inputMasks";
 import { validarCep } from "../../services/freteService";
 import { messages } from "../../constants/messages";
+import { useProcessingMessage } from "../../hooks/useProcessingMessage";
 
 // --- MODAL DE SUCESSO ---
 const SuccessModal = ({ data, onClose, colors, theme }: any) => {
@@ -223,6 +223,7 @@ export const PixBoletoCheckout = () => {
   );
 
   const [loading, setLoading] = useState(false);
+  const { displayIndex, opacity } = useProcessingMessage(loading, messages.processingPayment.length);
   const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
   const [errorModal, setErrorModal] = useState<{ message: string; details?: string } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -817,9 +818,26 @@ export const PixBoletoCheckout = () => {
               </div>
             </div>
 
-            <button type="submit" disabled={loading} style={styles.btn}>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ ...styles.btn, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+            >
               {loading ? (
-                <Loader2 className="animate-spin" />
+                <>
+                  <span
+                    style={{
+                      opacity,
+                      transition: "opacity 0.28s ease",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    {messages.processingPayment[displayIndex]}
+                  </span>
+                </>
               ) : method === "pix" ? (
                 "Gerar Código Pix"
               ) : (
