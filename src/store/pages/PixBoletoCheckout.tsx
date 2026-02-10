@@ -17,6 +17,14 @@ import {
 } from "lucide-react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
+import {
+  formatCpf,
+  formatCep,
+  normalizarCpf,
+  validarCpf,
+} from "../../utils/inputMasks";
+import { validarCep } from "../../services/freteService";
+import { messages } from "../../constants/messages";
 
 // --- MODAL DE SUCESSO ---
 const SuccessModal = ({ data, onClose, colors, theme }: any) => {
@@ -217,6 +225,7 @@ export const PixBoletoCheckout = () => {
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null);
   const [errorModal, setErrorModal] = useState<{ message: string; details?: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
@@ -258,28 +267,59 @@ export const PixBoletoCheckout = () => {
     }
   }, [address.cep, address.street, address.number, address.neighborhood, address.city, address.state]);
 
+  // Redireciona se frete não foi selecionado
+  useEffect(() => {
+    if (!selectedShipping && !successData && (items?.length ?? 0) > 0) {
+      navigate("/checkout", { replace: true });
+    }
+  }, [selectedShipping, successData, items?.length, navigate]);
+
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorModal(null);
+    setFieldErrors({});
 
-    if (!formData.fullName.trim().includes(" ")) {
-      alert("Digite Nome e Sobrenome.");
-      return;
+    const errors: Record<string, string> = {};
+
+    if (!formData.fullName.trim()) {
+      errors.fullName = messages.fullNameRequired;
+    } else if (!formData.fullName.trim().includes(" ")) {
+      errors.fullName = messages.fullNameFirstLast;
     }
-    if (!formData.cpf) {
-      alert("CPF Obrigatório.");
-      return;
+
+    if (!formData.email.trim()) {
+      errors.email = messages.emailRequired;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        errors.email = messages.emailInvalid;
+      }
+    }
+
+    const cpfDigits = normalizarCpf(formData.cpf);
+    if (cpfDigits.length !== 11) {
+      errors.cpf = messages.cpfRequiredDigits;
+    } else if (!validarCpf(formData.cpf)) {
+      errors.cpf = messages.cpfInvalid;
     }
 
     if (method === "boleto") {
-      const missing = [];
-      if (!formData.zipCode) missing.push("CEP");
-      if (!formData.street) missing.push("Rua");
-      if (!formData.city) missing.push("Cidade");
-
-      if (missing.length > 0) {
-        alert(`Para boleto, preencha: ${missing.join(", ")}`);
-        return;
+      const cepDigits = (formData.zipCode || "").replace(/\D/g, "");
+      if (cepDigits.length !== 8) {
+        errors.zipCode = messages.zipCodeDigits;
+      } else if (!validarCep(formData.zipCode)) {
+        errors.zipCode = messages.zipCodeInvalid;
       }
+      if (!formData.street?.trim()) errors.street = messages.streetRequired;
+      if (!formData.city?.trim()) errors.city = messages.cityRequired;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setErrorModal({
+        message: messages.fixFieldsToContinue,
+      });
+      return;
     }
 
     setLoading(true);
@@ -307,10 +347,10 @@ export const PixBoletoCheckout = () => {
           last_name: names.slice(1).join(" "),
           identification: {
             type: "CPF",
-            number: formData.cpf.replace(/\D/g, ""),
+            number: normalizarCpf(formData.cpf),
           },
           address: {
-            zip_code: formData.zipCode.replace(/\D/g, ""),
+            zip_code: (formData.zipCode || "").replace(/\D/g, ""),
             street_name: formData.street,
             street_number: safeNumber,
             neighborhood: safeNeighborhood,
@@ -328,7 +368,7 @@ export const PixBoletoCheckout = () => {
           color: i.color ?? null,
         })),
         frete: shippingCost,
-        cep: formData.zipCode.replace(/\D/g, ""),
+        cep: (formData.zipCode || "").replace(/\D/g, ""),
         frete_service: selectedShipping?.service ?? selectedShipping?.id ?? selectedShipping?.transportadora,
         frete_itens: cartItemsToFreteItens(safeItems),
       };
@@ -343,7 +383,7 @@ export const PixBoletoCheckout = () => {
       const result = await response.json();
       if (!response.ok) {
         setErrorModal({
-          message: result.error || result.message || "Erro no processamento",
+          message: result.error || result.message || messages.paymentProcessingError,
           details: result.details,
         });
         return;
@@ -354,7 +394,7 @@ export const PixBoletoCheckout = () => {
     } catch (error: any) {
       console.error(error);
       setErrorModal({
-        message: error.message || "Erro no processamento",
+        message: error.message || messages.paymentTryAgain,
         details: error.details,
       });
     } finally {
@@ -466,16 +506,13 @@ export const PixBoletoCheckout = () => {
           />
         )}
 
-        <CheckoutErrorModal
-          open={!!errorModal}
-          message={errorModal?.message ?? ""}
-          details={errorModal?.details}
-          onClose={() => setErrorModal(null)}
-          colors={colors}
-        />
-
         <button
-          onClick={() => navigate(-1)}
+          onClick={() =>
+            navigate("/checkout", {
+              state: { selectedPaymentMethod: method },
+            })
+          }
+          type="button"
           style={{
             background: "none",
             border: "none",
@@ -537,36 +574,65 @@ export const PixBoletoCheckout = () => {
 
             <label style={styles.label}>Nome Completo</label>
             <input
-              style={styles.input}
+              style={{
+                ...styles.input,
+                borderColor: fieldErrors.fullName ? "#dc2626" : colors.border,
+              }}
               value={formData.fullName}
-              onChange={(e) =>
-                setFormData({ ...formData, fullName: e.target.value })
-              }
+              onChange={(e) => {
+                setFormData({ ...formData, fullName: e.target.value });
+                if (fieldErrors.fullName) setFieldErrors((p) => ({ ...p, fullName: "" }));
+              }}
               placeholder="Ex: João da Silva"
             />
+            {fieldErrors.fullName && (
+              <span style={{ fontSize: 12, color: "#dc2626", marginTop: 4, display: "block" }}>
+                {fieldErrors.fullName}
+              </span>
+            )}
 
             <div style={{ display: "flex", gap: 15 }}>
               <div style={{ flex: 1 }}>
                 <label style={styles.label}>CPF</label>
                 <input
-                  style={styles.input}
+                  style={{
+                    ...styles.input,
+                    borderColor: fieldErrors.cpf ? "#dc2626" : colors.border,
+                  }}
                   value={formData.cpf}
-                  onChange={(e) =>
-                    setFormData({ ...formData, cpf: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, cpf: formatCpf(e.target.value) });
+                    if (fieldErrors.cpf) setFieldErrors((p) => ({ ...p, cpf: "" }));
+                  }}
                   placeholder="000.000.000-00"
+                  maxLength={14}
                 />
+                {fieldErrors.cpf && (
+                  <span style={{ fontSize: 12, color: "#dc2626", marginTop: 4, display: "block" }}>
+                    {fieldErrors.cpf}
+                  </span>
+                )}
               </div>
               <div style={{ flex: 1 }}>
-                <label style={styles.label}>Email</label>
+                <label style={styles.label}>E-mail</label>
                 <input
-                  style={styles.input}
+                  style={{
+                    ...styles.input,
+                    borderColor: fieldErrors.email ? "#dc2626" : colors.border,
+                  }}
+                  type="email"
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: "" }));
+                  }}
                   placeholder="seu@email.com"
                 />
+                {fieldErrors.email && (
+                  <span style={{ fontSize: 12, color: "#dc2626", marginTop: 4, display: "block" }}>
+                    {fieldErrors.email}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -603,24 +669,44 @@ export const PixBoletoCheckout = () => {
                 <div style={{ width: "35%" }}>
                   <label style={styles.label}>CEP</label>
                   <input
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      borderColor: fieldErrors.zipCode ? "#dc2626" : colors.border,
+                    }}
                     placeholder="00000-000"
-                    value={formData.zipCode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, zipCode: e.target.value })
-                    }
+                    value={formatCep(formData.zipCode)}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                      setFormData({ ...formData, zipCode: raw });
+                      if (fieldErrors.zipCode) setFieldErrors((p) => ({ ...p, zipCode: "" }));
+                    }}
+                    maxLength={9}
                   />
+                  {fieldErrors.zipCode && (
+                    <span style={{ fontSize: 12, color: "#dc2626", marginTop: 4, display: "block" }}>
+                      {fieldErrors.zipCode}
+                    </span>
+                  )}
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Rua</label>
                   <input
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      borderColor: fieldErrors.street ? "#dc2626" : colors.border,
+                    }}
                     placeholder="Nome da Rua"
                     value={formData.street}
-                    onChange={(e) =>
-                      setFormData({ ...formData, street: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData({ ...formData, street: e.target.value });
+                      if (fieldErrors.street) setFieldErrors((p) => ({ ...p, street: "" }));
+                    }}
                   />
+                  {fieldErrors.street && (
+                    <span style={{ fontSize: 12, color: "#dc2626", marginTop: 4, display: "block" }}>
+                      {fieldErrors.street}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -653,13 +739,22 @@ export const PixBoletoCheckout = () => {
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Cidade</label>
                   <input
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      borderColor: fieldErrors.city ? "#dc2626" : colors.border,
+                    }}
                     placeholder="Cidade"
                     value={formData.city}
-                    onChange={(e) =>
-                      setFormData({ ...formData, city: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData({ ...formData, city: e.target.value });
+                      if (fieldErrors.city) setFieldErrors((p) => ({ ...p, city: "" }));
+                    }}
                   />
+                  {fieldErrors.city && (
+                    <span style={{ fontSize: 12, color: "#dc2626", marginTop: 4, display: "block" }}>
+                      {fieldErrors.city}
+                    </span>
+                  )}
                 </div>
                 <div style={{ width: "20%" }}>
                   <label style={styles.label}>UF</label>
@@ -734,6 +829,15 @@ export const PixBoletoCheckout = () => {
           </form>
         </div>
       </div>
+
+      <CheckoutErrorModal
+        open={!!errorModal}
+        title={messages.paymentErrorTitle}
+        message={errorModal?.message ?? ""}
+        details={errorModal?.details}
+        onClose={() => setErrorModal(null)}
+        colors={colors}
+      />
     </div>
   );
 };

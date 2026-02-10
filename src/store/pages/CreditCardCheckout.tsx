@@ -17,6 +17,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
+import { formatCpf, normalizarCpf, validarCpf } from "../../utils/inputMasks";
+import { messages } from "../../constants/messages";
 import { useAddress } from "../../contexts/AddressContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { cartItemsToFreteItens } from "../../hooks/useFrete";
@@ -76,12 +78,17 @@ export const CreditCardCheckout = () => {
   // Redireciona se carrinho vazio
   useEffect(() => {
     if (cartTotal <= 0 && !showSuccess) {
-      const timer = setTimeout(() => {
-        navigate("/");
-      }, 500);
+      const timer = setTimeout(() => navigate("/"), 500);
       return () => clearTimeout(timer);
     }
   }, [cartTotal, navigate, showSuccess]);
+
+  // Redireciona se frete não foi selecionado (entrou direto na URL)
+  useEffect(() => {
+    if (!selectedShipping && !showSuccess && cartTotal > 0) {
+      navigate("/checkout", { replace: true });
+    }
+  }, [selectedShipping, showSuccess, cartTotal, navigate]);
 
   // Carrega Email do Usuário automaticamente (Melhoria de UX)
   useEffect(() => {
@@ -222,9 +229,10 @@ export const CreditCardCheckout = () => {
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
+    setErrorModal(null);
     setLoading(true);
 
-    const cleanDoc = formData.docNumber.replace(/\D/g, "");
+    const cleanDoc = normalizarCpf(formData.docNumber);
 
     try {
       const {
@@ -232,15 +240,45 @@ export const CreditCardCheckout = () => {
       } = await supabase.auth.getSession();
 
       if (!session || !session.user) {
-        alert("Sessão expirada.");
+        setErrorModal({ message: messages.sessionExpired });
+        setLoading(false);
         navigate("/login");
         return;
       }
 
       const user = session.user;
 
-      if (!formData.email || !cleanDoc || !formData.cardholderName) {
-        throw new Error("Preencha todos os campos.");
+      // Validações amigáveis em português
+      if (!formData.cardholderName.trim()) {
+        setFormError(messages.cardholderNameRequired);
+        setLoading(false);
+        return;
+      }
+      if (!formData.email.trim()) {
+        setFormError(messages.emailRequired);
+        setLoading(false);
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        setFormError(messages.emailInvalid);
+        setLoading(false);
+        return;
+      }
+      if (cleanDoc.length !== 11) {
+        setFormError(messages.cpfRequiredDigits);
+        setLoading(false);
+        return;
+      }
+      if (!validarCpf(formData.docNumber)) {
+        setFormError(messages.cpfInvalid);
+        setLoading(false);
+        return;
+      }
+      if (!formData.installments) {
+        setFormError(messages.installmentsRequired);
+        setLoading(false);
+        return;
       }
 
       const token = await mpRef.current.fields.createCardToken({
@@ -291,7 +329,7 @@ export const CreditCardCheckout = () => {
           color: item.color ?? null,
         })),
         frete: shippingCost,
-        cep: address.cep.replace(/\D/g, ""),
+        cep: (address.cep || "").replace(/\D/g, ""),
         frete_service:
           selectedShipping?.service ??
           selectedShipping?.id ??
@@ -315,7 +353,7 @@ export const CreditCardCheckout = () => {
       } else {
         setFormError("");
         setErrorModal({
-          message: result.error || result.status_detail || "Pagamento recusado.",
+          message: result.error || result.status_detail || messages.paymentDeclined,
           details: result.details,
         });
       }
@@ -323,7 +361,7 @@ export const CreditCardCheckout = () => {
       console.error(error);
       setFormError("");
       setErrorModal({
-        message: error.message || "Erro ao processar pagamento.",
+        message: error.message || messages.paymentProcessingError,
         details: error.details,
       });
     } finally {
@@ -539,7 +577,10 @@ export const CreditCardCheckout = () => {
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "0 15px" }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() =>
+            navigate("/checkout", { state: { selectedPaymentMethod: "credit" } })
+          }
+          type="button"
           style={{
             background: "none",
             border: "none",
@@ -565,15 +606,16 @@ export const CreditCardCheckout = () => {
             {formError && (
               <div
                 style={{
-                  backgroundColor: "#fee2e2",
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
                   color: "#b91c1c",
                   padding: "12px",
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                   marginBottom: "20px",
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
                   fontSize: "14px",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
                 }}
               >
                 <AlertCircle size={18} /> {formError}
@@ -684,16 +726,20 @@ export const CreditCardCheckout = () => {
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Número</label>
+                  <label style={styles.label}>CPF</label>
                   <div style={styles.inputWrapper}>
                     <Hash size={18} color={colors.muted} />
                     <input
                       style={styles.input}
-                      placeholder="12345678909"
+                      placeholder="000.000.000-00"
                       value={formData.docNumber}
                       onChange={(e) =>
-                        setFormData({ ...formData, docNumber: e.target.value })
+                        setFormData({
+                          ...formData,
+                          docNumber: formatCpf(e.target.value),
+                        })
                       }
+                      maxLength={14}
                     />
                   </div>
                 </div>
@@ -827,6 +873,7 @@ export const CreditCardCheckout = () => {
 
       <CheckoutErrorModal
         open={!!errorModal}
+        title={messages.paymentErrorTitle}
         message={errorModal?.message ?? ""}
         details={errorModal?.details}
         onClose={() => setErrorModal(null)}

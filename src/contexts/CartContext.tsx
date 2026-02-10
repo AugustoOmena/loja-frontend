@@ -39,6 +39,9 @@ interface CartContextType {
   /** Frete selecionado no checkout */
   selectedShipping: OpcaoFrete | null;
   setSelectedShipping: (op: OpcaoFrete | null) => void;
+  /** Chave do último CEP+itens para o qual calculamos frete (evita limpar seleção ao voltar) */
+  lastFreteKey: string;
+  setLastFreteKey: (key: string) => void;
 }
 
 const CartContext = createContext<CartContextType>({} as CartContextType);
@@ -48,6 +51,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [selectedShipping, setSelectedShipping] = useState<OpcaoFrete | null>(
     null,
   );
+  const [lastFreteKey, setLastFreteKey] = useState("");
 
   // --- Lazy Initialization (Carrega do localStorage direto no useState) ---
   const [items, setItems] = useState<CartItem[]>(() => {
@@ -160,6 +164,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setIsCartOpen,
         selectedShipping,
         setSelectedShipping,
+        lastFreteKey,
+        setLastFreteKey,
       }}
     >
       {children}
