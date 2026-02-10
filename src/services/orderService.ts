@@ -45,6 +45,12 @@ export interface OrderApi {
   shipping_address?: OrderAddressApi | null;
   tracking_code?: string | null;
   shipping_service?: string | null;
+  /** PIX: código copia e cola; Boleto: linha digitável */
+  payment_code?: string | null;
+  /** URL do PDF do boleto (null para PIX) */
+  payment_url?: string | null;
+  /** Data/hora de vencimento do pagamento (ISO datetime) */
+  payment_expiration?: string | null;
 }
 
 const backofficeHeaders = {
