@@ -1,7 +1,11 @@
-import { useState, useCallback } from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import type { OrderApi } from "../services/orderService";
-import { MapPin, Package, Truck, Calendar, Copy, QrCode, FileDown } from "lucide-react";
+import { MapPin, Package, Truck, Calendar } from "lucide-react";
+import {
+  getOrderPaymentFields,
+  shouldShowPaymentBlock,
+} from "../utils/orderHelpers";
+import { OrderPaymentBlock } from "./OrderPaymentBlock";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Aguardando Pagamento",
@@ -30,29 +34,8 @@ export interface OrderDetailsProps {
   loading?: boolean;
 }
 
-const PIX_METHOD = "pix";
-const BOLETO_METHODS = ["bolbradesco", "pec"];
-
-function isPix(method: string | undefined | null): boolean {
-  return (method ?? "").toLowerCase() === PIX_METHOD;
-}
-
-function isBoleto(method: string | undefined | null): boolean {
-  return BOLETO_METHODS.includes((method ?? "").toLowerCase());
-}
-
-function formatPaymentExpiration(iso: string | undefined | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
-
 export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
   const { colors } = useTheme();
-  const [copyFeedback, setCopyFeedback] = useState(false);
   const items = order.items ?? [];
   const subtotalProducts = items.reduce(
     (sum, i) => sum + i.price * i.quantity,
@@ -64,19 +47,8 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
     addr &&
     (addr.street_name || addr.city || addr.zip_code || addr.neighborhood);
 
-  const showPaymentBlock =
-    order.status === "pending" &&
-    ((isPix(order.payment_method) && order.payment_code) ||
-      (isBoleto(order.payment_method) && order.payment_url));
-  const isPixPayment = isPix(order.payment_method) && !!order.payment_code;
-
-  const handleCopyCode = useCallback(() => {
-    if (!order.payment_code) return;
-    navigator.clipboard.writeText(order.payment_code).then(() => {
-      setCopyFeedback(true);
-      setTimeout(() => setCopyFeedback(false), 2000);
-    });
-  }, [order.payment_code]);
+  const paymentFields = getOrderPaymentFields(order);
+  const showPaymentBlock = shouldShowPaymentBlock(order, paymentFields);
 
   const statusStyle = STATUS_COLOR[order.status] ?? {
     bg: colors.border,
@@ -155,141 +127,11 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
 
       {/* Pagamento pendente (PIX ou Boleto) */}
       {showPaymentBlock && (
-        <section
-          style={{
-            marginBottom: "24px",
-            padding: "16px",
-            backgroundColor: colors.bg,
-            borderRadius: "12px",
-            border: `1px solid ${colors.border}`,
-            borderLeft: "4px solid #c2410c",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "14px",
-              fontWeight: "600",
-              color: colors.muted,
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-              marginBottom: "12px",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            {isPixPayment ? (
-              <>
-                <QrCode size={16} />
-                Pagamento PIX
-              </>
-            ) : (
-              <>
-                <FileDown size={16} />
-                Boleto
-              </>
-            )}
-          </h3>
-
-          {isPixPayment && order.payment_code && (
-            <div style={{ marginBottom: "12px" }}>
-              <div
-                style={{
-                  fontSize: "12px",
-                  color: colors.muted,
-                  marginBottom: "6px",
-                }}
-              >
-                Código PIX (copie e cole no app do seu banco)
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <code
-                  style={{
-                    flex: "1 1 100%",
-                    minWidth: 0,
-                    padding: "10px 12px",
-                    backgroundColor: colors.card,
-                    borderRadius: "8px",
-                    fontFamily: "monospace",
-                    fontSize: "12px",
-                    wordBreak: "break-all",
-                    border: `1px solid ${colors.border}`,
-                  }}
-                >
-                  {order.payment_code}
-                </code>
-                <button
-                  type="button"
-                  onClick={handleCopyCode}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "10px 14px",
-                    borderRadius: "8px",
-                    border: `1px solid ${colors.border}`,
-                    backgroundColor: colors.card,
-                    color: colors.text,
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  <Copy size={16} />
-                  {copyFeedback ? "Copiado!" : "Copiar"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!isPixPayment && order.payment_url && (
-            <div style={{ marginBottom: "12px" }}>
-              <a
-                href={order.payment_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "12px 16px",
-                  borderRadius: "8px",
-                  backgroundColor: "#c2410c",
-                  color: "#fff",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                <FileDown size={18} />
-                Baixar PDF do Boleto
-              </a>
-            </div>
-          )}
-
-          {order.payment_expiration && (
-            <div
-              style={{
-                fontSize: "13px",
-                color: "#c2410c",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <Calendar size={14} />
-              Vencimento: {formatPaymentExpiration(order.payment_expiration)}
-            </div>
-          )}
-        </section>
+        <OrderPaymentBlock
+          paymentCode={paymentFields.paymentCode}
+          paymentUrl={paymentFields.paymentUrl}
+          paymentExpiration={paymentFields.paymentExpiration}
+        />
       )}
 
       {/* Itens */}

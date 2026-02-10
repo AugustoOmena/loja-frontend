@@ -51,6 +51,22 @@ export interface OrderApi {
   payment_url?: string | null;
   /** Data/hora de vencimento do pagamento (ISO datetime) */
   payment_expiration?: string | null;
+  /** Alternativa retornada por algumas APIs (ex.: Mercado Pago) */
+  qr_code?: string | null;
+  /** URL do boleto (alternativa a payment_url) */
+  ticket_url?: string | null;
+  /** Objeto aninhado (alguns backends retornam dados de pagamento aqui) */
+  payment_info?: PaymentInfoApi | null;
+  payment?: PaymentInfoApi | null;
+}
+
+export interface PaymentInfoApi {
+  payment_code?: string | null;
+  payment_url?: string | null;
+  payment_expiration?: string | null;
+  qr_code?: string | null;
+  ticket_url?: string | null;
+  payment_method?: string | null;
 }
 
 const backofficeHeaders = {
