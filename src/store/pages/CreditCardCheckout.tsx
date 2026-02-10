@@ -319,6 +319,9 @@ export const CreditCardCheckout = () => {
         finalPaymentMethodId = "credit_card";
       }
 
+      const safeNumber = (address.number || "").trim() || "S/N";
+      const safeNeighborhood = (address.neighborhood || "").trim() || "Centro";
+
       // Envia itens + frete separado para o backend calcular corretamente
       const payload = {
         token: token.id,
@@ -331,6 +334,14 @@ export const CreditCardCheckout = () => {
           identification: {
             type: formData.docType,
             number: cleanDoc,
+          },
+          address: {
+            zip_code: (address.cep || "").replace(/\D/g, ""),
+            street_name: address.street,
+            street_number: safeNumber,
+            neighborhood: safeNeighborhood,
+            city: address.city,
+            federal_unit: address.state,
           },
         },
         user_id: user.id,
