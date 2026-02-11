@@ -55,13 +55,19 @@ export const CreditCardCheckout = () => {
   }, [transactionAmount]);
 
   const [loading, setLoading] = useState(false);
-  const { displayIndex, opacity } = useProcessingMessage(loading, messages.processingPayment.length);
+  const { displayIndex, opacity } = useProcessingMessage(
+    loading,
+    messages.processingPayment.length,
+  );
   const [docTypes, setDocTypes] = useState<IdentificationType[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [, setIssuers] = useState<Issuer[]>([]);
   const [installments, setInstallments] = useState<PayerCost[]>([]);
   const [formError, setFormError] = useState("");
-  const [errorModal, setErrorModal] = useState<{ message: string; details?: string } | null>(null);
+  const [errorModal, setErrorModal] = useState<{
+    message: string;
+    details?: string;
+  } | null>(null);
   const [isMpLoaded, setIsMpLoaded] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -75,7 +81,11 @@ export const CreditCardCheckout = () => {
   });
 
   const mpRef = useRef<any>(null);
-  const mpFieldsRef = useRef<{ cardNumber?: any; expirationDate?: any; securityCode?: any }>({});
+  const mpFieldsRef = useRef<{
+    cardNumber?: any;
+    expirationDate?: any;
+    securityCode?: any;
+  }>({});
   /** Chave única por montagem: garante containers novos ao voltar para outra compra */
   const [mpMountKey] = useState(() => "mp-" + Date.now());
 
@@ -162,7 +172,7 @@ export const CreditCardCheckout = () => {
 
       // @ts-ignore
       const mp = new window.MercadoPago(
-        "TEST-33d77029-c5e0-425f-b848-606ac9a9264f"
+        "TEST-33d77029-c5e0-425f-b848-606ac9a9264f",
       );
       mpRef.current = mp;
 
@@ -308,7 +318,7 @@ export const CreditCardCheckout = () => {
         if (firstSix) {
           const detectedId = await fetchPaymentMethodInfo(
             mpRef.current,
-            firstSix
+            firstSix,
           );
           if (detectedId) finalPaymentMethodId = detectedId;
         }
@@ -342,6 +352,7 @@ export const CreditCardCheckout = () => {
             neighborhood: safeNeighborhood,
             city: address.city,
             federal_unit: address.state,
+            complement: address.complement || undefined,
           },
         },
         user_id: user.id,
@@ -379,7 +390,8 @@ export const CreditCardCheckout = () => {
       } else {
         setFormError("");
         setErrorModal({
-          message: result.error || result.status_detail || messages.paymentDeclined,
+          message:
+            result.error || result.status_detail || messages.paymentDeclined,
           details: result.details,
         });
       }
@@ -604,7 +616,9 @@ export const CreditCardCheckout = () => {
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "0 15px" }}>
         <button
           onClick={() =>
-            navigate("/checkout", { state: { selectedPaymentMethod: "credit" } })
+            navigate("/checkout", {
+              state: { selectedPaymentMethod: "credit" },
+            })
           }
           type="button"
           style={{
@@ -669,7 +683,10 @@ export const CreditCardCheckout = () => {
               <div key={mpMountKey}>
                 <div>
                   <label style={styles.label}>Número do Cartão</label>
-                  <div id="cardNumber-mount" className="mp-input-container"></div>
+                  <div
+                    id="cardNumber-mount"
+                    className="mp-input-container"
+                  ></div>
                   {paymentMethodId && (
                     <div
                       style={{
