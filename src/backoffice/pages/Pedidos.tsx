@@ -690,6 +690,7 @@ export const PedidosBackoffice = () => {
                   ["CEP", selectedOrder.shipping_address.zip_code],
                   ["Logradouro", selectedOrder.shipping_address.street_name],
                   ["Número", selectedOrder.shipping_address.street_number],
+                  ["Complemento", selectedOrder.shipping_address.complement],
                   ["Bairro", selectedOrder.shipping_address.neighborhood],
                   ["Cidade", selectedOrder.shipping_address.city],
                   ["Estado", selectedOrder.shipping_address.federal_unit],
