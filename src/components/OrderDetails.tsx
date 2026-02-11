@@ -1,6 +1,11 @@
 import { useTheme } from "../contexts/ThemeContext";
 import type { OrderApi } from "../services/orderService";
 import { MapPin, Package, Truck, Calendar } from "lucide-react";
+import {
+  getOrderPaymentFields,
+  shouldShowPaymentBlock,
+} from "../utils/orderHelpers";
+import { OrderPaymentBlock } from "./OrderPaymentBlock";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Aguardando Pagamento",
@@ -40,7 +45,15 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
   const addr = order.shipping_address;
   const hasAddress =
     addr &&
-    (addr.street_name || addr.city || addr.zip_code || addr.neighborhood);
+    (addr.street_name ||
+      addr.city ||
+      addr.zip_code ||
+      addr.neighborhood ||
+      addr.complement);
+
+  const paymentFields = getOrderPaymentFields(order);
+  const showPaymentBlock = shouldShowPaymentBlock(order, paymentFields);
+
   const statusStyle = STATUS_COLOR[order.status] ?? {
     bg: colors.border,
     text: colors.text,
@@ -115,6 +128,15 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
           })}
         </span>
       </div>
+
+      {/* Pagamento pendente (PIX ou Boleto) */}
+      {showPaymentBlock && (
+        <OrderPaymentBlock
+          paymentCode={paymentFields.paymentCode}
+          paymentUrl={paymentFields.paymentUrl}
+          paymentExpiration={paymentFields.paymentExpiration}
+        />
+      )}
 
       {/* Itens */}
       <section
@@ -340,6 +362,7 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
                 (addr!.street_number
                   ? `${addr.street_name}, ${addr.street_number}`
                   : addr.street_name),
+              addr!.complement,
               addr!.neighborhood,
               addr!.city &&
                 (addr!.federal_unit

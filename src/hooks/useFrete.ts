@@ -6,7 +6,7 @@ const DEFAULTS: ItemFrete = {
   width: 16,
   height: 12,
   length: 20,
-  weight: 0.5,
+  weight: 0.3,
   quantity: 1,
   insurance_value: 0,
 };

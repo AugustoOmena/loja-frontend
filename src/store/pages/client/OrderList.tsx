@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   listByUser,
@@ -9,7 +9,9 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { ChevronLeft, Package, Clock, X } from "lucide-react";
 import { RecommendedProducts } from "../../../components/RecommendedProducts";
+import { RevealOnScrollProductSearchBar } from "../../../components/RevealOnScrollProductSearchBar";
 import { OrderDetails } from "../../../components/OrderDetails";
+import { STORE_CATEGORIES } from "../../../constants/storeCategories";
 
 // Tipos de lista baseados na rota
 const SCREEN_CONFIG: Record<
@@ -54,6 +56,9 @@ export const OrderList = () => {
   const [loading, setLoading] = useState(true);
   const [modalOrder, setModalOrder] = useState<OrderApi | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const recommendedSectionRef = useRef<HTMLDivElement>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [categoryId, setCategoryId] = useState("");
 
   const config = type ? SCREEN_CONFIG[type] : SCREEN_CONFIG.pagamento;
 
@@ -317,7 +322,44 @@ export const OrderList = () => {
       )}
 
       <div style={contentWidth}>
-        <RecommendedProducts />
+        <RevealOnScrollProductSearchBar
+          anchorRef={recommendedSectionRef}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onSearchSubmit={() => {}}
+          categoryId={categoryId}
+          onCategoryChange={setCategoryId}
+          categories={STORE_CATEGORIES}
+          showWhenAnchorOutOfView
+          topSlot={
+            <div
+              style={{
+                ...contentWidth,
+                display: "flex",
+                alignItems: "center",
+                gap: "15px",
+                padding: "12px 20px",
+                borderBottom: `1px solid ${colors.border}`,
+              }}
+            >
+              <button
+                onClick={() => navigate("/minha-conta")}
+                style={styles.backBtn}
+                type="button"
+                aria-label="Voltar"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <span style={styles.title}>{config?.title || "Pedidos"}</span>
+            </div>
+          }
+        />
+        <RecommendedProducts
+          scrollAnchorRef={recommendedSectionRef}
+          searchQuery={searchValue}
+          categoryId={categoryId}
+          scrollStorageKey="orderlist-recommended-scroll"
+        />
       </div>
     </div>
   );

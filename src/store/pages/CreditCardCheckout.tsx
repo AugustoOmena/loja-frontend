@@ -10,16 +10,18 @@ import {
   AlertCircle,
   CheckCircle,
   Truck,
-  Loader2,
   ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
+import { formatCpf, normalizarCpf, validarCpf } from "../../utils/inputMasks";
+import { messages } from "../../constants/messages";
 import { useAddress } from "../../contexts/AddressContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { cartItemsToFreteItens } from "../../hooks/useFrete";
+import { useProcessingMessage } from "../../hooks/useProcessingMessage";
 
 interface IdentificationType {
   id: string;
@@ -53,12 +55,19 @@ export const CreditCardCheckout = () => {
   }, [transactionAmount]);
 
   const [loading, setLoading] = useState(false);
+  const { displayIndex, opacity } = useProcessingMessage(
+    loading,
+    messages.processingPayment.length,
+  );
   const [docTypes, setDocTypes] = useState<IdentificationType[]>([]);
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [, setIssuers] = useState<Issuer[]>([]);
   const [installments, setInstallments] = useState<PayerCost[]>([]);
   const [formError, setFormError] = useState("");
-  const [errorModal, setErrorModal] = useState<{ message: string; details?: string } | null>(null);
+  const [errorModal, setErrorModal] = useState<{
+    message: string;
+    details?: string;
+  } | null>(null);
   const [isMpLoaded, setIsMpLoaded] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -72,16 +81,28 @@ export const CreditCardCheckout = () => {
   });
 
   const mpRef = useRef<any>(null);
+  const mpFieldsRef = useRef<{
+    cardNumber?: any;
+    expirationDate?: any;
+    securityCode?: any;
+  }>({});
+  /** Chave única por montagem: garante containers novos ao voltar para outra compra */
+  const [mpMountKey] = useState(() => "mp-" + Date.now());
 
   // Redireciona se carrinho vazio
   useEffect(() => {
     if (cartTotal <= 0 && !showSuccess) {
-      const timer = setTimeout(() => {
-        navigate("/");
-      }, 500);
+      const timer = setTimeout(() => navigate("/"), 500);
       return () => clearTimeout(timer);
     }
   }, [cartTotal, navigate, showSuccess]);
+
+  // Redireciona se frete não foi selecionado (entrou direto na URL)
+  useEffect(() => {
+    if (!selectedShipping && !showSuccess && cartTotal > 0) {
+      navigate("/checkout", { replace: true });
+    }
+  }, [selectedShipping, showSuccess, cartTotal, navigate]);
 
   // Carrega Email do Usuário automaticamente (Melhoria de UX)
   useEffect(() => {
@@ -151,7 +172,7 @@ export const CreditCardCheckout = () => {
 
       // @ts-ignore
       const mp = new window.MercadoPago(
-        "TEST-33d77029-c5e0-425f-b848-606ac9a9264f"
+        "TEST-33d77029-c5e0-425f-b848-606ac9a9264f",
       );
       mpRef.current = mp;
 
@@ -169,6 +190,11 @@ export const CreditCardCheckout = () => {
         placeholder: "123",
         style: { fontSize: "14px", color: inputColor },
       });
+      mpFieldsRef.current = {
+        cardNumber: cardNumberElement,
+        expirationDate: expirationDateElement,
+        securityCode: securityCodeElement,
+      };
 
       const waitForContainers = () =>
         document.getElementById("cardNumber-mount");
@@ -215,6 +241,12 @@ export const CreditCardCheckout = () => {
 
     init();
     return () => {
+      const fields = mpFieldsRef.current;
+      if (fields?.cardNumber?.unmount) fields.cardNumber.unmount();
+      if (fields?.expirationDate?.unmount) fields.expirationDate.unmount();
+      if (fields?.securityCode?.unmount) fields.securityCode.unmount();
+      mpFieldsRef.current = {};
+      cleanupMounts();
       mpRef.current = null;
     };
   }, [theme]);
@@ -222,9 +254,10 @@ export const CreditCardCheckout = () => {
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
+    setErrorModal(null);
     setLoading(true);
 
-    const cleanDoc = formData.docNumber.replace(/\D/g, "");
+    const cleanDoc = normalizarCpf(formData.docNumber);
 
     try {
       const {
@@ -232,15 +265,45 @@ export const CreditCardCheckout = () => {
       } = await supabase.auth.getSession();
 
       if (!session || !session.user) {
-        alert("Sessão expirada.");
+        setErrorModal({ message: messages.sessionExpired });
+        setLoading(false);
         navigate("/login");
         return;
       }
 
       const user = session.user;
 
-      if (!formData.email || !cleanDoc || !formData.cardholderName) {
-        throw new Error("Preencha todos os campos.");
+      // Validações amigáveis em português
+      if (!formData.cardholderName.trim()) {
+        setFormError(messages.cardholderNameRequired);
+        setLoading(false);
+        return;
+      }
+      if (!formData.email.trim()) {
+        setFormError(messages.emailRequired);
+        setLoading(false);
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        setFormError(messages.emailInvalid);
+        setLoading(false);
+        return;
+      }
+      if (cleanDoc.length !== 11) {
+        setFormError(messages.cpfRequiredDigits);
+        setLoading(false);
+        return;
+      }
+      if (!validarCpf(formData.docNumber)) {
+        setFormError(messages.cpfInvalid);
+        setLoading(false);
+        return;
+      }
+      if (!formData.installments) {
+        setFormError(messages.installmentsRequired);
+        setLoading(false);
+        return;
       }
 
       const token = await mpRef.current.fields.createCardToken({
@@ -255,7 +318,7 @@ export const CreditCardCheckout = () => {
         if (firstSix) {
           const detectedId = await fetchPaymentMethodInfo(
             mpRef.current,
-            firstSix
+            firstSix,
           );
           if (detectedId) finalPaymentMethodId = detectedId;
         }
@@ -265,6 +328,9 @@ export const CreditCardCheckout = () => {
         // Fallback básico se a API não retornar a tempo
         finalPaymentMethodId = "credit_card";
       }
+
+      const safeNumber = (address.number || "").trim() || "S/N";
+      const safeNeighborhood = (address.neighborhood || "").trim() || "Centro";
 
       // Envia itens + frete separado para o backend calcular corretamente
       const payload = {
@@ -279,6 +345,15 @@ export const CreditCardCheckout = () => {
             type: formData.docType,
             number: cleanDoc,
           },
+          address: {
+            zip_code: (address.cep || "").replace(/\D/g, ""),
+            street_name: address.street,
+            street_number: safeNumber,
+            neighborhood: safeNeighborhood,
+            city: address.city,
+            federal_unit: address.state,
+            complement: address.complement || undefined,
+          },
         },
         user_id: user.id,
         items: items.map((item) => ({
@@ -291,7 +366,7 @@ export const CreditCardCheckout = () => {
           color: item.color ?? null,
         })),
         frete: shippingCost,
-        cep: address.cep.replace(/\D/g, ""),
+        cep: (address.cep || "").replace(/\D/g, ""),
         frete_service:
           selectedShipping?.service ??
           selectedShipping?.id ??
@@ -315,7 +390,8 @@ export const CreditCardCheckout = () => {
       } else {
         setFormError("");
         setErrorModal({
-          message: result.error || result.status_detail || "Pagamento recusado.",
+          message:
+            result.error || result.status_detail || messages.paymentDeclined,
           details: result.details,
         });
       }
@@ -323,7 +399,7 @@ export const CreditCardCheckout = () => {
       console.error(error);
       setFormError("");
       setErrorModal({
-        message: error.message || "Erro ao processar pagamento.",
+        message: error.message || messages.paymentProcessingError,
         details: error.details,
       });
     } finally {
@@ -539,7 +615,12 @@ export const CreditCardCheckout = () => {
 
       <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "0 15px" }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() =>
+            navigate("/checkout", {
+              state: { selectedPaymentMethod: "credit" },
+            })
+          }
+          type="button"
           style={{
             background: "none",
             border: "none",
@@ -565,15 +646,16 @@ export const CreditCardCheckout = () => {
             {formError && (
               <div
                 style={{
-                  backgroundColor: "#fee2e2",
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
                   color: "#b91c1c",
                   padding: "12px",
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                   marginBottom: "20px",
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
                   fontSize: "14px",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
                 }}
               >
                 <AlertCircle size={18} /> {formError}
@@ -597,38 +679,43 @@ export const CreditCardCheckout = () => {
               onSubmit={handlePay}
               style={{ display: "flex", flexDirection: "column", gap: "20px" }}
             >
-              {/* --- CAMPOS DO CARTÃO --- */}
-              <div>
-                <label style={styles.label}>Número do Cartão</label>
-                <div id="cardNumber-mount" className="mp-input-container"></div>
-                {paymentMethodId && (
+              {/* --- CAMPOS DO CARTÃO (key força nós novos ao reentrar na tela) --- */}
+              <div key={mpMountKey}>
+                <div>
+                  <label style={styles.label}>Número do Cartão</label>
                   <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#166534",
-                      marginTop: "4px",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Bandeira: {paymentMethodId.toUpperCase()}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: "flex", gap: "15px" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Validade</label>
-                  <div
-                    id="expirationDate-mount"
+                    id="cardNumber-mount"
                     className="mp-input-container"
                   ></div>
+                  {paymentMethodId && (
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#166534",
+                        marginTop: "4px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Bandeira: {paymentMethodId.toUpperCase()}
+                    </div>
+                  )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={styles.label}>CVV</label>
-                  <div
-                    id="securityCode-mount"
-                    className="mp-input-container"
-                  ></div>
+
+                <div style={{ display: "flex", gap: "15px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>Validade</label>
+                    <div
+                      id="expirationDate-mount"
+                      className="mp-input-container"
+                    ></div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>CVV</label>
+                    <div
+                      id="securityCode-mount"
+                      className="mp-input-container"
+                    ></div>
+                  </div>
                 </div>
               </div>
 
@@ -684,16 +771,20 @@ export const CreditCardCheckout = () => {
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={styles.label}>Número</label>
+                  <label style={styles.label}>CPF</label>
                   <div style={styles.inputWrapper}>
                     <Hash size={18} color={colors.muted} />
                     <input
                       style={styles.input}
-                      placeholder="12345678909"
+                      placeholder="000.000.000-00"
                       value={formData.docNumber}
                       onChange={(e) =>
-                        setFormData({ ...formData, docNumber: e.target.value })
+                        setFormData({
+                          ...formData,
+                          docNumber: formatCpf(e.target.value),
+                        })
                       }
+                      maxLength={14}
                     />
                   </div>
                 </div>
@@ -736,14 +827,33 @@ export const CreditCardCheckout = () => {
               <button
                 type="submit"
                 disabled={loading || !isMpLoaded}
-                style={styles.payButton}
+                style={{
+                  ...styles.payButton,
+                  gap: 10,
+                  flexWrap: "nowrap",
+                }}
               >
                 {loading ? (
-                  <Loader2 className="animate-spin" />
+                  <>
+                    <span
+                      style={{
+                        opacity,
+                        transition: "opacity 0.28s ease",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      {messages.processingPayment[displayIndex]}
+                    </span>
+                  </>
                 ) : (
-                  `Pagar R$ ${transactionAmount.toFixed(2)}`
+                  <>
+                    {`Pagar R$ ${transactionAmount.toFixed(2)}`}
+                    <ShieldCheck size={20} />
+                  </>
                 )}
-                {!loading && <ShieldCheck size={20} />}
               </button>
 
               {/* --- RODAPÉ DE SEGURANÇA --- */}
@@ -827,6 +937,7 @@ export const CreditCardCheckout = () => {
 
       <CheckoutErrorModal
         open={!!errorModal}
+        title={messages.paymentErrorTitle}
         message={errorModal?.message ?? ""}
         details={errorModal?.details}
         onClose={() => setErrorModal(null)}

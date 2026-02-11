@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { listByUser } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -14,12 +14,18 @@ import {
   Home,
 } from "lucide-react";
 import { RecommendedProducts } from "../../../components/RecommendedProducts";
+import { RevealOnScrollProductSearchBar } from "../../../components/RevealOnScrollProductSearchBar";
 import { MobileBottomNav } from "../../../components/MobileBottomNav";
+import { STORE_CATEGORIES } from "../../../constants/storeCategories";
 
 export const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { colors, theme } = useTheme();
+
+  const recommendedSectionRef = useRef<HTMLDivElement>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [categoryId, setCategoryId] = useState("");
 
   const [counts, setCounts] = useState({
     payment: 0,
@@ -35,7 +41,9 @@ export const Profile = () => {
     const fetchCounts = async () => {
       try {
         const orders = await listByUser({ userId: user.id });
-        const paymentCount = orders.filter((o) => o.status === "pending").length;
+        const paymentCount = orders.filter(
+          (o) => o.status === "pending"
+        ).length;
         const shippingCount = orders.filter((o) =>
           ["approved", "in_process"].includes(o.status)
         ).length;
@@ -106,19 +114,19 @@ export const Profile = () => {
       paddingBottom: "80px",
     },
 
-    // Header Wrapper (Fundo Azul Total)
+    // Header Wrapper
     headerWrapper: {
-      backgroundColor: theme === "dark" ? "#1e293b" : "#0f172a",
+      backgroundColor: theme === "dark" ? colors.card : "#171717",
       width: "100%",
       display: "flex",
-      justifyContent: "center", // Centraliza o conteúdo interno
+      justifyContent: "center",
     },
     // Header Conteúdo (Limitado a 1000px)
     headerContent: {
       width: "100%",
       maxWidth: "1000px",
-      padding: "30px 20px 60px 20px", // Mantém o padding original
-      color: "white",
+      padding: "30px 20px 60px 20px",
+      color: theme === "dark" ? colors.text : "#fafafa",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "flex-start",
@@ -153,7 +161,7 @@ export const Profile = () => {
     headerBtn: {
       background: "transparent",
       border: "none",
-      color: "white",
+      color: theme === "dark" ? colors.text : "#fafafa",
       cursor: "pointer",
       alignItems: "center",
       gap: "4px",
@@ -164,14 +172,23 @@ export const Profile = () => {
 
     statusCard: {
       backgroundColor: colors.card,
-      // MUDANÇA: Removemos margem lateral fixa. Usamos width 100% do pai.
       marginTop: "-40px",
       borderRadius: "12px",
       padding: "20px 10px",
       boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+      border: `1px solid ${colors.border}`,
+      width: "100%",
+    },
+    statusCardTitle: {
+      fontSize: "14px",
+      fontWeight: "600",
+      color: colors.text,
+      marginBottom: "16px",
+      paddingLeft: "4px",
+    },
+    statusCardRow: {
       display: "flex",
       justifyContent: "space-between",
-      border: `1px solid ${colors.border}`,
       width: "100%",
     },
     menuItem: {
@@ -180,8 +197,11 @@ export const Profile = () => {
       alignItems: "center",
       gap: "8px",
       cursor: "pointer",
-      position: "relative" as const,
       flex: 1,
+    },
+    iconWrapper: {
+      position: "relative" as const,
+      display: "inline-flex",
     },
     menuLabel: {
       fontSize: "11px",
@@ -190,10 +210,10 @@ export const Profile = () => {
     },
     badge: {
       position: "absolute" as const,
-      top: "-5px",
-      right: "5px",
-      backgroundColor: "#ef4444",
-      color: "white",
+      top: "-6px",
+      right: "-6px",
+      backgroundColor: colors.accent,
+      color: colors.accentText,
       fontSize: "10px",
       fontWeight: "bold",
       width: "16px",
@@ -262,29 +282,48 @@ export const Profile = () => {
       <div style={styles.bodyContainer}>
         {/* MEUS PEDIDOS STATUS */}
         <div style={styles.statusCard}>
+          <div style={styles.statusCardTitle}>Meus pedidos</div>
+          <div style={styles.statusCardRow}>
           {menuItems.map((item, index) => (
             <div
               key={index}
               style={styles.menuItem}
               onClick={() => navigate(item.route)}
             >
-              <div style={{ color: colors.text }}>{item.icon}</div>
+              <div style={styles.iconWrapper}>
+                <div style={{ color: colors.text }}>{item.icon}</div>
+                {item.count > 0 && (
+                  <div style={styles.badge}>
+                    {item.count > 9 ? "9+" : item.count}
+                  </div>
+                )}
+              </div>
               <span style={styles.menuLabel}>{item.label}</span>
-              {item.count > 0 && (
-                <div style={styles.badge}>
-                  {item.count > 9 ? "9+" : item.count}
-                </div>
-              )}
             </div>
           ))}
+          </div>
         </div>
 
         {/* ÁREA FUTURA */}
         <div style={styles.placeholderArea}></div>
 
-        {/* PRODUTOS RECOMENDADOS */}
-        {/* O padding lateral aqui já vem do componente, então fica alinhado */}
-        <RecommendedProducts />
+        {/* PRODUTOS RECOMENDADOS — barra aparece quando "Você vai adorar" sai do topo */}
+        <RevealOnScrollProductSearchBar
+          anchorRef={recommendedSectionRef}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          onSearchSubmit={() => {}}
+          categoryId={categoryId}
+          onCategoryChange={setCategoryId}
+          categories={STORE_CATEGORIES}
+          showWhenAnchorOutOfView
+        />
+        <RecommendedProducts
+          scrollAnchorRef={recommendedSectionRef}
+          searchQuery={searchValue}
+          categoryId={categoryId}
+          scrollStorageKey="profile-recommended-scroll"
+        />
       </div>
 
       {/* MENU INFERIOR */}

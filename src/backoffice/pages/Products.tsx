@@ -30,19 +30,31 @@ import { getProductQuantity } from "../../utils/productHelpers";
 // Opções para Cor (nome -> hex). "Todas" para itens sem cor. Cores claras: borda fina cinza.
 const COLOR_MAP: Record<string, string> = {
   Todas: "#9CA3AF",
+  AMARELO: "#EAB308",
   AZUL: "#2563EB",
   "AZUL MARINHO": "#1E3A8A",
   "AZUL MÉDIO": "#60A5FA",
   BEGE: "#D4C4A8",
+  BRANCO: "#FFFFFF",
+  BORDO: "#722F37",
   CEREJA: "#9F1239",
+  CINZA: "#6B7280",
   CORAL: "#FF7F50",
+  DOURADO: "#D97706",
   LARANJA: "#F97316",
+  LILÁS: "#A78BFA",
   MANTEIGA: "#FEF3C7",
+  MARROM: "#78350F",
+  MOSTARDA: "#CA8A04",
   "OFF-WHITE": "#F8FAFC",
   PRETO: "#000000",
+  ROSA: "#EC4899",
   "ROSA ESCURO": "#BE185D",
+  ROXO: "#7C3AED",
+  SALMÃO: "#FDA4AF",
   VERDE: "#22C55E",
   "VERDE MILITAR": "#4D5906",
+  VERMELHO: "#DC2626",
 };
 const LIGHT_COLORS = new Set(["OFF-WHITE", "MANTEIGA"]);
 const COLOR_OPTIONS = Object.keys(COLOR_MAP);
@@ -226,6 +238,10 @@ export const Products = () => {
       alert("Adicione ao menos uma variante (cor + tamanho + quantidade).");
       return;
     }
+    if (hasDuplicateColorSize(variants)) {
+      alert(DUPLICATE_VARIANT_MSG);
+      return;
+    }
     const payload: ProductInput = {
       name: formData.name,
       description: formData.description || undefined,
@@ -246,17 +262,55 @@ export const Products = () => {
     saveMutation.mutate(payload);
   };
 
+  const variantKey = (v: ProductVariant) =>
+    `${(v.color ?? "").trim().toLowerCase()}|${(v.size ?? "").trim()}`;
+
+  const hasDuplicateColorSize = (
+    list: ProductVariant[],
+    excludeIndex: number | null = null
+  ): boolean => {
+    const seen = new Set<string>();
+    for (let i = 0; i < list.length; i++) {
+      if (excludeIndex !== null && i === excludeIndex) continue;
+      const key = variantKey(list[i]);
+      if (seen.has(key)) return true;
+      seen.add(key);
+    }
+    return false;
+  };
+
+  const DUPLICATE_VARIANT_MSG =
+    "Já existe uma variante com essa mesma cor e tamanho. Cadastre cada combinação apenas uma vez.";
+
   const addVariant = () => {
-    setVariants((prev) => [
-      ...prev,
-      { color: COLOR_OPTIONS[0] ?? "", size: SIZES[0] ?? "", stock_quantity: 0 },
-    ]);
+    const newVariant: ProductVariant = {
+      color: COLOR_OPTIONS[0] ?? "",
+      size: SIZES[0] ?? "",
+      stock_quantity: 0,
+    };
+    const wouldBe = [...variants, newVariant];
+    if (hasDuplicateColorSize(wouldBe)) {
+      alert(DUPLICATE_VARIANT_MSG);
+      return;
+    }
+    setVariants((prev) => [...prev, newVariant]);
   };
 
   const updateVariant = (index: number, field: keyof ProductVariant, value: string | number) => {
-    setVariants((prev) =>
-      prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+    if (field !== "color" && field !== "size") {
+      setVariants((prev) =>
+        prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+      );
+      return;
+    }
+    const next = variants.map((v, i) =>
+      i === index ? { ...v, [field]: value } : v
     );
+    if (hasDuplicateColorSize(next, index)) {
+      alert(DUPLICATE_VARIANT_MSG);
+      return;
+    }
+    setVariants(next);
   };
 
   const removeVariant = (index: number) => {
@@ -854,12 +908,13 @@ export const Products = () => {
               <div style={styles.formGroup}>
                 <label style={styles.label}>Descrição</label>
                 <textarea
-                  rows={2}
+                  rows={5}
+                  placeholder="Quebras de linha serão mantidas na exibição do produto."
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  style={{ ...styles.input, resize: "vertical" }}
+                  style={{ ...styles.input, resize: "vertical", whiteSpace: "pre-wrap" }}
                 />
               </div>
 

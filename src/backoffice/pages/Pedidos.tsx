@@ -3,6 +3,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
   listAllBackoffice,
+  getByIdBackoffice,
+  adicionarEnvioCarrinho,
   backofficeFullCancel,
   backofficeCancelItems,
   backofficeUpdateStatus,
@@ -21,6 +23,8 @@ import {
   Search,
   Filter,
   User,
+  MapPin,
+  Truck,
 } from "lucide-react";
 
 import type { OrderItem } from "../../types/index";
@@ -52,6 +56,9 @@ export const PedidosBackoffice = () => {
   const [compensationType, setCompensationType] = useState<
     "refund" | "voucher" | null
   >(null);
+  const [envioLoading, setEnvioLoading] = useState(false);
+  const [envioError, setEnvioError] = useState<string | null>(null);
+  const [modalDetailLoading, setModalDetailLoading] = useState(false);
 
   const safeFormat = (value: string | number) => {
     const num = Number(value);
@@ -90,6 +97,18 @@ export const PedidosBackoffice = () => {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Ao abrir o modal, busca detalhe completo do pedido (com shipping_address)
+  const [orderIdToDetail, setOrderIdToDetail] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isModalOpen || !orderIdToDetail || !user?.id) return;
+    setModalDetailLoading(true);
+    setEnvioError(null);
+    getByIdBackoffice(orderIdToDetail, user.id)
+      .then((api) => setSelectedOrder(mapApiOrderToOrder(api)))
+      .catch(() => {})
+      .finally(() => setModalDetailLoading(false));
+  }, [isModalOpen, orderIdToDetail, user?.id]);
 
   // --- FILTRAGEM ---
   const filteredOrders = orders.filter((order) => {
@@ -144,6 +163,24 @@ export const PedidosBackoffice = () => {
       alert("Erro ao cancelar pedido.");
     } finally {
       setProcessingAction(false);
+    }
+  };
+
+  const handleAdicionarEnvioCarrinho = async () => {
+    if (!selectedOrder || !user?.id) return;
+    setEnvioError(null);
+    setEnvioLoading(true);
+    try {
+      const res = await adicionarEnvioCarrinho(selectedOrder.id, user.id);
+      if (res.url) {
+        window.open(res.url, "_blank", "noopener,noreferrer");
+      } else {
+        setEnvioError("API não retornou URL do carrinho.");
+      }
+    } catch (e) {
+      setEnvioError(e instanceof Error ? e.message : "Erro ao adicionar ao carrinho.");
+    } finally {
+      setEnvioLoading(false);
     }
   };
 
@@ -528,6 +565,7 @@ export const PedidosBackoffice = () => {
                       style={styles.actionBtn}
                       onClick={() => {
                         setSelectedOrder(order);
+                        setOrderIdToDetail(order.id);
                         setIsModalOpen(true);
                       }}
                     >
@@ -576,7 +614,11 @@ export const PedidosBackoffice = () => {
                 </div>
               </div>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setOrderIdToDetail(null);
+                  setEnvioError(null);
+                }}
                 style={{
                   background: "none",
                   border: "none",
@@ -622,6 +664,88 @@ export const PedidosBackoffice = () => {
                 <option value="cancelled">Cancelado</option>
               </select>
             </div>
+
+            {/* Endereço de entrega */}
+            <h3 style={styles.sectionTitle}>
+              <MapPin size={18} /> Endereço de entrega
+            </h3>
+            {modalDetailLoading ? (
+              <div style={{ padding: "12px", color: colors.muted, fontSize: "14px" }}>
+                Carregando...
+              </div>
+            ) : selectedOrder.shipping_address ? (
+              <div
+                style={{
+                  padding: "14px 16px",
+                  backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc",
+                  borderRadius: "8px",
+                  border: `1px solid ${colors.border}`,
+                  marginBottom: "12px",
+                  fontSize: "14px",
+                  color: colors.text,
+                  lineHeight: 1.6,
+                }}
+              >
+                {[
+                  ["CEP", selectedOrder.shipping_address.zip_code],
+                  ["Logradouro", selectedOrder.shipping_address.street_name],
+                  ["Número", selectedOrder.shipping_address.street_number],
+                  ["Bairro", selectedOrder.shipping_address.neighborhood],
+                  ["Cidade", selectedOrder.shipping_address.city],
+                  ["Estado", selectedOrder.shipping_address.federal_unit],
+                ].map(
+                  ([label, value]) =>
+                    value != null &&
+                    String(value).trim() !== "" && (
+                      <div key={label} style={{ marginBottom: "4px" }}>
+                        <span style={{ fontWeight: "600", color: colors.muted, marginRight: "8px" }}>
+                          {label}:
+                        </span>
+                        {String(value).trim()}
+                      </div>
+                    )
+                )}
+                {selectedOrder.status !== "cancelled" && (
+                  <button
+                    type="button"
+                    onClick={handleAdicionarEnvioCarrinho}
+                    disabled={envioLoading}
+                    style={{
+                      marginTop: "14px",
+                      width: "100%",
+                      padding: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      backgroundColor: "#10b981",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontWeight: "bold",
+                      cursor: envioLoading ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                    }}
+                  >
+                    {envioLoading ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Truck size={18} />
+                    )}
+                    {envioLoading ? "Abrindo carrinho..." : "Adicionar ao carrinho Melhor Envio"}
+                  </button>
+                )}
+                {envioError && (
+                  <p style={{ marginTop: "10px", fontSize: "13px", color: "#ef4444" }}>
+                    {envioError}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div style={{ padding: "12px", color: colors.muted, fontSize: "14px", marginBottom: "12px" }}>
+                Endereço não disponível para este pedido.
+              </div>
+            )}
 
             <h3 style={styles.sectionTitle}>
               <Package size={18} /> Itens do Pedido

@@ -1,4 +1,5 @@
 import { AlertCircle, X } from "lucide-react";
+import { messages } from "../constants/messages";
 
 interface CheckoutErrorModalProps {
   open: boolean;
@@ -11,7 +12,7 @@ interface CheckoutErrorModalProps {
 
 export const CheckoutErrorModal = ({
   open,
-  title = "Atenção",
+  title = messages.attention,
   message,
   details,
   onClose,
@@ -19,7 +20,8 @@ export const CheckoutErrorModal = ({
 }: CheckoutErrorModalProps) => {
   if (!open) return null;
 
-  const displayText = details && details.trim() ? details : message;
+  const displayText =
+    details && details.trim() ? `${message}\n\n${details}` : message;
 
   return (
     <div

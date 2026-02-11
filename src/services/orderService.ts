@@ -20,6 +20,7 @@ export interface OrderItemApi {
 export interface OrderAddressApi {
   street_name?: string;
   street_number?: string;
+  complement?: string;
   neighborhood?: string;
   city?: string;
   federal_unit?: string;
@@ -45,6 +46,28 @@ export interface OrderApi {
   shipping_address?: OrderAddressApi | null;
   tracking_code?: string | null;
   shipping_service?: string | null;
+  /** PIX: código copia e cola; Boleto: linha digitável */
+  payment_code?: string | null;
+  /** URL do PDF do boleto (null para PIX) */
+  payment_url?: string | null;
+  /** Data/hora de vencimento do pagamento (ISO datetime) */
+  payment_expiration?: string | null;
+  /** Alternativa retornada por algumas APIs (ex.: Mercado Pago) */
+  qr_code?: string | null;
+  /** URL do boleto (alternativa a payment_url) */
+  ticket_url?: string | null;
+  /** Objeto aninhado (alguns backends retornam dados de pagamento aqui) */
+  payment_info?: PaymentInfoApi | null;
+  payment?: PaymentInfoApi | null;
+}
+
+export interface PaymentInfoApi {
+  payment_code?: string | null;
+  payment_url?: string | null;
+  payment_expiration?: string | null;
+  qr_code?: string | null;
+  ticket_url?: string | null;
+  payment_method?: string | null;
 }
 
 const backofficeHeaders = {
@@ -107,6 +130,55 @@ export const getByIdForUser = async (
   );
   if (!response.ok) throw new Error("Erro ao buscar pedido");
   return response.json();
+};
+
+/**
+ * BACKOFFICE: Detalhe de um pedido (com shipping_address, etc.)
+ * GET /pedidos/<order_id>?user_id=<uuid> com X-Backoffice: true
+ */
+export const getByIdBackoffice = async (
+  orderId: string,
+  userId: string
+): Promise<OrderApi> => {
+  const params = new URLSearchParams({ user_id: userId });
+  const response = await fetch(
+    `${API_URL}/pedidos/${orderId}?${params.toString()}`,
+    { headers: backofficeHeaders }
+  );
+  if (!response.ok) throw new Error("Erro ao buscar pedido");
+  return response.json();
+};
+
+/** Resposta da API ao adicionar pedido ao carrinho Melhor Envio */
+export interface EnvioCarrinhoResponse {
+  url?: string;
+  cart_id?: string;
+  error?: string;
+}
+
+/**
+ * BACKOFFICE: Adiciona o pedido ao carrinho do Melhor Envio para compra do frete.
+ * POST /pedidos/<order_id>/envio-carrinho com X-Backoffice: true
+ * Retorna { url } para abrir o carrinho no Melhor Envio.
+ */
+export const adicionarEnvioCarrinho = async (
+  orderId: string,
+  userId: string
+): Promise<EnvioCarrinhoResponse> => {
+  const response = await fetch(
+    `${API_URL}/pedidos/${orderId}/envio-carrinho`,
+    {
+      method: "POST",
+      headers: { ...backofficeHeaders, "X-User-Id": userId },
+    }
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      (data as { error?: string }).error || "Erro ao adicionar ao carrinho Melhor Envio"
+    );
+  }
+  return data as EnvioCarrinhoResponse;
 };
 
 /**

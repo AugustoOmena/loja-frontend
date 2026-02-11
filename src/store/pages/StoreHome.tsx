@@ -16,10 +16,12 @@ import type { Product } from "../../types";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 import { MobileBottomNav } from "../../components/MobileBottomNav";
+import { ProductSearchBar, ProductCategoryPills } from "../../components/ProductSearchAndCategories";
+import { STORE_CATEGORIES } from "../../constants/storeCategories";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useFirebaseProductsInfinite } from "../../hooks/useFirebaseProductsInfinite";
 import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
-import { getProductQuantity, getStockBySize } from "../../utils/productHelpers";
+import { getProductQuantity, getStockBySize, getAvailableColors, getColorDotFill } from "../../utils/productHelpers";
 
 const STORE_HOME_STORAGE_KEY = "store-home-filters";
 const STORE_HOME_SCROLL_KEY = "store-home-scroll";
@@ -28,9 +30,11 @@ const defaultFilters = {
   name: "",
   min_price: "",
   max_price: "",
-  sort: "newest",
+  sort: "", // sem ordenação
   category: "",
   sizes: [] as string[],
+  colors: [] as string[],
+  patterns: [] as string[],
 };
 
 function loadStoredFilters() {
@@ -43,9 +47,11 @@ function loadStoredFilters() {
         name: typeof parsed.name === "string" ? parsed.name : defaultFilters.name,
         min_price: typeof parsed.min_price === "string" ? parsed.min_price : defaultFilters.min_price,
         max_price: typeof parsed.max_price === "string" ? parsed.max_price : defaultFilters.max_price,
-        sort: typeof parsed.sort === "string" ? parsed.sort : defaultFilters.sort,
+        sort: typeof parsed.sort === "string" && ["", "price_asc", "price_desc", "recommended"].includes(parsed.sort) ? parsed.sort : defaultFilters.sort,
         category: typeof parsed.category === "string" ? parsed.category : defaultFilters.category,
         sizes: Array.isArray(parsed.sizes) ? parsed.sizes.filter((x): x is string => typeof x === "string") : defaultFilters.sizes,
+        colors: Array.isArray(parsed.colors) ? parsed.colors.filter((x): x is string => typeof x === "string") : defaultFilters.colors,
+        patterns: Array.isArray(parsed.patterns) ? parsed.patterns.filter((x): x is string => typeof x === "string") : defaultFilters.patterns,
       };
     }
   } catch {
@@ -66,6 +72,7 @@ export const StoreHome = () => {
 
   const [sizeFilterOpen, setSizeFilterOpen] = useState(false);
   const sizeFilterRef = useRef<HTMLDivElement>(null);
+  const sizeFilterDropdownRef = useRef<HTMLDivElement>(null);
   const sizeFilterTriggerRef = useRef<HTMLButtonElement>(null);
   const [sizeFilterDropdownRect, setSizeFilterDropdownRect] = useState<{
     top: number;
@@ -73,13 +80,27 @@ export const StoreHome = () => {
     width: number;
   } | null>(null);
 
-  const categories = [
-    { id: "", label: "Todos" },
-    { id: "biquinis", label: "Biquínis" },
-    { id: "saidas", label: "Saídas de Praia" },
-    { id: "acessorios", label: "Acessórios" },
-    { id: "promocao", label: "Promoções" },
-  ];
+  const [colorFilterOpen, setColorFilterOpen] = useState(false);
+  const colorFilterRef = useRef<HTMLDivElement>(null);
+  const colorFilterDropdownRef = useRef<HTMLDivElement>(null);
+  const colorFilterTriggerRef = useRef<HTMLButtonElement>(null);
+  const [colorFilterDropdownRect, setColorFilterDropdownRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const [patternFilterOpen, setPatternFilterOpen] = useState(false);
+  const patternFilterRef = useRef<HTMLDivElement>(null);
+  const patternFilterDropdownRef = useRef<HTMLDivElement>(null);
+  const patternFilterTriggerRef = useRef<HTMLButtonElement>(null);
+  const [patternFilterDropdownRect, setPatternFilterDropdownRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const categories = STORE_CATEGORIES;
 
   // --- PERSISTIR FILTROS (para restaurar ao voltar do produto) ---
   useEffect(() => {
@@ -142,18 +163,36 @@ export const StoreHome = () => {
     );
   };
 
-  // Fechar dropdown ao clicar fora (só quando dropdown está fechado; quando aberto, fecha só pelo backdrop ou Escape)
+  const toggleColor = (color: string) => {
+    setFilters((prev) =>
+      prev.colors.includes(color)
+        ? { ...prev, colors: prev.colors.filter((c) => c !== color) }
+        : { ...prev, colors: [...prev.colors, color] }
+    );
+  };
+
+  const togglePattern = (pattern: string) => {
+    setFilters((prev) =>
+      prev.patterns.includes(pattern)
+        ? { ...prev, patterns: prev.patterns.filter((p) => p !== pattern) }
+        : { ...prev, patterns: [...prev.patterns, pattern] }
+    );
+  };
+
+  // Fechar dropdown ao clicar fora (o dropdown está em portal, então considerar também o ref do próprio dropdown)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (sizeFilterOpen) return;
       const target = e.target as Node;
-      if (sizeFilterRef.current && !sizeFilterRef.current.contains(target)) {
-        setSizeFilterOpen(false);
-      }
+      const insideSize = sizeFilterRef.current?.contains(target) || sizeFilterDropdownRef.current?.contains(target);
+      const insideColor = colorFilterRef.current?.contains(target) || colorFilterDropdownRef.current?.contains(target);
+      const insidePattern = patternFilterRef.current?.contains(target) || patternFilterDropdownRef.current?.contains(target);
+      if (sizeFilterOpen && !insideSize) setSizeFilterOpen(false);
+      if (colorFilterOpen && !insideColor) setColorFilterOpen(false);
+      if (patternFilterOpen && !insidePattern) setPatternFilterOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [sizeFilterOpen]);
+  }, [sizeFilterOpen, colorFilterOpen, patternFilterOpen]);
 
   // Posição do dropdown (portal) — atualiza ao abrir e ao scroll/resize
   const updateSizeFilterDropdownRect = () => {
@@ -179,25 +218,75 @@ export const StoreHome = () => {
     setSizeFilterDropdownRect(null);
   }, [sizeFilterOpen]);
 
+  const updateColorFilterDropdownRect = () => {
+    if (colorFilterTriggerRef.current) {
+      const rect = colorFilterTriggerRef.current.getBoundingClientRect();
+      setColorFilterDropdownRect({
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: Math.max(rect.width, 180),
+      });
+    }
+  };
   useEffect(() => {
-    if (!sizeFilterOpen) return;
+    if (colorFilterOpen) {
+      updateColorFilterDropdownRect();
+      window.addEventListener("scroll", updateColorFilterDropdownRect, true);
+      window.addEventListener("resize", updateColorFilterDropdownRect);
+      return () => {
+        window.removeEventListener("scroll", updateColorFilterDropdownRect, true);
+        window.removeEventListener("resize", updateColorFilterDropdownRect);
+      };
+    }
+    setColorFilterDropdownRect(null);
+  }, [colorFilterOpen]);
+
+  const updatePatternFilterDropdownRect = () => {
+    if (patternFilterTriggerRef.current) {
+      const rect = patternFilterTriggerRef.current.getBoundingClientRect();
+      setPatternFilterDropdownRect({
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: Math.max(rect.width, 180),
+      });
+    }
+  };
+  useEffect(() => {
+    if (patternFilterOpen) {
+      updatePatternFilterDropdownRect();
+      window.addEventListener("scroll", updatePatternFilterDropdownRect, true);
+      window.addEventListener("resize", updatePatternFilterDropdownRect);
+      return () => {
+        window.removeEventListener("scroll", updatePatternFilterDropdownRect, true);
+        window.removeEventListener("resize", updatePatternFilterDropdownRect);
+      };
+    }
+    setPatternFilterDropdownRect(null);
+  }, [patternFilterOpen]);
+
+  useEffect(() => {
+    if (!sizeFilterOpen && !colorFilterOpen && !patternFilterOpen) return;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSizeFilterOpen(false);
+      if (e.key === "Escape") {
+        setSizeFilterOpen(false);
+        setColorFilterOpen(false);
+        setPatternFilterOpen(false);
+      }
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [sizeFilterOpen]);
+  }, [sizeFilterOpen, colorFilterOpen, patternFilterOpen]);
 
-  // Bloquear scroll da página enquanto o dropdown de tamanho estiver aberto
+  // Bloquear scroll da página enquanto um dropdown de filtro estiver aberto
   useEffect(() => {
-    if (sizeFilterOpen) {
+    if (sizeFilterOpen || colorFilterOpen || patternFilterOpen) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => {
         document.body.style.overflow = prev;
       };
     }
-  }, [sizeFilterOpen]);
+  }, [sizeFilterOpen, colorFilterOpen, patternFilterOpen]);
 
   // --- FIREBASE REALTIME DATABASE COM PAGINAÇÃO ---
   const {
@@ -228,6 +317,24 @@ export const StoreHome = () => {
     });
   }, [allProducts]);
 
+  // Cores disponíveis (variantes com estoque > 0)
+  const availableColors = useMemo(() => {
+    const set = new Set<string>();
+    allProducts.forEach((p) => {
+      getAvailableColors(p).forEach((c) => set.add(c));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allProducts]);
+
+  // Estampas disponíveis (product.pattern)
+  const availablePatterns = useMemo(() => {
+    const set = new Set<string>();
+    allProducts.forEach((p) => {
+      if (p.pattern && p.pattern.trim()) set.add(p.pattern.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allProducts]);
+
   // --- FILTROS CLIENT-SIDE (Rápido e sem latência de rede) ---
   const filteredProducts = useMemo(() => {
     return allProducts
@@ -237,9 +344,9 @@ export const StoreHome = () => {
           ? product.name.toLowerCase().includes(filters.name.toLowerCase())
           : true;
 
-        // Filtra por categoria
+        // Filtra por categoria (comparação normalizada: trim + case-insensitive)
         const matchesCategory = filters.category
-          ? product.category === filters.category
+          ? (product.category ?? "").trim().toLowerCase() === filters.category.trim().toLowerCase()
           : true;
 
         // Filtra por tamanho (múltipla escolha: produto tem pelo menos um dos tamanhos)
@@ -252,6 +359,20 @@ export const StoreHome = () => {
                 if ((stock[s] ?? 0) > 0) return true;
                 return false;
               });
+
+        // Filtra por cor da variante (produto tem pelo menos uma das cores com estoque)
+        const productColors = getAvailableColors(product);
+        const matchesColors =
+          filters.colors.length === 0
+            ? true
+            : filters.colors.some((c) => productColors.includes(c));
+
+        // Filtra por estampa (product.pattern)
+        const productPattern = product.pattern?.trim() ?? "";
+        const matchesPatterns =
+          filters.patterns.length === 0
+            ? true
+            : filters.patterns.some((p) => productPattern === p);
 
         // Filtra por preço mínimo
         const matchesMinPrice = filters.min_price
@@ -267,20 +388,21 @@ export const StoreHome = () => {
           matchesSearch &&
           matchesCategory &&
           matchesSizes &&
+          matchesColors &&
+          matchesPatterns &&
           matchesMinPrice &&
           matchesMaxPrice
         );
       })
       .sort((a, b) => {
-        // Ordenação
-        if (filters.sort === "qty_asc") {
-          return (a.quantity || 0) - (b.quantity || 0);
-        }
-        // Default: mantém a ordem de carregamento (crescente por ID)
-        // Os produtos mais recentes (IDs maiores) aparecem no final conforme são carregados
-        return (a.id || 0) - (b.id || 0);
+        // Sem ordenação: mantém a ordem original
+        if (filters.sort === "") return 0;
+        if (filters.sort === "price_desc") return b.price - a.price; // Maior preço
+        if (filters.sort === "price_asc") return a.price - b.price;  // Menor preço
+        if (filters.sort === "recommended") return (b.id || 0) - (a.id || 0); // Recomendados / mais relevantes (mais recentes primeiro)
+        return 0;
       });
-  }, [allProducts, filters.name, filters.category, filters.sizes, filters.min_price, filters.max_price, filters.sort]);
+  }, [allProducts, filters.name, filters.category, filters.sizes, filters.colors, filters.patterns, filters.min_price, filters.max_price, filters.sort]);
 
   // --- APLICAR SCROLL RESTAURADO quando a lista estiver renderizada ---
   useEffect(() => {
@@ -316,6 +438,8 @@ export const StoreHome = () => {
         filters.name ||
         filters.category ||
         filters.sizes.length ||
+        filters.colors.length ||
+        filters.patterns.length ||
         filters.min_price ||
         filters.max_price
       );
@@ -340,6 +464,8 @@ export const StoreHome = () => {
     filters.name,
     filters.category,
     filters.sizes.length,
+    filters.colors.length,
+    filters.patterns.length,
     filters.min_price,
     filters.max_price,
     hasMore,
@@ -371,52 +497,6 @@ export const StoreHome = () => {
       margin: "0 auto",
       padding: "0 15px",
     },
-    // Barra de Pesquisa
-    searchContainer: {
-      flex: 1,
-      backgroundColor: theme === "dark" ? "#262626" : "#f5f5f5",
-      borderRadius: "20px",
-      display: "flex",
-      alignItems: "center",
-      padding: "8px 15px",
-      gap: "10px",
-      margin: "0 15px",
-      border: `1px solid ${colors.border}`,
-    },
-    searchInput: {
-      border: "none",
-      background: "transparent",
-      width: "100%",
-      outline: "none",
-      fontSize: "14px",
-      color: colors.text,
-    },
-    // Categorias
-    categoriesRow: {
-      display: "flex",
-      gap: "10px",
-      overflowX: "auto" as const,
-      paddingBottom: "15px",
-      paddingTop: "5px",
-      whiteSpace: "nowrap" as const,
-      scrollbarWidth: "none" as const,
-    },
-    categoryPill: (isActive: boolean) => ({
-      border: `1px solid ${isActive ? "transparent" : colors.border}`,
-      padding: "8px 16px",
-      borderRadius: "20px",
-      backgroundColor: isActive
-        ? colors.accent
-        : theme === "dark"
-          ? colors.card
-          : "#f5f5f5",
-      color: isActive ? colors.accentText : colors.text,
-      fontSize: "13px",
-      fontWeight: isActive ? "bold" : "normal",
-      cursor: "pointer",
-      transition: "0.2s",
-      flexShrink: 0,
-    }),
 
     // Sidebar
     sidebar: {
@@ -631,25 +711,12 @@ export const StoreHome = () => {
               />
             </div>
 
-            <div style={styles.searchContainer}>
-              <input
-                placeholder="O que você procura?"
-                value={searchTermInput}
-                onChange={(e) => setSearchTermInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                style={styles.searchInput}
-              />
-              <button
-                onClick={handleSearch}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              >
-                <Search size={18} color={colors.muted} />
-              </button>
-            </div>
+            <ProductSearchBar
+              searchValue={searchTermInput}
+              onSearchChange={setSearchTermInput}
+              onSearchSubmit={handleSearch}
+              style={{ margin: "0 15px" }}
+            />
 
             <div
               className="desktop-only"
@@ -751,17 +818,11 @@ export const StoreHome = () => {
             </div>
           </div>
 
-          <div style={styles.categoriesRow} className="hide-scroll">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => handleCategoryClick(cat.id)}
-                style={styles.categoryPill(filters.category === cat.id)}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          <ProductCategoryPills
+            categoryId={filters.category}
+            onCategoryChange={handleCategoryClick}
+            categories={categories}
+          />
         </div>
       </div>
 
@@ -772,13 +833,50 @@ export const StoreHome = () => {
           paddingBottom: "80px",
         }}
       >
-        {/* Filtro por tamanho — logo abaixo do header, scroll horizontal no mobile */}
+        {/* Filtros por tamanho, cor e estampa — logo abaixo do header, scroll horizontal no mobile */}
         <div
           style={styles.sizeFilterRow}
           className="hide-scroll"
-          ref={sizeFilterRef}
         >
-          <div style={{ position: "relative", flexShrink: 0 }}>
+          <div style={{ position: "relative", flexShrink: 0 }} ref={colorFilterRef}>
+            <button
+              ref={colorFilterTriggerRef}
+              type="button"
+              onClick={() => setColorFilterOpen((o) => !o)}
+              style={styles.sizeFilterTrigger(filters.colors.length > 0)}
+              aria-expanded={colorFilterOpen}
+              aria-haspopup="listbox"
+            >
+              Cor{filters.colors.length > 0 ? ` (${filters.colors.length})` : ""}
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: colorFilterOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.2s",
+                }}
+              />
+            </button>
+          </div>
+          <div style={{ position: "relative", flexShrink: 0 }} ref={patternFilterRef}>
+            <button
+              ref={patternFilterTriggerRef}
+              type="button"
+              onClick={() => setPatternFilterOpen((o) => !o)}
+              style={styles.sizeFilterTrigger(filters.patterns.length > 0)}
+              aria-expanded={patternFilterOpen}
+              aria-haspopup="listbox"
+            >
+              Estampa{filters.patterns.length > 0 ? ` (${filters.patterns.length})` : ""}
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: patternFilterOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.2s",
+                }}
+              />
+            </button>
+          </div>
+          <div style={{ position: "relative", flexShrink: 0 }} ref={sizeFilterRef}>
             <button
               ref={sizeFilterTriggerRef}
               type="button"
@@ -796,6 +894,26 @@ export const StoreHome = () => {
                 }}
               />
             </button>
+          </div>
+          {/* Ordenar por — visível em todos os viewports (no mobile o sidebar está oculto) */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <label htmlFor="store-sort" style={{ display: "none" }}>Ordenar por</label>
+            <select
+              id="store-sort"
+              aria-label="Ordenar por"
+              style={{
+                ...styles.sizeFilterTrigger(false),
+                appearance: "auto",
+                minWidth: "140px",
+              }}
+              value={filters.sort}
+              onChange={(e) => setFilters((prev) => ({ ...prev, sort: e.target.value }))}
+            >
+              <option value="">Ordenar por</option>
+              <option value="price_asc">Menor preço</option>
+              <option value="price_desc">Maior preço</option>
+              <option value="recommended">Recomendados</option>
+            </select>
           </div>
         </div>
 
@@ -847,8 +965,10 @@ export const StoreHome = () => {
               value={filters.sort}
               onChange={(e) => setFilters({ ...filters, sort: e.target.value })}
             >
-              <option value="newest">Mais Recentes</option>
-              <option value="qty_asc">Menor Estoque</option>
+              <option value="">Ordenar por</option>
+              <option value="price_asc">Menor preço</option>
+              <option value="price_desc">Maior preço</option>
+              <option value="recommended">Recomendados</option>
             </select>
           </div>
         </aside>
@@ -935,6 +1055,8 @@ export const StoreHome = () => {
               {filters.name ||
               filters.category ||
               filters.sizes.length > 0 ||
+              filters.colors.length > 0 ||
+              filters.patterns.length > 0 ||
               filters.min_price ||
               filters.max_price ? (
                 <div
@@ -1025,6 +1147,32 @@ export const StoreHome = () => {
                           4.8 (Novo)
                         </span>
                       </div>
+                      {getAvailableColors(product).length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "4px",
+                            marginTop: "6px",
+                            alignItems: "center",
+                          }}
+                        >
+                          {getAvailableColors(product).map((color) => (
+                            <span
+                              key={color}
+                              title={color}
+                              style={{
+                                width: "9px",
+                                height: "9px",
+                                borderRadius: "50%",
+                                backgroundColor: getColorDotFill(color),
+                                border: `1px solid ${colors.border}`,
+                                flexShrink: 0,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
                       <div style={styles.priceRow}>
                         <span style={{ fontSize: "12px", marginRight: "2px" }}>
                           R$
@@ -1125,6 +1273,104 @@ export const StoreHome = () => {
         </div>
       </div>
 
+      {/* Dropdown de cor em portal */}
+      {colorFilterOpen &&
+        colorFilterDropdownRect &&
+        availableColors.length > 0 &&
+        createPortal(
+          <>
+            <div
+              style={styles.sizeFilterBackdrop}
+              onClick={() => setColorFilterOpen(false)}
+              role="presentation"
+              aria-hidden
+            />
+            <div
+              ref={colorFilterDropdownRef}
+              style={styles.sizeFilterDropdown(colorFilterDropdownRect)}
+              role="listbox"
+              aria-multiselectable="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {availableColors.map((color) => {
+                const selected = filters.colors.includes(color);
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    style={styles.sizeFilterOption(selected)}
+                    onClick={() => toggleColor(color)}
+                  >
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "4px",
+                        border: `2px solid ${selected ? colors.accent : colors.border}`,
+                        backgroundColor: selected ? colors.accent : "transparent",
+                        flexShrink: 0,
+                      }}
+                    />
+                    {color}
+                  </button>
+                );
+              })}
+            </div>
+          </>,
+          document.body
+        )}
+
+      {/* Dropdown de estampa em portal */}
+      {patternFilterOpen &&
+        patternFilterDropdownRect &&
+        availablePatterns.length > 0 &&
+        createPortal(
+          <>
+            <div
+              style={styles.sizeFilterBackdrop}
+              onClick={() => setPatternFilterOpen(false)}
+              role="presentation"
+              aria-hidden
+            />
+            <div
+              ref={patternFilterDropdownRef}
+              style={styles.sizeFilterDropdown(patternFilterDropdownRect)}
+              role="listbox"
+              aria-multiselectable="true"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {availablePatterns.map((pattern) => {
+                const selected = filters.patterns.includes(pattern);
+                return (
+                  <button
+                    key={pattern}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    style={styles.sizeFilterOption(selected)}
+                    onClick={() => togglePattern(pattern)}
+                  >
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "4px",
+                        border: `2px solid ${selected ? colors.accent : colors.border}`,
+                        backgroundColor: selected ? colors.accent : "transparent",
+                        flexShrink: 0,
+                      }}
+                    />
+                    {pattern}
+                  </button>
+                );
+              })}
+            </div>
+          </>,
+          document.body
+        )}
+
       {/* Dropdown de tamanho em portal — flutua sobre o conteúdo (estilo SHEIN) */}
       {sizeFilterOpen &&
         sizeFilterDropdownRect &&
@@ -1138,6 +1384,7 @@ export const StoreHome = () => {
               aria-hidden
             />
             <div
+              ref={sizeFilterDropdownRef}
               style={styles.sizeFilterDropdown(sizeFilterDropdownRect)}
               role="listbox"
               aria-multiselectable="true"
