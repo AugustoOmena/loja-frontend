@@ -20,6 +20,7 @@ export interface OrderItemApi {
 export interface OrderAddressApi {
   street_name?: string;
   street_number?: string;
+  complement?: string;
   neighborhood?: string;
   city?: string;
   federal_unit?: string;
