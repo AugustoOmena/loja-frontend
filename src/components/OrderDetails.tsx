@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import type { OrderApi } from "../services/orderService";
+import { getFulfillmentTracking } from "../services/fulfillmentService";
+import type { TrackingEvent } from "../services/fulfillmentService";
 import { MapPin, Package, Truck, Calendar } from "lucide-react";
 import {
   getOrderPaymentFields,
+  getShippingServiceDisplayName,
   shouldShowPaymentBlock,
 } from "../utils/orderHelpers";
 import { OrderPaymentBlock } from "./OrderPaymentBlock";
@@ -36,12 +40,30 @@ export interface OrderDetailsProps {
 
 export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
   const { colors } = useTheme();
+  const [trackingEvents, setTrackingEvents] = useState<TrackingEvent[]>([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+
+  useEffect(() => {
+    const shouldFetch =
+      order.id && (order.tracking_code || order.status === "shipped");
+    if (!shouldFetch) return;
+    setTrackingLoading(true);
+    getFulfillmentTracking(order.id)
+      .then((res) => setTrackingEvents(res.tracking_events ?? []))
+      .catch(() => setTrackingEvents([]))
+      .finally(() => setTrackingLoading(false));
+  }, [order.id, order.tracking_code, order.status]);
+
   const items = order.items ?? [];
   const subtotalProducts = items.reduce(
     (sum, i) => sum + i.price * i.quantity,
     0
   );
-  const frete = Math.max(0, order.total_amount - subtotalProducts);
+  const freteCalculated = Math.max(0, order.total_amount - subtotalProducts);
+  const frete = order.shipping_amount ?? freteCalculated;
+  const shippingServiceName = getShippingServiceDisplayName(
+    order.shipping_service
+  );
   const addr = order.shipping_address;
   const hasAddress =
     addr &&
@@ -307,7 +329,7 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
         >
           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <Truck size={14} />
-            Frete
+            {shippingServiceName ? `Frete (${shippingServiceName})` : "Frete"}
           </span>
           <span>R$ {frete.toFixed(2)}</span>
         </div>
@@ -404,7 +426,7 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
             color: colors.text,
           }}
         >
-          {order.shipping_service && (
+          {shippingServiceName && (
             <div
               style={{
                 marginBottom: order.tracking_code ? "10px" : 0,
@@ -414,22 +436,47 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
               }}
             >
               <Truck size={16} style={{ color: colors.muted }} />
-              <span>{order.shipping_service}</span>
+              <span>Transportadora: {shippingServiceName}</span>
             </div>
           )}
           {order.tracking_code ? (
-            <div
-              style={{
-                padding: "10px 12px",
-                backgroundColor: colors.card,
-                borderRadius: "8px",
-                fontFamily: "monospace",
-                fontSize: "13px",
-                fontWeight: "600",
-              }}
-            >
-              {order.tracking_code}
-            </div>
+            <>
+              <div
+                style={{
+                  padding: "10px 12px",
+                  backgroundColor: colors.card,
+                  borderRadius: "8px",
+                  fontFamily: "monospace",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  marginBottom: trackingEvents.length ? "10px" : 0,
+                }}
+              >
+                {order.tracking_code}
+              </div>
+              {trackingLoading && (
+                <p style={{ margin: 0, fontSize: "13px", color: colors.muted }}>
+                  Carregando rastreio...
+                </p>
+              )}
+              {!trackingLoading && trackingEvents.length > 0 && (
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: "18px",
+                    fontSize: "13px",
+                    color: colors.text,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {trackingEvents.map((ev, i) => (
+                    <li key={i}>
+                      <strong>{ev.date}</strong> — {ev.description}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           ) : (
             <p
               style={{

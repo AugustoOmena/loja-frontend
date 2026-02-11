@@ -56,3 +56,27 @@ export function formatPaymentExpiration(iso: string | undefined | null): string 
     timeStyle: "short",
   });
 }
+
+/** Mapeamento service_id (Melhor Envio) → nome para exibição */
+const SHIPPING_SERVICE_NAMES: Record<string, string> = {
+  "1": "PAC (Correios)",
+  "2": "SEDEX (Correios)",
+  "3": "Jadlog",
+  "4": "Loggi",
+  "5": "Braspress",
+  "6": "Latam Cargo",
+  "7": "Azul Cargo",
+  "8": "Correios",
+};
+
+/**
+ * Retorna o nome legível do serviço de envio (transportadora).
+ * Aceita service_id numérico ("1", "2") ou nome já vindo do backend.
+ */
+export function getShippingServiceDisplayName(
+  service: string | null | undefined
+): string {
+  if (service == null || String(service).trim() === "") return "";
+  const s = String(service).trim();
+  return SHIPPING_SERVICE_NAMES[s] ?? s;
+}

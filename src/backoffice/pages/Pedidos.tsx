@@ -4,12 +4,17 @@ import { useTheme } from "../../contexts/ThemeContext";
 import {
   listAllBackoffice,
   getByIdBackoffice,
-  adicionarEnvioCarrinho,
   backofficeFullCancel,
   backofficeCancelItems,
   backofficeUpdateStatus,
   type OrderApi,
 } from "../../services/orderService";
+import {
+  createShipment,
+  getFulfillmentTracking,
+  type FulfillmentTrackingResponse,
+} from "../../services/fulfillmentService";
+import { getShippingServiceDisplayName } from "../../utils/orderHelpers";
 import {
   Eye,
   XCircle,
@@ -56,9 +61,13 @@ export const PedidosBackoffice = () => {
   const [compensationType, setCompensationType] = useState<
     "refund" | "voucher" | null
   >(null);
-  const [envioLoading, setEnvioLoading] = useState(false);
+  const   [envioLoading, setEnvioLoading] = useState(false);
   const [envioError, setEnvioError] = useState<string | null>(null);
+  const [envioSuccess, setEnvioSuccess] = useState<string | null>(null);
   const [modalDetailLoading, setModalDetailLoading] = useState(false);
+  const [trackingData, setTrackingData] =
+    useState<FulfillmentTrackingResponse | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
 
   const safeFormat = (value: string | number) => {
     const num = Number(value);
@@ -104,11 +113,26 @@ export const PedidosBackoffice = () => {
     if (!isModalOpen || !orderIdToDetail || !user?.id) return;
     setModalDetailLoading(true);
     setEnvioError(null);
+    setEnvioSuccess(null);
+    setTrackingData(null);
     getByIdBackoffice(orderIdToDetail, user.id)
       .then((api) => setSelectedOrder(mapApiOrderToOrder(api)))
       .catch(() => {})
       .finally(() => setModalDetailLoading(false));
   }, [isModalOpen, orderIdToDetail, user?.id]);
+
+  // Busca rastreio quando o pedido tem tracking_code ou status shipped
+  useEffect(() => {
+    if (!selectedOrder?.id || !isModalOpen) return;
+    const hasTracking =
+      selectedOrder.tracking_code || selectedOrder.status === "shipped";
+    if (!hasTracking) return;
+    setTrackingLoading(true);
+    getFulfillmentTracking(selectedOrder.id)
+      .then(setTrackingData)
+      .catch(() => setTrackingData(null))
+      .finally(() => setTrackingLoading(false));
+  }, [selectedOrder?.id, selectedOrder?.tracking_code, selectedOrder?.status, isModalOpen]);
 
   // --- FILTRAGEM ---
   const filteredOrders = orders.filter((order) => {
@@ -166,19 +190,21 @@ export const PedidosBackoffice = () => {
     }
   };
 
-  const handleAdicionarEnvioCarrinho = async () => {
+  const handleCreateShipment = async () => {
     if (!selectedOrder || !user?.id) return;
     setEnvioError(null);
+    setEnvioSuccess(null);
     setEnvioLoading(true);
     try {
-      const res = await adicionarEnvioCarrinho(selectedOrder.id, user.id);
-      if (res.url) {
-        window.open(res.url, "_blank", "noopener,noreferrer");
-      } else {
-        setEnvioError("API não retornou URL do carrinho.");
-      }
+      const res = await createShipment(selectedOrder.id, user.id);
+      setEnvioSuccess(res.message ?? "Etiqueta adicionada ao carrinho.");
+      // Atualiza o pedido no estado para refletir melhor_envio_order_id se a API retornar no GET
+      const updated = await getByIdBackoffice(selectedOrder.id, user.id);
+      setSelectedOrder(mapApiOrderToOrder(updated));
     } catch (e) {
-      setEnvioError(e instanceof Error ? e.message : "Erro ao adicionar ao carrinho.");
+      setEnvioError(
+        e instanceof Error ? e.message : "Erro ao gerar etiqueta."
+      );
     } finally {
       setEnvioLoading(false);
     }
@@ -706,40 +732,169 @@ export const PedidosBackoffice = () => {
                       </div>
                     )
                 )}
-                {selectedOrder.status !== "cancelled" && (
-                  <button
-                    type="button"
-                    onClick={handleAdicionarEnvioCarrinho}
-                    disabled={envioLoading}
+                {(selectedOrder.shipping_amount != null ||
+                  selectedOrder.shipping_service) && (
+                  <div
                     style={{
-                      marginTop: "14px",
-                      width: "100%",
-                      padding: "12px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      backgroundColor: "#10b981",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "8px",
-                      fontWeight: "bold",
-                      cursor: envioLoading ? "not-allowed" : "pointer",
-                      fontSize: "14px",
+                      marginTop: "12px",
+                      paddingTop: "12px",
+                      borderTop: `1px solid ${colors.border}`,
+                      fontSize: "13px",
+                      color: colors.text,
                     }}
                   >
-                    {envioLoading ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <Truck size={18} />
+                    {selectedOrder.shipping_amount != null && (
+                      <div style={{ marginBottom: "4px" }}>
+                        <span style={{ fontWeight: "600", color: colors.muted, marginRight: "8px" }}>
+                          Frete:
+                        </span>
+                        R$ {Number(selectedOrder.shipping_amount).toFixed(2)}
+                      </div>
                     )}
-                    {envioLoading ? "Abrindo carrinho..." : "Adicionar ao carrinho Melhor Envio"}
-                  </button>
+                    {selectedOrder.shipping_service && (
+                      <div>
+                        <span style={{ fontWeight: "600", color: colors.muted, marginRight: "8px" }}>
+                          Transportadora:
+                        </span>
+                        {getShippingServiceDisplayName(
+                          selectedOrder.shipping_service
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {selectedOrder.status !== "cancelled" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCreateShipment}
+                      disabled={envioLoading}
+                      style={{
+                        marginTop: "14px",
+                        width: "100%",
+                        padding: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        backgroundColor: "#10b981",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontWeight: "bold",
+                        cursor: envioLoading ? "not-allowed" : "pointer",
+                        fontSize: "14px",
+                      }}
+                    >
+                      {envioLoading ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Truck size={18} />
+                      )}
+                      {envioLoading
+                        ? "Gerando etiqueta..."
+                        : "Gerar Etiqueta"}
+                    </button>
+                  </>
+                )}
+                {envioSuccess && (
+                  <p
+                    style={{
+                      marginTop: "10px",
+                      fontSize: "13px",
+                      color: "#047857",
+                      fontWeight: "500",
+                    }}
+                  >
+                    {envioSuccess} Acesse o painel Melhor Envio para pagar e
+                    imprimir.
+                  </p>
                 )}
                 {envioError && (
-                  <p style={{ marginTop: "10px", fontSize: "13px", color: "#ef4444" }}>
+                  <p
+                    style={{
+                      marginTop: "10px",
+                      fontSize: "13px",
+                      color: "#ef4444",
+                    }}
+                  >
                     {envioError}
                   </p>
+                )}
+                {/* Rastreio: exibido quando o pedido tem tracking ou status shipped */}
+                {(trackingLoading || trackingData) && (
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      padding: "12px",
+                      backgroundColor:
+                        theme === "dark" ? "#0f172a" : "#f0fdf4",
+                      borderRadius: "8px",
+                      border: `1px solid ${colors.border}`,
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: colors.muted,
+                        marginBottom: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <Truck size={14} />
+                      Rastreio
+                    </h4>
+                    {trackingLoading ? (
+                      <p style={{ margin: 0, fontSize: "13px", color: colors.muted }}>
+                        Carregando...
+                      </p>
+                    ) : trackingData ? (
+                      <>
+                        {trackingData.tracking_code && (
+                          <p
+                            style={{
+                              margin: "0 0 8px",
+                              fontFamily: "monospace",
+                              fontWeight: "600",
+                              fontSize: "13px",
+                              color: colors.text,
+                            }}
+                          >
+                            {trackingData.tracking_code}
+                          </p>
+                        )}
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: colors.muted,
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          Status: {trackingData.status}
+                        </span>
+                        {trackingData.tracking_events?.length > 0 && (
+                          <ul
+                            style={{
+                              margin: "10px 0 0",
+                              paddingLeft: "18px",
+                              fontSize: "13px",
+                              color: colors.text,
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {trackingData.tracking_events.map((ev, i) => (
+                              <li key={i}>
+                                <strong>{ev.date}</strong> — {ev.description}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
                 )}
               </div>
             ) : (

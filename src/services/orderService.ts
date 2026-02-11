@@ -46,6 +46,10 @@ export interface OrderApi {
   shipping_address?: OrderAddressApi | null;
   tracking_code?: string | null;
   shipping_service?: string | null;
+  /** Valor do frete (quando retornado pela API) */
+  shipping_amount?: number | null;
+  /** ID interno do Melhor Envio (após gerar etiqueta) */
+  melhor_envio_order_id?: string | null;
   /** PIX: código copia e cola; Boleto: linha digitável */
   payment_code?: string | null;
   /** URL do PDF do boleto (null para PIX) */
@@ -147,38 +151,6 @@ export const getByIdBackoffice = async (
   );
   if (!response.ok) throw new Error("Erro ao buscar pedido");
   return response.json();
-};
-
-/** Resposta da API ao adicionar pedido ao carrinho Melhor Envio */
-export interface EnvioCarrinhoResponse {
-  url?: string;
-  cart_id?: string;
-  error?: string;
-}
-
-/**
- * BACKOFFICE: Adiciona o pedido ao carrinho do Melhor Envio para compra do frete.
- * POST /pedidos/<order_id>/envio-carrinho com X-Backoffice: true
- * Retorna { url } para abrir o carrinho no Melhor Envio.
- */
-export const adicionarEnvioCarrinho = async (
-  orderId: string,
-  userId: string
-): Promise<EnvioCarrinhoResponse> => {
-  const response = await fetch(
-    `${API_URL}/pedidos/${orderId}/envio-carrinho`,
-    {
-      method: "POST",
-      headers: { ...backofficeHeaders, "X-User-Id": userId },
-    }
-  );
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      (data as { error?: string }).error || "Erro ao adicionar ao carrinho Melhor Envio"
-    );
-  }
-  return data as EnvioCarrinhoResponse;
 };
 
 /**
