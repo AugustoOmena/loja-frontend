@@ -10,10 +10,16 @@ import {
   type OrderApi,
 } from "../../services/orderService";
 import {
-  createShipment,
   getFulfillmentTracking,
   type FulfillmentTrackingResponse,
 } from "../../services/fulfillmentService";
+import {
+  getMelhorEnvioRedirectUri,
+  getMelhorEnvioScopesCsv,
+  melhorEnvioAddToCart,
+  melhorEnvioGetAuthorizeUrl,
+  melhorEnvioGetStatus,
+} from "../../services/melhorEnvioIntegrationService";
 import { getShippingServiceDisplayName } from "../../utils/orderHelpers";
 import {
   Eye,
@@ -45,6 +51,16 @@ export const PedidosBackoffice = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // --- MELHOR ENVIO (OAUTH) ---
+  const [melhorEnvioConnected, setMelhorEnvioConnected] = useState<
+    boolean | null
+  >(null);
+  const [melhorEnvioStatusLoading, setMelhorEnvioStatusLoading] =
+    useState(false);
+  const [melhorEnvioStatusError, setMelhorEnvioStatusError] = useState<
+    string | null
+  >(null);
+
   // --- FILTROS ---
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchText, setSearchText] = useState("");
@@ -61,7 +77,7 @@ export const PedidosBackoffice = () => {
   const [compensationType, setCompensationType] = useState<
     "refund" | "voucher" | null
   >(null);
-  const   [envioLoading, setEnvioLoading] = useState(false);
+  const [envioLoading, setEnvioLoading] = useState(false);
   const [envioError, setEnvioError] = useState<string | null>(null);
   const [envioSuccess, setEnvioSuccess] = useState<string | null>(null);
   const [modalDetailLoading, setModalDetailLoading] = useState(false);
@@ -106,6 +122,45 @@ export const PedidosBackoffice = () => {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  const fetchMelhorEnvioStatus = useCallback(async () => {
+    setMelhorEnvioStatusLoading(true);
+    setMelhorEnvioStatusError(null);
+    try {
+      const res = await melhorEnvioGetStatus();
+      setMelhorEnvioConnected(Boolean(res.connected));
+    } catch (e) {
+      setMelhorEnvioConnected(null);
+      setMelhorEnvioStatusError(
+        e instanceof Error
+          ? e.message
+          : "Erro ao consultar status do Melhor Envio."
+      );
+    } finally {
+      setMelhorEnvioStatusLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMelhorEnvioStatus();
+  }, [fetchMelhorEnvioStatus]);
+
+  const handleConnectMelhorEnvio = useCallback(async () => {
+    setMelhorEnvioStatusError(null);
+    try {
+      const redirectUri = getMelhorEnvioRedirectUri();
+      const scopesCsv = getMelhorEnvioScopesCsv();
+      const { authorize_url } = await melhorEnvioGetAuthorizeUrl({
+        redirectUri,
+        scopesCsv,
+      });
+      window.location.href = authorize_url;
+    } catch (e) {
+      setMelhorEnvioStatusError(
+        e instanceof Error ? e.message : "Erro ao iniciar conexão."
+      );
+    }
+  }, []);
 
   // Ao abrir o modal, busca detalhe completo do pedido (com shipping_address)
   const [orderIdToDetail, setOrderIdToDetail] = useState<string | null>(null);
@@ -190,20 +245,67 @@ export const PedidosBackoffice = () => {
     }
   };
 
-  const handleCreateShipment = async () => {
-    if (!selectedOrder || !user?.id) return;
+  const handleAddShippingToCart = async () => {
+    if (!selectedOrder) return;
     setEnvioError(null);
     setEnvioSuccess(null);
     setEnvioLoading(true);
     try {
-      const res = await createShipment(selectedOrder.id, user.id);
-      setEnvioSuccess(res.message ?? "Etiqueta adicionada ao carrinho.");
-      // Atualiza o pedido no estado para refletir melhor_envio_order_id se a API retornar no GET
-      const updated = await getByIdBackoffice(selectedOrder.id, user.id);
-      setSelectedOrder(mapApiOrderToOrder(updated));
+      if (!melhorEnvioConnected) {
+        throw new Error("Melhor Envio não conectado. Conecte para continuar.");
+      }
+
+      const addr = selectedOrder.shipping_address;
+      if (!addr) {
+        throw new Error("Endereço de entrega não disponível neste pedido.");
+      }
+
+      const zip = (addr.zip_code || "").replace(/\D/g, "").slice(0, 8);
+      const city = (addr.city || "").trim();
+      const stateAbbr = (addr.federal_unit || "").trim();
+      const street = (addr.street_name || "").trim();
+
+      if (!zip || zip.length !== 8) {
+        throw new Error("CEP inválido no pedido. Verifique o endereço.");
+      }
+      if (!city || !stateAbbr || !street) {
+        throw new Error("Endereço incompleto no pedido. Verifique os campos.");
+      }
+
+      // Dimensões fixas (ajuste se necessário no microserviço)
+      const fixedPackage = {
+        weight: 0.3,
+        width: 11,
+        height: 2,
+        length: 16,
+      };
+
+      await melhorEnvioAddToCart({
+        order_id: selectedOrder.id,
+        to: {
+          postal_code: zip,
+          address: street,
+          number: addr.street_number?.trim() || undefined,
+          complement: addr.complement?.trim() || undefined,
+          district: addr.neighborhood?.trim() || undefined,
+          city,
+          state_abbr: stateAbbr,
+          country_id: "BR",
+        },
+        package: fixedPackage,
+        items: selectedOrder.items.map((it) => ({
+          name: it.product_name,
+          quantity: Number(it.quantity) || 1,
+          unitary_value: Number(it.price) || 0,
+        })),
+      });
+
+      setEnvioSuccess("Frete inserido no carrinho do Melhor Envio.");
     } catch (e) {
       setEnvioError(
-        e instanceof Error ? e.message : "Erro ao gerar etiqueta."
+        e instanceof Error
+          ? e.message
+          : "Erro ao inserir frete no carrinho do Melhor Envio."
       );
     } finally {
       setEnvioLoading(false);
@@ -490,21 +592,55 @@ export const PedidosBackoffice = () => {
         <h1 style={{ fontSize: "24px", fontWeight: "bold" }}>
           Gestão de Pedidos
         </h1>
-        <button
-          onClick={fetchOrders}
-          style={{
-            ...styles.actionBtn,
-            backgroundColor: "#3b82f6",
-            color: "white",
-            border: "none",
-          }}
-        >
-          {loading ? (
-            <Loader2 className="animate-spin" size={16} />
-          ) : (
-            "Atualizar Lista"
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "12px", color: colors.muted }}>
+              Melhor Envio:{" "}
+              {melhorEnvioStatusLoading
+                ? "verificando..."
+                : melhorEnvioConnected === true
+                  ? "conectado"
+                  : melhorEnvioConnected === false
+                    ? "desconectado"
+                    : "indisponível"}
+            </div>
+            {melhorEnvioStatusError && (
+              <div style={{ fontSize: "12px", color: "#ef4444" }}>
+                {melhorEnvioStatusError}
+              </div>
+            )}
+          </div>
+
+          {melhorEnvioConnected === false && (
+            <button
+              onClick={handleConnectMelhorEnvio}
+              style={{
+                ...styles.actionBtn,
+                backgroundColor: "#111827",
+                color: "white",
+                border: "none",
+              }}
+            >
+              Conectar Melhor Envio
+            </button>
           )}
-        </button>
+
+          <button
+            onClick={fetchOrders}
+            style={{
+              ...styles.actionBtn,
+              backgroundColor: "#3b82f6",
+              color: "white",
+              border: "none",
+            }}
+          >
+            {loading ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              "Atualizar Lista"
+            )}
+          </button>
+        </div>
       </div>
 
       <div style={styles.toolbar}>
@@ -767,8 +903,8 @@ export const PedidosBackoffice = () => {
                   <>
                     <button
                       type="button"
-                      onClick={handleCreateShipment}
-                      disabled={envioLoading}
+                      onClick={handleAddShippingToCart}
+                      disabled={envioLoading || melhorEnvioConnected !== true}
                       style={{
                         marginTop: "14px",
                         width: "100%",
@@ -784,6 +920,7 @@ export const PedidosBackoffice = () => {
                         fontWeight: "bold",
                         cursor: envioLoading ? "not-allowed" : "pointer",
                         fontSize: "14px",
+                        opacity: melhorEnvioConnected === true ? 1 : 0.6,
                       }}
                     >
                       {envioLoading ? (
@@ -792,9 +929,28 @@ export const PedidosBackoffice = () => {
                         <Truck size={18} />
                       )}
                       {envioLoading
-                        ? "Gerando etiqueta..."
-                        : "Gerar Etiqueta"}
+                        ? "Inserindo no carrinho..."
+                        : "Inserir fretes no carrinho"}
                     </button>
+                    {melhorEnvioConnected === false && (
+                      <button
+                        type="button"
+                        onClick={handleConnectMelhorEnvio}
+                        style={{
+                          marginTop: "10px",
+                          width: "100%",
+                          padding: "10px",
+                          borderRadius: "8px",
+                          border: `1px solid ${colors.border}`,
+                          background: "transparent",
+                          color: colors.text,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Conectar Melhor Envio
+                      </button>
+                    )}
                   </>
                 )}
                 {envioSuccess && (
