@@ -63,10 +63,15 @@ function getApiGatewayBaseUrl(): string {
   return baseUrl;
 }
 
+/** Garante que a redirect_uri enviada ao backend termina com /backoffice/integrations/melhorenvio/callback */
 export function getMelhorEnvioRedirectUri(): string {
-  const redirectUri = import.meta.env.VITE_MELHORENVIO_REDIRECT_URI || "";
+  let redirectUri = import.meta.env.VITE_MELHORENVIO_REDIRECT_URI || "";
   if (!redirectUri) {
     throw new Error("VITE_MELHORENVIO_REDIRECT_URI não configurada.");
+  }
+  redirectUri = redirectUri.trim().replace(/\/$/, "");
+  if (!redirectUri.endsWith("/backoffice/integrations/melhorenvio/callback")) {
+    redirectUri = `${redirectUri}/backoffice/integrations/melhorenvio/callback`;
   }
   return redirectUri;
 }
@@ -98,49 +103,46 @@ export async function melhorEnvioGetAuthorizeUrl(params: {
 }): Promise<MelhorEnvioAuthorizeUrlResponse> {
   const baseUrl = getApiGatewayBaseUrl();
   const search = new URLSearchParams();
-  
-  // IMPORTANTE: Garantir que a URL enviada ao backend seja a longa
   search.set("redirect_uri", params.redirectUri);
   search.set("scopes", params.scopesCsv);
 
   const requestUrl = `${baseUrl}/integrations/melhorenvio/authorize-url?${search.toString()}`;
+  const response = await fetch(requestUrl, { method: "GET" });
 
-  // Adicione { mode: 'cors' } para ajudar o navegador a entender o preflight
-  const response = await fetch(requestUrl, { 
-    method: "GET",
-    mode: "cors" 
-  });
-
-  // Se o body vier vazio, o .json() vai falhar. Vamos ver o que tem no texto antes.
   const text = await response.text();
-  console.log("[DEBUG] Texto bruto da resposta:", text);
+  console.log("[Melhor Envio authorize-url] response.text() (corpo bruto para debug):", text);
 
-  let data;
+  let data: unknown;
   try {
-    data = JSON.parse(text);
-  } catch (e) {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    console.warn("[Melhor Envio authorize-url] JSON.parse falhou, corpo:", text);
     data = {};
   }
 
   if (!response.ok) {
-    throw new Error(data.message || "Erro ao obter URL.");
+    throw new Error(
+      (data as { error?: string }).error ??
+        "Erro ao obter URL de autorização do Melhor Envio."
+    );
   }
-
   return data as MelhorEnvioAuthorizeUrlResponse;
 }
 
-export async function melhorEnvioCallback(
-  body: MelhorEnvioCallbackRequest
-): Promise<MelhorEnvioCallbackResponse> {
+export async function melhorEnvioCallback(params: {
+  code: string;
+  state: string;
+  redirect_uri: string;
+}): Promise<MelhorEnvioCallbackResponse> {
   const baseUrl = getApiGatewayBaseUrl();
-  const response = await fetch(
-    `${baseUrl}/integrations/melhorenvio/callback`,
-    {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }
-  );
+  const search = new URLSearchParams();
+  search.set("code", params.code);
+  search.set("state", params.state);
+  search.set("redirect_uri", params.redirect_uri);
+
+  const requestUrl = `${baseUrl}/integrations/melhorenvio/callback?${search.toString()}`;
+  const response = await fetch(requestUrl, { method: "GET" });
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(
