@@ -98,20 +98,34 @@ export async function melhorEnvioGetAuthorizeUrl(params: {
 }): Promise<MelhorEnvioAuthorizeUrlResponse> {
   const baseUrl = getApiGatewayBaseUrl();
   const search = new URLSearchParams();
+  
+  // IMPORTANTE: Garantir que a URL enviada ao backend seja a longa
   search.set("redirect_uri", params.redirectUri);
   search.set("scopes", params.scopesCsv);
 
-  const response = await fetch(
-    `${baseUrl}/integrations/melhorenvio/authorize-url?${search.toString()}`,
-    { method: "GET" }
-  );
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      (data as { error?: string }).error ??
-        "Erro ao obter URL de autorização do Melhor Envio."
-    );
+  const requestUrl = `${baseUrl}/integrations/melhorenvio/authorize-url?${search.toString()}`;
+
+  // Adicione { mode: 'cors' } para ajudar o navegador a entender o preflight
+  const response = await fetch(requestUrl, { 
+    method: "GET",
+    mode: "cors" 
+  });
+
+  // Se o body vier vazio, o .json() vai falhar. Vamos ver o que tem no texto antes.
+  const text = await response.text();
+  console.log("[DEBUG] Texto bruto da resposta:", text);
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    data = {};
   }
+
+  if (!response.ok) {
+    throw new Error(data.message || "Erro ao obter URL.");
+  }
+
   return data as MelhorEnvioAuthorizeUrlResponse;
 }
 
@@ -122,7 +136,7 @@ export async function melhorEnvioCallback(
   const response = await fetch(
     `${baseUrl}/integrations/melhorenvio/callback`,
     {
-      method: "POST",
+      method: "GET",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }
