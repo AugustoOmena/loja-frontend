@@ -106,8 +106,17 @@ export async function melhorEnvioGetAuthorizeUrl(params: {
   search.set("redirect_uri", params.redirectUri);
   search.set("scopes", params.scopesCsv);
 
-  const requestUrl = `${baseUrl}/integrations/melhorenvio/authorize-url?${search.toString()}`;
-  const response = await fetch(requestUrl, { method: "GET" });
+  const cacheBuster = `&t=${Date.now()}`;
+  const requestUrl = `${baseUrl}/integrations/melhorenvio/authorize-url?${search.toString()}${cacheBuster}`;
+  const response = await fetch(requestUrl, { 
+    method: "GET",
+    mode: "cors", 
+    cache: "no-store",
+    headers: {
+      "Pragma": "no-cache",
+      "Cache-Control": "no-cache"
+    }
+  });
 
   const text = await response.text();
   console.log("[Melhor Envio authorize-url] response.text() (corpo bruto para debug):", text);
