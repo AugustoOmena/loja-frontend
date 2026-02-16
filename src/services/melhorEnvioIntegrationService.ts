@@ -25,28 +25,36 @@ export interface MelhorEnvioCartAddress {
   country_id?: "BR";
 }
 
-export interface MelhorEnvioCartPackage {
+/** Um volume (pacote) — API exige array "volumes". */
+export interface MelhorEnvioCartVolume {
   weight: number;
   width: number;
   height: number;
   length: number;
 }
 
-export interface MelhorEnvioCartItem {
+/** Produto no formato da API: quantity e unitary_value como string. */
+export interface MelhorEnvioCartProduct {
   name: string;
-  quantity: number;
-  unitary_value: number;
+  quantity: string;
+  unitary_value: string;
 }
 
 /**
- * Payload mínimo para o microserviço inserir fretes no carrinho.
- * O microserviço pode completar `from/service` internamente com base no pedido.
+ * Payload para POST /cart conforme doc Melhor Envio (Campos obrigatórios).
+ * - service: ID do serviço de frete
+ * - from: remetente (dados da loja)
+ * - to: destinatário
+ * - products: array de produtos (quantity/unitary_value em string)
+ * - volumes: array de pacotes (obrigatório)
  */
 export interface MelhorEnvioAddToCartRequest {
   order_id: string;
+  service: string;
+  from: MelhorEnvioCartAddress;
   to: MelhorEnvioCartAddress;
-  package: MelhorEnvioCartPackage;
-  items: MelhorEnvioCartItem[];
+  products: MelhorEnvioCartProduct[];
+  volumes: MelhorEnvioCartVolume[];
 }
 
 export type MelhorEnvioAddToCartResponse = Record<string, unknown>;
@@ -80,6 +88,43 @@ export function getMelhorEnvioScopesCsv(): string {
   return (
     import.meta.env.VITE_MELHORENVIO_SCOPES || "cart,shipment,tracking"
   ).trim();
+}
+
+/**
+ * Retorna o endereço do remetente (loja) para o payload "from" do carrinho.
+ * Usa variáveis de ambiente VITE_MELHORENVIO_FROM_* (dados da loja).
+ */
+export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
+  const postal_code = (import.meta.env.VITE_MELHORENVIO_FROM_POSTAL_CODE ?? "")
+    .toString()
+    .replace(/\D/g, "")
+    .slice(0, 8);
+  const address = (import.meta.env.VITE_MELHORENVIO_FROM_ADDRESS ?? "").trim();
+  const city = (import.meta.env.VITE_MELHORENVIO_FROM_CITY ?? "").trim();
+  const state_abbr = (import.meta.env.VITE_MELHORENVIO_FROM_STATE ?? "").trim();
+  if (!postal_code || postal_code.length !== 8) {
+    throw new Error(
+      "VITE_MELHORENVIO_FROM_POSTAL_CODE deve ser um CEP válido (8 dígitos) para inserir frete no carrinho."
+    );
+  }
+  if (!address || !city || !state_abbr) {
+    throw new Error(
+      "Configure VITE_MELHORENVIO_FROM_ADDRESS, VITE_MELHORENVIO_FROM_CITY e VITE_MELHORENVIO_FROM_STATE com os dados do remetente (loja)."
+    );
+  }
+  const number = (import.meta.env.VITE_MELHORENVIO_FROM_NUMBER ?? "").trim() || undefined;
+  const complement = (import.meta.env.VITE_MELHORENVIO_FROM_COMPLEMENT ?? "").trim() || undefined;
+  const district = (import.meta.env.VITE_MELHORENVIO_FROM_DISTRICT ?? "").trim() || undefined;
+  return {
+    postal_code,
+    address,
+    number,
+    complement,
+    district,
+    city,
+    state_abbr,
+    country_id: "BR",
+  };
 }
 
 export async function melhorEnvioGetStatus(): Promise<MelhorEnvioStatusResponse> {

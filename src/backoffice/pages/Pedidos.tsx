@@ -14,6 +14,7 @@ import {
   type FulfillmentTrackingResponse,
 } from "../../services/fulfillmentService";
 import {
+  getMelhorEnvioFromAddress,
   getMelhorEnvioRedirectUri,
   getMelhorEnvioScopesCsv,
   melhorEnvioAddToCart,
@@ -272,16 +273,35 @@ export const PedidosBackoffice = () => {
         throw new Error("Endereço incompleto no pedido. Verifique os campos.");
       }
 
-      // Dimensões fixas (ajuste se necessário no microserviço)
-      const fixedPackage = {
+      // service: ID do serviço de frete (pedido pode ter shipping_service; fallback para PAC)
+      const serviceId =
+        selectedOrder.shipping_service != null &&
+        String(selectedOrder.shipping_service).trim() !== ""
+          ? String(selectedOrder.shipping_service).trim()
+          : "1";
+
+      const fromAddress = getMelhorEnvioFromAddress();
+
+      // volumes: array obrigatório (um volume com dimensões fixas por padrão)
+      const fixedVolume = {
         weight: 0.3,
         width: 11,
         height: 2,
         length: 16,
       };
+      const volumes = [fixedVolume];
+
+      // products: quantity e unitary_value como string (exigência da API)
+      const products = selectedOrder.items.map((it) => ({
+        name: it.product_name || "Produto",
+        quantity: String(Number(it.quantity) || 1),
+        unitary_value: (Number(it.price) || 0).toFixed(2),
+      }));
 
       await melhorEnvioAddToCart({
         order_id: selectedOrder.id,
+        service: serviceId,
+        from: fromAddress,
         to: {
           postal_code: zip,
           address: street,
@@ -292,12 +312,8 @@ export const PedidosBackoffice = () => {
           state_abbr: stateAbbr,
           country_id: "BR",
         },
-        package: fixedPackage,
-        items: selectedOrder.items.map((it) => ({
-          name: it.product_name,
-          quantity: Number(it.quantity) || 1,
-          unitary_value: Number(it.price) || 0,
-        })),
+        products,
+        volumes,
       });
 
       setEnvioSuccess("Frete inserido no carrinho do Melhor Envio.");
