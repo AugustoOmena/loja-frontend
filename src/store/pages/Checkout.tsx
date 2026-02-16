@@ -21,7 +21,14 @@ import { validarCep } from "../../services/freteService";
 import { messages } from "../../constants/messages";
 
 export const Checkout = () => {
-  const { items, cartTotal, selectedShipping, setSelectedShipping, lastFreteKey, setLastFreteKey } = useCart();
+  const {
+    items,
+    cartTotal,
+    selectedShipping,
+    setSelectedShipping,
+    lastFreteKey,
+    setLastFreteKey,
+  } = useCart();
   const { address, setAddress } = useAddress();
   const { opcoes, loading, error, calcular, clearError } = useFrete();
   const navigate = useNavigate();
@@ -29,7 +36,9 @@ export const Checkout = () => {
   const { colors, theme } = useTheme();
 
   /** Meio de pagamento selecionado ao voltar da tela de pagamento (para manter destaque) */
-  const selectedPaymentMethod = (location.state as { selectedPaymentMethod?: string })?.selectedPaymentMethod;
+  const selectedPaymentMethod = (
+    location.state as { selectedPaymentMethod?: string }
+  )?.selectedPaymentMethod;
 
   const debouncedCep = useDebounce(address.cep, 400);
   const lastKey = useRef<string>("");
@@ -41,10 +50,13 @@ export const Checkout = () => {
           (o) =>
             o.preco === selectedShipping.preco &&
             (o.service || o.id || o.transportadora) ===
-              (selectedShipping.service || selectedShipping.id || selectedShipping.transportadora)
+              (selectedShipping.service ||
+                selectedShipping.id ||
+                selectedShipping.transportadora),
         )
       : -1;
-  const derivedSelectedIndex = selectedShippingIndex >= 0 ? selectedShippingIndex : null;
+  const derivedSelectedIndex =
+    selectedShippingIndex >= 0 ? selectedShippingIndex : null;
 
   useEffect(() => {
     if (!items?.length || !validarCep(debouncedCep)) return;
@@ -59,7 +71,15 @@ export const Checkout = () => {
     setLastFreteKey(key);
     const itens = cartItemsToFreteItens(items);
     calcular(debouncedCep, itens);
-  }, [debouncedCep, items, calcular, clearError, setSelectedShipping, setLastFreteKey, lastFreteKey]);
+  }, [
+    debouncedCep,
+    items,
+    calcular,
+    clearError,
+    setSelectedShipping,
+    setLastFreteKey,
+    lastFreteKey,
+  ]);
 
   // Proteção contra carrinho vazio
   if (!items || items.length === 0) {
@@ -93,15 +113,16 @@ export const Checkout = () => {
   }
 
   const cepValido = validarCep(address.cep);
-  const nomePreenchido = (address.first_name ?? "").trim() !== "";
-  const sobrenomePreenchido = (address.last_name ?? "").trim() !== "";
-  /** Só permite escolher meio de pagamento quando frete estiver selecionado e Nome/Sobrenome preenchidos */
-  const canSelectPayment = !!selectedShipping && nomePreenchido && sobrenomePreenchido;
+  /** Só permite escolher meio de pagamento quando o frete estiver selecionado */
+  const canSelectPayment = !!selectedShipping;
 
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
 
-  const handleSelectShipping = (op: import("../../types").OpcaoFrete, _index: number) => {
+  const handleSelectShipping = (
+    op: import("../../types").OpcaoFrete,
+    _index: number,
+  ) => {
     setSelectedShipping(op);
   };
 
@@ -234,7 +255,10 @@ export const Checkout = () => {
           <Lock size={28} color="#10b981" /> Finalizar Compra
         </h1>
 
-        <div className="checkout-grid" style={styles.grid as React.CSSProperties}>
+        <div
+          className="checkout-grid"
+          style={styles.grid as React.CSSProperties}
+        >
           <style>{`
             @media (max-width: 900px) { .checkout-grid { grid-template-columns: 1fr !important; } }
             .hover-card:hover { border-color: #10b981 !important; transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.15) !important; }
@@ -251,74 +275,6 @@ export const Checkout = () => {
                 marginBottom: "20px",
               }}
             >
-              <div style={{ marginBottom: 20 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: colors.muted,
-                    marginBottom: 6,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Nome <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={address.first_name ?? ""}
-                  onChange={(e) =>
-                    setAddress((prev) => ({ ...prev, first_name: e.target.value.trimStart() }))
-                  }
-                  placeholder="Seu nome"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    backgroundColor: colors.bg,
-                    color: colors.text,
-                    fontSize: 14,
-                    outline: "none",
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: colors.muted,
-                    marginBottom: 6,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Sobrenome <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={address.last_name ?? ""}
-                  onChange={(e) =>
-                    setAddress((prev) => ({ ...prev, last_name: e.target.value.trimStart() }))
-                  }
-                  placeholder="Seu sobrenome"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    backgroundColor: colors.bg,
-                    color: colors.text,
-                    fontSize: 14,
-                    outline: "none",
-                  }}
-                />
-              </div>
               <AddressForm
                 address={address}
                 onAddressChange={setAddress}
@@ -338,25 +294,6 @@ export const Checkout = () => {
               />
             </div>
 
-            {(!nomePreenchido || !sobrenomePreenchido) && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "14px",
-                  marginBottom: 20,
-                  borderRadius: 10,
-                  backgroundColor: "rgba(245, 158, 11, 0.1)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
-                  color: "#d97706",
-                  fontSize: 14,
-                }}
-              >
-                <AlertCircle size={18} />
-                Preencha Nome e Sobrenome acima para continuar.
-              </div>
-            )}
             {!cepValido && (
               <div
                 style={{
@@ -582,7 +519,16 @@ export const Checkout = () => {
                       >
                         {item.name}
                       </div>
-                      <div style={{ fontSize: 12, color: colors.muted, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: colors.muted,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         {item.color && (
                           <span
                             style={{

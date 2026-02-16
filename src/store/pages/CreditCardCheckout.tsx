@@ -72,6 +72,8 @@ export const CreditCardCheckout = () => {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
     cardholderName: "",
     email: "",
     docType: "",
@@ -104,11 +106,20 @@ export const CreditCardCheckout = () => {
     }
   }, [selectedShipping, showSuccess, cartTotal, navigate]);
 
-  // Carrega Email do Usuário automaticamente (Melhoria de UX)
+  // Carrega Email e nome do usuário automaticamente (Melhoria de UX)
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user?.email) {
-        setFormData((prev) => ({ ...prev, email: data.session!.user.email! }));
+      const user = data.session?.user;
+      if (user?.email) {
+        setFormData((prev) => ({ ...prev, email: user.email! }));
+      }
+      const nameMeta =
+        user?.user_metadata?.full_name || user?.user_metadata?.name;
+      if (nameMeta && typeof nameMeta === "string") {
+        const parts = nameMeta.trim().split(/\s+/);
+        const first = parts[0] ?? "";
+        const last = parts.slice(1).join(" ") ?? "";
+        setFormData((prev) => ({ ...prev, firstName: first, lastName: last }));
       }
     });
   }, []);
@@ -274,6 +285,16 @@ export const CreditCardCheckout = () => {
       const user = session.user;
 
       // Validações amigáveis em português
+      if (!formData.firstName.trim()) {
+        setFormError(messages.firstNameRequired);
+        setLoading(false);
+        return;
+      }
+      if (!formData.lastName.trim()) {
+        setFormError(messages.lastNameRequired);
+        setLoading(false);
+        return;
+      }
       if (!formData.cardholderName.trim()) {
         setFormError(messages.cardholderNameRequired);
         setLoading(false);
@@ -331,9 +352,6 @@ export const CreditCardCheckout = () => {
 
       const safeNumber = (address.number || "").trim() || "S/N";
       const safeNeighborhood = (address.neighborhood || "").trim() || "Centro";
-      const cardholderParts = (formData.cardholderName || "").trim().split(/\s+/);
-      const payerFirstName = (address.first_name ?? "").trim() || cardholderParts[0] || "";
-      const payerLastName = (address.last_name ?? "").trim() || cardholderParts.slice(1).join(" ") || "";
 
       // Envia itens + frete separado para o backend calcular corretamente
       const payload = {
@@ -344,8 +362,8 @@ export const CreditCardCheckout = () => {
         issuer_id: formData.issuer,
         payer: {
           email: formData.email,
-          first_name: payerFirstName,
-          last_name: payerLastName,
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
           identification: {
             type: formData.docType,
             number: cleanDoc,
@@ -720,6 +738,37 @@ export const CreditCardCheckout = () => {
                       id="securityCode-mount"
                       className="mp-input-container"
                     ></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "15px" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Nome *</label>
+                  <div style={styles.inputWrapper}>
+                    <User size={18} color={colors.muted} />
+                    <input
+                      style={styles.input}
+                      placeholder="Ex: João"
+                      value={formData.firstName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, firstName: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.label}>Sobrenome *</label>
+                  <div style={styles.inputWrapper}>
+                    <User size={18} color={colors.muted} />
+                    <input
+                      style={styles.input}
+                      placeholder="Ex: da Silva"
+                      value={formData.lastName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, lastName: e.target.value })
+                      }
+                    />
                   </div>
                 </div>
               </div>

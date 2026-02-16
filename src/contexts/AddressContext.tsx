@@ -11,8 +11,6 @@ import type { ShippingAddress } from "../types";
 const STORAGE_KEY = "@loja-omena:address";
 
 const DEFAULT_ADDRESS: ShippingAddress = {
-  first_name: "",
-  last_name: "",
   cep: "",
   street: "",
   number: "",
@@ -43,7 +41,7 @@ export const AddressProvider = ({ children }: { children: ReactNode }) => {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<ShippingAddress>;
-        return { ...DEFAULT_ADDRESS, ...parsed, first_name: parsed.first_name ?? "", last_name: parsed.last_name ?? "" };
+        return { ...DEFAULT_ADDRESS, ...parsed };
       }
     } catch {
       // ignore
