@@ -93,8 +93,10 @@ export const Checkout = () => {
   }
 
   const cepValido = validarCep(address.cep);
-  /** Só permite escolher meio de pagamento quando o frete estiver selecionado */
-  const canSelectPayment = !!selectedShipping;
+  const nomePreenchido = (address.first_name ?? "").trim() !== "";
+  const sobrenomePreenchido = (address.last_name ?? "").trim() !== "";
+  /** Só permite escolher meio de pagamento quando frete estiver selecionado e Nome/Sobrenome preenchidos */
+  const canSelectPayment = !!selectedShipping && nomePreenchido && sobrenomePreenchido;
 
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
@@ -249,6 +251,74 @@ export const Checkout = () => {
                 marginBottom: "20px",
               }}
             >
+              <div style={{ marginBottom: 20 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: colors.muted,
+                    marginBottom: 6,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Nome <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={address.first_name ?? ""}
+                  onChange={(e) =>
+                    setAddress((prev) => ({ ...prev, first_name: e.target.value.trimStart() }))
+                  }
+                  placeholder="Seu nome"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    border: `1px solid ${colors.border}`,
+                    backgroundColor: colors.bg,
+                    color: colors.text,
+                    fontSize: 14,
+                    outline: "none",
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: colors.muted,
+                    marginBottom: 6,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Sobrenome <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={address.last_name ?? ""}
+                  onChange={(e) =>
+                    setAddress((prev) => ({ ...prev, last_name: e.target.value.trimStart() }))
+                  }
+                  placeholder="Seu sobrenome"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    border: `1px solid ${colors.border}`,
+                    backgroundColor: colors.bg,
+                    color: colors.text,
+                    fontSize: 14,
+                    outline: "none",
+                  }}
+                />
+              </div>
               <AddressForm
                 address={address}
                 onAddressChange={setAddress}
@@ -268,6 +338,25 @@ export const Checkout = () => {
               />
             </div>
 
+            {(!nomePreenchido || !sobrenomePreenchido) && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "14px",
+                  marginBottom: 20,
+                  borderRadius: 10,
+                  backgroundColor: "rgba(245, 158, 11, 0.1)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  color: "#d97706",
+                  fontSize: 14,
+                }}
+              >
+                <AlertCircle size={18} />
+                Preencha Nome e Sobrenome acima para continuar.
+              </div>
+            )}
             {!cepValido && (
               <div
                 style={{

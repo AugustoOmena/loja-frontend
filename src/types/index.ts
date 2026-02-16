@@ -164,8 +164,10 @@ export interface FreteErrorBody {
   details?: string;
 }
 
-/** Endereço de entrega (salvo em localStorage) */
+/** Endereço de entrega (salvo em localStorage). Inclui nome do destinatário para payer/Melhor Envio. */
 export interface ShippingAddress {
+  first_name: string;
+  last_name: string;
   cep: string;
   street: string;
   number: string;

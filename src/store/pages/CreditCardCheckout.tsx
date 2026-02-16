@@ -331,6 +331,9 @@ export const CreditCardCheckout = () => {
 
       const safeNumber = (address.number || "").trim() || "S/N";
       const safeNeighborhood = (address.neighborhood || "").trim() || "Centro";
+      const cardholderParts = (formData.cardholderName || "").trim().split(/\s+/);
+      const payerFirstName = (address.first_name ?? "").trim() || cardholderParts[0] || "";
+      const payerLastName = (address.last_name ?? "").trim() || cardholderParts.slice(1).join(" ") || "";
 
       // Envia itens + frete separado para o backend calcular corretamente
       const payload = {
@@ -341,6 +344,8 @@ export const CreditCardCheckout = () => {
         issuer_id: formData.issuer,
         payer: {
           email: formData.email,
+          first_name: payerFirstName,
+          last_name: payerLastName,
           identification: {
             type: formData.docType,
             number: cleanDoc,

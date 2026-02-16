@@ -16,6 +16,8 @@ export const messages = {
 
   /** Validação – campos obrigatórios */
   cardholderNameRequired: "Nome no cartão é obrigatório.",
+  firstNameRequired: "Nome é obrigatório.",
+  lastNameRequired: "Sobrenome é obrigatório.",
   fullNameRequired: "Nome completo é obrigatório.",
   fullNameFirstLast: "Digite nome e sobrenome.",
   emailRequired: "E-mail é obrigatório.",

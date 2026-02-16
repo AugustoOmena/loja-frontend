@@ -278,6 +278,14 @@ export const PixBoletoCheckout = () => {
         complement: address.complement || prev.complement,
       }));
     }
+    if ((address.first_name || address.last_name) && !formData.fullName.trim()) {
+      setFormData((prev) => ({
+        ...prev,
+        fullName: [address.first_name, address.last_name].filter(Boolean).join(" ").trim(),
+      }));
+    }
+    // formData.fullName omitido de propósito: só preenchemos fullName quando vem do Checkout (address), sem sobrescrever ao digitar
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     address.cep,
     address.street,
@@ -286,6 +294,8 @@ export const PixBoletoCheckout = () => {
     address.city,
     address.state,
     address.complement,
+    address.first_name,
+    address.last_name,
   ]);
 
   // Redireciona se frete não foi selecionado
@@ -302,9 +312,11 @@ export const PixBoletoCheckout = () => {
 
     const errors: Record<string, string> = {};
 
-    if (!formData.fullName.trim()) {
+    const hasAddressName = (address.first_name ?? "").trim() && (address.last_name ?? "").trim();
+    const hasFullName = formData.fullName.trim().includes(" ");
+    if (!hasAddressName && !formData.fullName.trim()) {
       errors.fullName = messages.fullNameRequired;
-    } else if (!formData.fullName.trim().includes(" ")) {
+    } else if (!hasAddressName && !hasFullName) {
       errors.fullName = messages.fullNameFirstLast;
     }
 
@@ -354,7 +366,17 @@ export const PixBoletoCheckout = () => {
       const safeItems = items || [];
       if (safeItems.length === 0) throw new Error("Carrinho vazio.");
 
-      const names = formData.fullName.trim().split(" ");
+      const firstName = (address.first_name ?? "").trim() || formData.fullName.trim().split(" ")[0] || "";
+      const lastName = (address.last_name ?? "").trim() || formData.fullName.trim().split(" ").slice(1).join(" ") || "";
+      if (!firstName || !lastName) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          fullName: messages.fullNameFirstLast,
+        }));
+        setErrorModal({ message: messages.fixFieldsToContinue });
+        setLoading(false);
+        return;
+      }
       const safeNumber = formData.number.trim() || "S/N";
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
 
@@ -364,8 +386,8 @@ export const PixBoletoCheckout = () => {
         user_id: user.id,
         payer: {
           email: formData.email,
-          first_name: names[0],
-          last_name: names.slice(1).join(" "),
+          first_name: firstName,
+          last_name: lastName,
           identification: {
             type: "CPF",
             number: normalizarCpf(formData.cpf),
