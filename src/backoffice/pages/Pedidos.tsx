@@ -273,14 +273,38 @@ export const PedidosBackoffice = () => {
         throw new Error("Endereço incompleto no pedido. Verifique os campos.");
       }
 
-      // service: ID do serviço de frete (pedido pode ter shipping_service; fallback para PAC)
-      const serviceId =
+      // Nome do destinatário: payer (MP) ou user_email
+      const payer = selectedOrder.payer as
+        | { first_name?: string; last_name?: string; name?: string }
+        | undefined;
+      const toName =
+        [payer?.first_name, payer?.last_name].filter(Boolean).join(" ") ||
+        (typeof payer?.name === "string" ? payer.name.trim() : "") ||
+        selectedOrder.user_email?.trim() ||
+        "";
+      if (!toName) {
+        throw new Error(
+          "Nome do destinatário não encontrado no pedido (payer ou user_email)."
+        );
+      }
+
+      const fromAddress = getMelhorEnvioFromAddress();
+      if (!fromAddress.name || !fromAddress.name.trim()) {
+        throw new Error(
+          "Remetente: configure VITE_MELHORENVIO_FROM_NAME no ambiente e faça um novo deploy."
+        );
+      }
+
+      // service: ID do serviço de frete como número inteiro (cotação pode vir como string)
+      const serviceIdRaw =
         selectedOrder.shipping_service != null &&
         String(selectedOrder.shipping_service).trim() !== ""
           ? String(selectedOrder.shipping_service).trim()
           : "1";
-
-      const fromAddress = getMelhorEnvioFromAddress();
+      const service = parseInt(serviceIdRaw, 10);
+      if (Number.isNaN(service)) {
+        throw new Error("ID do serviço de frete inválido.");
+      }
 
       // volumes: array obrigatório (um volume com dimensões fixas por padrão)
       const fixedVolume = {
@@ -300,9 +324,10 @@ export const PedidosBackoffice = () => {
 
       await melhorEnvioAddToCart({
         order_id: selectedOrder.id,
-        service: serviceId,
+        service,
         from: fromAddress,
         to: {
+          name: toName,
           postal_code: zip,
           address: street,
           number: addr.street_number?.trim() || undefined,

@@ -15,6 +15,7 @@ export interface MelhorEnvioCallbackRequest {
 export type MelhorEnvioCallbackResponse = Record<string, unknown>;
 
 export interface MelhorEnvioCartAddress {
+  name: string;
   postal_code: string;
   address: string;
   number?: string;
@@ -50,7 +51,8 @@ export interface MelhorEnvioCartProduct {
  */
 export interface MelhorEnvioAddToCartRequest {
   order_id: string;
-  service: string;
+  /** ID do serviço de frete (número inteiro). */
+  service: number;
   from: MelhorEnvioCartAddress;
   to: MelhorEnvioCartAddress;
   products: MelhorEnvioCartProduct[];
@@ -97,6 +99,7 @@ export function getMelhorEnvioScopesCsv(): string {
  * um novo deploy após cadastrar ou alterar as variáveis.
  */
 export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
+  const name = (import.meta.env.VITE_MELHORENVIO_FROM_NAME ?? "").trim();
   const postal_code = (import.meta.env.VITE_MELHORENVIO_FROM_POSTAL_CODE ?? "")
     .toString()
     .replace(/\D/g, "")
@@ -105,13 +108,13 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
   const city = (import.meta.env.VITE_MELHORENVIO_FROM_CITY ?? "").trim();
   const state_abbr = (import.meta.env.VITE_MELHORENVIO_FROM_STATE ?? "").trim();
 
+  const missing: string[] = [];
+  if (!name) missing.push("VITE_MELHORENVIO_FROM_NAME");
   if (!postal_code || postal_code.length !== 8) {
     throw new Error(
       "Remetente: VITE_MELHORENVIO_FROM_POSTAL_CODE deve ser um CEP válido (8 dígitos). No Vercel, cadastre a variável e faça um novo deploy (as variáveis Vite são definidas no build)."
     );
   }
-
-  const missing: string[] = [];
   if (!address) missing.push("VITE_MELHORENVIO_FROM_ADDRESS");
   if (!city) missing.push("VITE_MELHORENVIO_FROM_CITY");
   if (!state_abbr) missing.push("VITE_MELHORENVIO_FROM_STATE");
@@ -124,6 +127,7 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
   const complement = (import.meta.env.VITE_MELHORENVIO_FROM_COMPLEMENT ?? "").trim() || undefined;
   const district = (import.meta.env.VITE_MELHORENVIO_FROM_DISTRICT ?? "").trim() || undefined;
   return {
+    name,
     postal_code,
     address,
     number,
