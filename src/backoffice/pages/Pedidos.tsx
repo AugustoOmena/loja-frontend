@@ -14,14 +14,17 @@ import {
   type FulfillmentTrackingResponse,
 } from "../../services/fulfillmentService";
 import {
+  digitsOnly,
   getMelhorEnvioFromAddress,
   getMelhorEnvioRedirectUri,
   getMelhorEnvioScopesCsv,
+  isMelhorEnvioCartUpstreamError,
   melhorEnvioAddToCart,
   melhorEnvioGetAuthorizeUrl,
   melhorEnvioGetStatus,
 } from "../../services/melhorEnvioIntegrationService";
 import { getShippingServiceDisplayName } from "../../utils/orderHelpers";
+import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
 import {
   Eye,
   XCircle,
@@ -81,6 +84,7 @@ export const PedidosBackoffice = () => {
   const [envioLoading, setEnvioLoading] = useState(false);
   const [envioError, setEnvioError] = useState<string | null>(null);
   const [envioSuccess, setEnvioSuccess] = useState<string | null>(null);
+  const [envioUpstreamError, setEnvioUpstreamError] = useState<string | null>(null);
   const [modalDetailLoading, setModalDetailLoading] = useState(false);
   const [trackingData, setTrackingData] =
     useState<FulfillmentTrackingResponse | null>(null);
@@ -250,52 +254,76 @@ export const PedidosBackoffice = () => {
     if (!selectedOrder) return;
     setEnvioError(null);
     setEnvioSuccess(null);
+    setEnvioUpstreamError(null);
     setEnvioLoading(true);
     try {
       if (!melhorEnvioConnected) {
         throw new Error("Melhor Envio não conectado. Conecte para continuar.");
       }
 
-      const addr = selectedOrder.shipping_address;
-      if (!addr) {
-        throw new Error("Endereço de entrega não disponível neste pedido.");
+      const payer = selectedOrder.payer as {
+        first_name?: string;
+        last_name?: string;
+        identification?: { number?: string };
+        address?: {
+          street_name?: string;
+          street_number?: string;
+          zip_code?: string;
+          city?: string;
+          federal_unit?: string;
+          complement?: string;
+          neighborhood?: string;
+        };
+      } | undefined;
+
+      if (!payer) {
+        throw new Error("Dados do pagador (payer) não disponíveis neste pedido.");
       }
 
-      const zip = (addr.zip_code || "").replace(/\D/g, "").slice(0, 8);
-      const city = (addr.city || "").trim();
-      const stateAbbr = (addr.federal_unit || "").trim();
-      const street = (addr.street_name || "").trim();
+      const toName = [payer.first_name, payer.last_name]
+        .filter(Boolean)
+        .map((s) => String(s).trim())
+        .join(" ")
+        .trim();
+      if (!toName) {
+        throw new Error(
+          "Nome do destinatário não encontrado no payer (first_name e last_name)."
+        );
+      }
 
-      if (!zip || zip.length !== 8) {
+      const toDocument = digitsOnly(payer.identification?.number ?? "");
+      if (!toDocument) {
+        throw new Error(
+          "Documento do destinatário não encontrado no payer (identification.number)."
+        );
+      }
+
+      const addr = payer.address ?? selectedOrder.shipping_address;
+      if (!addr) {
+        throw new Error(
+          "Endereço do destinatário não disponível (payer.address ou shipping_address)."
+        );
+      }
+
+      const postal_code = digitsOnly(addr.zip_code).slice(0, 8);
+      const city = (addr.city ?? "").trim();
+      const stateAbbr = (addr.federal_unit ?? "").trim();
+      const street = (addr.street_name ?? "").trim();
+
+      if (!postal_code || postal_code.length !== 8) {
         throw new Error("CEP inválido no pedido. Verifique o endereço.");
       }
       if (!city || !stateAbbr || !street) {
         throw new Error("Endereço incompleto no pedido. Verifique os campos.");
       }
 
-      // Nome do destinatário: payer (MP) ou user_email
-      const payer = selectedOrder.payer as
-        | { first_name?: string; last_name?: string; name?: string }
-        | undefined;
-      const toName =
-        [payer?.first_name, payer?.last_name].filter(Boolean).join(" ") ||
-        (typeof payer?.name === "string" ? payer.name.trim() : "") ||
-        selectedOrder.user_email?.trim() ||
-        "";
-      if (!toName) {
-        throw new Error(
-          "Nome do destinatário não encontrado no pedido (payer ou user_email)."
-        );
-      }
-
       const fromAddress = getMelhorEnvioFromAddress();
-      if (!fromAddress.name || !fromAddress.name.trim()) {
+      if (!fromAddress.name?.trim()) {
         throw new Error(
           "Remetente: configure VITE_MELHORENVIO_FROM_NAME no ambiente e faça um novo deploy."
         );
       }
 
-      // service: ID do serviço de frete como número inteiro (cotação pode vir como string)
       const serviceIdRaw =
         selectedOrder.shipping_service != null &&
         String(selectedOrder.shipping_service).trim() !== ""
@@ -306,7 +334,6 @@ export const PedidosBackoffice = () => {
         throw new Error("ID do serviço de frete inválido.");
       }
 
-      // volumes: array obrigatório (um volume com dimensões fixas por padrão)
       const fixedVolume = {
         weight: 0.3,
         width: 11,
@@ -315,7 +342,6 @@ export const PedidosBackoffice = () => {
       };
       const volumes = [fixedVolume];
 
-      // products: quantity e unitary_value como string (exigência da API)
       const products = selectedOrder.items.map((it) => ({
         name: it.product_name || "Produto",
         quantity: String(Number(it.quantity) || 1),
@@ -328,7 +354,8 @@ export const PedidosBackoffice = () => {
         from: fromAddress,
         to: {
           name: toName,
-          postal_code: zip,
+          document: toDocument,
+          postal_code,
           address: street,
           number: addr.street_number?.trim() || undefined,
           complement: addr.complement?.trim() || undefined,
@@ -343,11 +370,16 @@ export const PedidosBackoffice = () => {
 
       setEnvioSuccess("Frete inserido no carrinho do Melhor Envio.");
     } catch (e) {
-      setEnvioError(
-        e instanceof Error
-          ? e.message
-          : "Erro ao inserir frete no carrinho do Melhor Envio."
-      );
+      if (isMelhorEnvioCartUpstreamError(e)) {
+        setEnvioUpstreamError(e.detail);
+        setEnvioError(null);
+      } else {
+        setEnvioError(
+          e instanceof Error
+            ? e.message
+            : "Erro ao inserir frete no carrinho do Melhor Envio."
+        );
+      }
     } finally {
       setEnvioLoading(false);
     }
@@ -1307,6 +1339,14 @@ export const PedidosBackoffice = () => {
           </div>
         </div>
       )}
+
+      <CheckoutErrorModal
+        open={!!envioUpstreamError}
+        title="Erro ao inserir no carrinho"
+        message={envioUpstreamError ?? ""}
+        onClose={() => setEnvioUpstreamError(null)}
+        colors={colors}
+      />
     </div>
   );
 };

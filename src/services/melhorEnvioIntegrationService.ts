@@ -16,6 +16,8 @@ export type MelhorEnvioCallbackResponse = Record<string, unknown>;
 
 export interface MelhorEnvioCartAddress {
   name: string;
+  /** CPF ou CNPJ: apenas dígitos. */
+  document?: string;
   postal_code: string;
   address: string;
   number?: string;
@@ -24,6 +26,11 @@ export interface MelhorEnvioCartAddress {
   city: string;
   state_abbr: string;
   country_id?: "BR";
+}
+
+/** Remove caracteres não numéricos (para postal_code e document). */
+export function digitsOnly(value: string | number | undefined | null): string {
+  return String(value ?? "").replace(/\D/g, "");
 }
 
 /** Um volume (pacote) — API exige array "volumes". */
@@ -60,6 +67,27 @@ export interface MelhorEnvioAddToCartRequest {
 }
 
 export type MelhorEnvioAddToCartResponse = Record<string, unknown>;
+
+/** Erro retornado pela API quando upstream (ex.: Melhor Envio) falha (CPF, endereços iguais, etc.). */
+export interface MelhorEnvioCartUpstreamError extends Error {
+  detail: string;
+}
+
+function createMelhorEnvioCartUpstreamError(message: string, detail: string): MelhorEnvioCartUpstreamError {
+  const err = new Error(message) as MelhorEnvioCartUpstreamError;
+  err.detail = detail;
+  return err;
+}
+
+export function isMelhorEnvioCartUpstreamError(
+  e: unknown
+): e is MelhorEnvioCartUpstreamError {
+  return (
+    e instanceof Error &&
+    "detail" in e &&
+    typeof (e as MelhorEnvioCartUpstreamError).detail === "string"
+  );
+}
 
 function getApiGatewayBaseUrl(): string {
   const raw =
@@ -100,10 +128,10 @@ export function getMelhorEnvioScopesCsv(): string {
  */
 export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
   const name = (import.meta.env.VITE_MELHORENVIO_FROM_NAME ?? "").trim();
-  const postal_code = (import.meta.env.VITE_MELHORENVIO_FROM_POSTAL_CODE ?? "")
-    .toString()
-    .replace(/\D/g, "")
-    .slice(0, 8);
+  const postal_code = digitsOnly(
+    import.meta.env.VITE_MELHORENVIO_FROM_POSTAL_CODE
+  ).slice(0, 8);
+  const document = digitsOnly(import.meta.env.VITE_MELHORENVIO_FROM_DOCUMENT);
   const address = (import.meta.env.VITE_MELHORENVIO_FROM_ADDRESS ?? "").trim();
   const city = (import.meta.env.VITE_MELHORENVIO_FROM_CITY ?? "").trim();
   const state_abbr = (import.meta.env.VITE_MELHORENVIO_FROM_STATE ?? "").trim();
@@ -115,6 +143,7 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
       "Remetente: VITE_MELHORENVIO_FROM_POSTAL_CODE deve ser um CEP válido (8 dígitos). No Vercel, cadastre a variável e faça um novo deploy (as variáveis Vite são definidas no build)."
     );
   }
+  if (!document) missing.push("VITE_MELHORENVIO_FROM_DOCUMENT");
   if (!address) missing.push("VITE_MELHORENVIO_FROM_ADDRESS");
   if (!city) missing.push("VITE_MELHORENVIO_FROM_CITY");
   if (!state_abbr) missing.push("VITE_MELHORENVIO_FROM_STATE");
@@ -128,6 +157,7 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
   const district = (import.meta.env.VITE_MELHORENVIO_FROM_DISTRICT ?? "").trim() || undefined;
   return {
     name,
+    document,
     postal_code,
     address,
     number,
@@ -219,6 +249,12 @@ export async function melhorEnvioCallback(params: {
   return data as MelhorEnvioCallbackResponse;
 }
 
+interface CartErrorResponse {
+  error?: string;
+  upstream_error?: boolean;
+  details?: { error?: string };
+}
+
 export async function melhorEnvioAddToCart(
   body: MelhorEnvioAddToCartRequest
 ): Promise<MelhorEnvioAddToCartResponse> {
@@ -228,11 +264,17 @@ export async function melhorEnvioAddToCart(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await response.json().catch(() => ({}));
+  const data = (await response.json().catch(() => ({}))) as CartErrorResponse;
   if (!response.ok) {
+    const detail = data.details?.error?.trim();
+    if (data.upstream_error && detail) {
+      throw createMelhorEnvioCartUpstreamError(
+        "Erro ao inserir frete no carrinho do Melhor Envio.",
+        detail
+      );
+    }
     throw new Error(
-      (data as { error?: string }).error ??
-        "Erro ao inserir frete no carrinho do Melhor Envio."
+      data.error ?? "Erro ao inserir frete no carrinho do Melhor Envio."
     );
   }
   return data as MelhorEnvioAddToCartResponse;
