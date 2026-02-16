@@ -12,7 +12,7 @@ import {
   Truck,
   ArrowLeft,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
@@ -38,6 +38,7 @@ interface PayerCost {
 
 export const CreditCardCheckout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // CORREÇÃO 1: Adicionei 'items' aqui para poder enviar para a Lambda
   const { cartTotal, clearCart, items, selectedShipping } = useCart();
@@ -106,23 +107,35 @@ export const CreditCardCheckout = () => {
     }
   }, [selectedShipping, showSuccess, cartTotal, navigate]);
 
-  // Carrega Email e nome do usuário automaticamente (Melhoria de UX)
+  const checkoutState = location.state as { firstName?: string; lastName?: string } | null;
+  const fromCheckout = checkoutState?.firstName != null || checkoutState?.lastName != null;
+
+  // Carrega Email e nome: prefere dados vindos do Checkout; senão user_metadata
   useEffect(() => {
+    if (fromCheckout) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: (checkoutState?.firstName ?? "").trim().slice(0, 50),
+        lastName: (checkoutState?.lastName ?? "").trim().slice(0, 80),
+      }));
+    }
     supabase.auth.getSession().then(({ data }) => {
       const user = data.session?.user;
       if (user?.email) {
         setFormData((prev) => ({ ...prev, email: user.email! }));
       }
-      const nameMeta =
-        user?.user_metadata?.full_name || user?.user_metadata?.name;
-      if (nameMeta && typeof nameMeta === "string") {
-        const parts = nameMeta.trim().split(/\s+/);
-        const first = parts[0] ?? "";
-        const last = parts.slice(1).join(" ") ?? "";
-        setFormData((prev) => ({ ...prev, firstName: first, lastName: last }));
+      if (!fromCheckout) {
+        const nameMeta =
+          user?.user_metadata?.full_name || user?.user_metadata?.name;
+        if (nameMeta && typeof nameMeta === "string") {
+          const parts = nameMeta.trim().split(/\s+/);
+          const first = parts[0] ?? "";
+          const last = parts.slice(1).join(" ") ?? "";
+          setFormData((prev) => ({ ...prev, firstName: first, lastName: last }));
+        }
       }
     });
-  }, []);
+  }, [fromCheckout, checkoutState?.firstName, checkoutState?.lastName]);
 
   // Busca dados do cartão (Bandeira, Parcelas)
   const fetchPaymentMethodInfo = async (mp: any, bin: string) => {
@@ -292,6 +305,16 @@ export const CreditCardCheckout = () => {
       }
       if (!formData.lastName.trim()) {
         setFormError(messages.lastNameRequired);
+        setLoading(false);
+        return;
+      }
+      if (formData.firstName.length > 50) {
+        setFormError(messages.firstNameMaxLength);
+        setLoading(false);
+        return;
+      }
+      if (formData.lastName.length > 80) {
+        setFormError(messages.lastNameMaxLength);
         setLoading(false);
         return;
       }
@@ -751,8 +774,9 @@ export const CreditCardCheckout = () => {
                       style={styles.input}
                       placeholder="Ex: João"
                       value={formData.firstName}
+                      maxLength={50}
                       onChange={(e) =>
-                        setFormData({ ...formData, firstName: e.target.value })
+                        setFormData({ ...formData, firstName: e.target.value.slice(0, 50) })
                       }
                     />
                   </div>
@@ -765,8 +789,9 @@ export const CreditCardCheckout = () => {
                       style={styles.input}
                       placeholder="Ex: da Silva"
                       value={formData.lastName}
+                      maxLength={80}
                       onChange={(e) =>
-                        setFormData({ ...formData, lastName: e.target.value })
+                        setFormData({ ...formData, lastName: e.target.value.slice(0, 80) })
                       }
                     />
                   </div>

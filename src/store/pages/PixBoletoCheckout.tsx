@@ -255,12 +255,23 @@ export const PixBoletoCheckout = () => {
     complement: "",
   });
 
+  const checkoutState = location.state as { firstName?: string; lastName?: string } | null;
   useEffect(() => {
+    const fromCheckout = checkoutState?.firstName != null || checkoutState?.lastName != null;
+    if (fromCheckout) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: (checkoutState?.firstName ?? "").trim().slice(0, 50),
+        lastName: (checkoutState?.lastName ?? "").trim().slice(0, 80),
+      }));
+    }
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) {
         setFormData((prev) => ({ ...prev, email: data.user.email! }));
+      }
+      if (!fromCheckout) {
         const nameMeta =
-          data.user.user_metadata?.full_name || data.user.user_metadata?.name;
+          data.user?.user_metadata?.full_name || data.user?.user_metadata?.name;
         if (nameMeta && typeof nameMeta === "string") {
           const parts = nameMeta.trim().split(/\s+/);
           const first = parts[0] ?? "";
@@ -269,7 +280,7 @@ export const PixBoletoCheckout = () => {
         }
       }
     });
-  }, []);
+  }, [checkoutState?.firstName, checkoutState?.lastName]);
 
   useEffect(() => {
     if (address.cep || address.street || address.city) {
@@ -310,9 +321,13 @@ export const PixBoletoCheckout = () => {
 
     if (!formData.firstName.trim()) {
       errors.firstName = messages.firstNameRequired;
+    } else if (formData.firstName.length > 50) {
+      errors.firstName = messages.firstNameMaxLength;
     }
     if (!formData.lastName.trim()) {
       errors.lastName = messages.lastNameRequired;
+    } else if (formData.lastName.length > 80) {
+      errors.lastName = messages.lastNameMaxLength;
     }
 
     if (!formData.email.trim()) {
@@ -614,11 +629,12 @@ export const PixBoletoCheckout = () => {
                   }}
                   value={formData.firstName}
                   onChange={(e) => {
-                    setFormData({ ...formData, firstName: e.target.value });
+                    setFormData({ ...formData, firstName: e.target.value.slice(0, 50) });
                     if (fieldErrors.firstName)
                       setFieldErrors((p) => ({ ...p, firstName: "" }));
                   }}
                   placeholder="Ex: João"
+                  maxLength={50}
                 />
                 {fieldErrors.firstName && (
                   <span
@@ -642,11 +658,12 @@ export const PixBoletoCheckout = () => {
                   }}
                   value={formData.lastName}
                   onChange={(e) => {
-                    setFormData({ ...formData, lastName: e.target.value });
+                    setFormData({ ...formData, lastName: e.target.value.slice(0, 80) });
                     if (fieldErrors.lastName)
                       setFieldErrors((p) => ({ ...p, lastName: "" }));
                   }}
                   placeholder="Ex: da Silva"
+                  maxLength={80}
                 />
                 {fieldErrors.lastName && (
                   <span
