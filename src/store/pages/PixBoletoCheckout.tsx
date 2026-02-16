@@ -242,8 +242,7 @@ export const PixBoletoCheckout = () => {
   const totalComFrete = cartTotal + shippingCost;
 
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    fullName: "",
     email: "",
     cpf: "",
     zipCode: "",
@@ -255,32 +254,18 @@ export const PixBoletoCheckout = () => {
     complement: "",
   });
 
-  const checkoutState = location.state as { firstName?: string; lastName?: string } | null;
   useEffect(() => {
-    const fromCheckout = checkoutState?.firstName != null || checkoutState?.lastName != null;
-    if (fromCheckout) {
-      setFormData((prev) => ({
-        ...prev,
-        firstName: (checkoutState?.firstName ?? "").trim().slice(0, 50),
-        lastName: (checkoutState?.lastName ?? "").trim().slice(0, 80),
-      }));
-    }
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) {
         setFormData((prev) => ({ ...prev, email: data.user.email! }));
       }
-      if (!fromCheckout) {
-        const nameMeta =
-          data.user?.user_metadata?.full_name || data.user?.user_metadata?.name;
-        if (nameMeta && typeof nameMeta === "string") {
-          const parts = nameMeta.trim().split(/\s+/);
-          const first = parts[0] ?? "";
-          const last = parts.slice(1).join(" ") ?? "";
-          setFormData((prev) => ({ ...prev, firstName: first, lastName: last }));
-        }
+      const nameMeta =
+        data.user?.user_metadata?.full_name || data.user?.user_metadata?.name;
+      if (nameMeta && typeof nameMeta === "string") {
+        setFormData((prev) => ({ ...prev, fullName: nameMeta.trim() }));
       }
     });
-  }, [checkoutState?.firstName, checkoutState?.lastName]);
+  }, []);
 
   useEffect(() => {
     if (address.cep || address.street || address.city) {
@@ -319,15 +304,10 @@ export const PixBoletoCheckout = () => {
 
     const errors: Record<string, string> = {};
 
-    if (!formData.firstName.trim()) {
-      errors.firstName = messages.firstNameRequired;
-    } else if (formData.firstName.length > 50) {
-      errors.firstName = messages.firstNameMaxLength;
-    }
-    if (!formData.lastName.trim()) {
-      errors.lastName = messages.lastNameRequired;
-    } else if (formData.lastName.length > 80) {
-      errors.lastName = messages.lastNameMaxLength;
+    if (!formData.fullName.trim()) {
+      errors.fullName = messages.fullNameRequired;
+    } else if (!formData.fullName.trim().includes(" ")) {
+      errors.fullName = messages.fullNameFirstLast;
     }
 
     if (!formData.email.trim()) {
@@ -376,6 +356,7 @@ export const PixBoletoCheckout = () => {
       const safeItems = items || [];
       if (safeItems.length === 0) throw new Error("Carrinho vazio.");
 
+      const names = formData.fullName.trim().split(/\s+/);
       const safeNumber = formData.number.trim() || "S/N";
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
 
@@ -385,8 +366,8 @@ export const PixBoletoCheckout = () => {
         user_id: user.id,
         payer: {
           email: formData.email,
-          first_name: formData.firstName.trim(),
-          last_name: formData.lastName.trim(),
+          first_name: names[0] ?? "",
+          last_name: names.slice(1).join(" ") ?? "",
           identification: {
             type: "CPF",
             number: normalizarCpf(formData.cpf),
@@ -619,66 +600,32 @@ export const PixBoletoCheckout = () => {
               <User size={20} color={colors.muted} /> Dados do Pagador
             </div>
 
-            <div style={{ display: "flex", gap: 15 }}>
-              <div style={{ flex: 1 }}>
-                <label style={styles.label}>Nome *</label>
-                <input
-                  style={{
-                    ...styles.input,
-                    borderColor: fieldErrors.firstName ? "#dc2626" : colors.border,
-                  }}
-                  value={formData.firstName}
-                  onChange={(e) => {
-                    setFormData({ ...formData, firstName: e.target.value.slice(0, 50) });
-                    if (fieldErrors.firstName)
-                      setFieldErrors((p) => ({ ...p, firstName: "" }));
-                  }}
-                  placeholder="Ex: João"
-                  maxLength={50}
-                />
-                {fieldErrors.firstName && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "#dc2626",
-                      marginTop: 4,
-                      display: "block",
-                    }}
-                  >
-                    {fieldErrors.firstName}
-                  </span>
-                )}
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={styles.label}>Sobrenome *</label>
-                <input
-                  style={{
-                    ...styles.input,
-                    borderColor: fieldErrors.lastName ? "#dc2626" : colors.border,
-                  }}
-                  value={formData.lastName}
-                  onChange={(e) => {
-                    setFormData({ ...formData, lastName: e.target.value.slice(0, 80) });
-                    if (fieldErrors.lastName)
-                      setFieldErrors((p) => ({ ...p, lastName: "" }));
-                  }}
-                  placeholder="Ex: da Silva"
-                  maxLength={80}
-                />
-                {fieldErrors.lastName && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "#dc2626",
-                      marginTop: 4,
-                      display: "block",
-                    }}
-                  >
-                    {fieldErrors.lastName}
-                  </span>
-                )}
-              </div>
-            </div>
+            <label style={styles.label}>Nome completo</label>
+            <input
+              style={{
+                ...styles.input,
+                borderColor: fieldErrors.fullName ? "#dc2626" : colors.border,
+              }}
+              value={formData.fullName}
+              onChange={(e) => {
+                setFormData({ ...formData, fullName: e.target.value });
+                if (fieldErrors.fullName)
+                  setFieldErrors((p) => ({ ...p, fullName: "" }));
+              }}
+              placeholder="Ex: João da Silva"
+            />
+            {fieldErrors.fullName && (
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "#dc2626",
+                  marginTop: 4,
+                  display: "block",
+                }}
+              >
+                {fieldErrors.fullName}
+              </span>
+            )}
 
             <div style={{ display: "flex", gap: 15 }}>
               <div style={{ flex: 1 }}>
