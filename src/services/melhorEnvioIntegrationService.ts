@@ -93,6 +93,8 @@ export function getMelhorEnvioScopesCsv(): string {
 /**
  * Retorna o endereço do remetente (loja) para o payload "from" do carrinho.
  * Usa variáveis de ambiente VITE_MELHORENVIO_FROM_* (dados da loja).
+ * No Vite, essas variáveis são definidas no momento do build — no Vercel, é necessário
+ * um novo deploy após cadastrar ou alterar as variáveis.
  */
 export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
   const postal_code = (import.meta.env.VITE_MELHORENVIO_FROM_POSTAL_CODE ?? "")
@@ -102,14 +104,20 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
   const address = (import.meta.env.VITE_MELHORENVIO_FROM_ADDRESS ?? "").trim();
   const city = (import.meta.env.VITE_MELHORENVIO_FROM_CITY ?? "").trim();
   const state_abbr = (import.meta.env.VITE_MELHORENVIO_FROM_STATE ?? "").trim();
+
   if (!postal_code || postal_code.length !== 8) {
     throw new Error(
-      "VITE_MELHORENVIO_FROM_POSTAL_CODE deve ser um CEP válido (8 dígitos) para inserir frete no carrinho."
+      "Remetente: VITE_MELHORENVIO_FROM_POSTAL_CODE deve ser um CEP válido (8 dígitos). No Vercel, cadastre a variável e faça um novo deploy (as variáveis Vite são definidas no build)."
     );
   }
-  if (!address || !city || !state_abbr) {
+
+  const missing: string[] = [];
+  if (!address) missing.push("VITE_MELHORENVIO_FROM_ADDRESS");
+  if (!city) missing.push("VITE_MELHORENVIO_FROM_CITY");
+  if (!state_abbr) missing.push("VITE_MELHORENVIO_FROM_STATE");
+  if (missing.length > 0) {
     throw new Error(
-      "Configure VITE_MELHORENVIO_FROM_ADDRESS, VITE_MELHORENVIO_FROM_CITY e VITE_MELHORENVIO_FROM_STATE com os dados do remetente (loja)."
+      `Remetente: faltam ${missing.join(", ")}. No Vercel: cadastre essas variáveis para o ambiente correto (Produção ou Preview), faça um novo deploy e, se precisar, "Redeploy" com opção de limpar cache.`
     );
   }
   const number = (import.meta.env.VITE_MELHORENVIO_FROM_NUMBER ?? "").trim() || undefined;
