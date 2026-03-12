@@ -12,7 +12,7 @@ import {
   Truck,
   ArrowLeft,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../services/supabaseClient";
 import { useCart } from "../../contexts/CartContext";
 import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
@@ -38,6 +38,7 @@ interface PayerCost {
 
 export const CreditCardCheckout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // CORREÇÃO 1: Adicionei 'items' aqui para poder enviar para a Lambda
   const { cartTotal, clearCart, items, selectedShipping } = useCart();
@@ -104,11 +105,12 @@ export const CreditCardCheckout = () => {
     }
   }, [selectedShipping, showSuccess, cartTotal, navigate]);
 
-  // Carrega Email do Usuário automaticamente (Melhoria de UX)
+  // Carrega apenas o email do usuário (nome no cartão NÃO é preenchido – é o que está no cartão)
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user?.email) {
-        setFormData((prev) => ({ ...prev, email: data.session!.user.email! }));
+      const user = data.session?.user;
+      if (user?.email) {
+        setFormData((prev) => ({ ...prev, email: user.email! }));
       }
     });
   }, []);
@@ -331,8 +333,12 @@ export const CreditCardCheckout = () => {
 
       const safeNumber = (address.number || "").trim() || "S/N";
       const safeNeighborhood = (address.neighborhood || "").trim() || "Centro";
+      const checkoutState = location.state as { firstName?: string; lastName?: string } | null;
+      const destFirstName = (checkoutState?.firstName ?? "").trim();
+      const destLastName = (checkoutState?.lastName ?? "").trim();
 
-      // Envia itens + frete separado para o backend calcular corretamente
+      // Envia itens + frete separado para o backend calcular corretamente.
+      // first_name/last_name = destinatário (só do Checkout). Nome no cartão não é usado para isso.
       const payload = {
         token: token.id,
         transaction_amount: transactionAmount,
@@ -341,6 +347,8 @@ export const CreditCardCheckout = () => {
         issuer_id: formData.issuer,
         payer: {
           email: formData.email,
+          first_name: destFirstName,
+          last_name: destLastName,
           identification: {
             type: formData.docType,
             number: cleanDoc,

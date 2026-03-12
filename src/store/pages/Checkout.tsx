@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart, type CartItem } from "../../contexts/CartContext";
 import { useAddress } from "../../contexts/AddressContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -12,6 +12,7 @@ import {
   Lock,
   Star,
   AlertCircle,
+  User,
 } from "lucide-react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useFrete, cartItemsToFreteItens } from "../../hooks/useFrete";
@@ -19,9 +20,20 @@ import { ShippingSection } from "../../components/ShippingSection";
 import { AddressForm } from "../../components/AddressForm";
 import { validarCep } from "../../services/freteService";
 import { messages } from "../../constants/messages";
+import { supabase } from "../../services/supabaseClient";
+
+const FIRST_NAME_MAX_LENGTH = 50;
+const LAST_NAME_MAX_LENGTH = 80;
 
 export const Checkout = () => {
-  const { items, cartTotal, selectedShipping, setSelectedShipping, lastFreteKey, setLastFreteKey } = useCart();
+  const {
+    items,
+    cartTotal,
+    selectedShipping,
+    setSelectedShipping,
+    lastFreteKey,
+    setLastFreteKey,
+  } = useCart();
   const { address, setAddress } = useAddress();
   const { opcoes, loading, error, calcular, clearError } = useFrete();
   const navigate = useNavigate();
@@ -29,7 +41,25 @@ export const Checkout = () => {
   const { colors, theme } = useTheme();
 
   /** Meio de pagamento selecionado ao voltar da tela de pagamento (para manter destaque) */
-  const selectedPaymentMethod = (location.state as { selectedPaymentMethod?: string })?.selectedPaymentMethod;
+  const selectedPaymentMethod = (
+    location.state as { selectedPaymentMethod?: string }
+  )?.selectedPaymentMethod;
+
+  const [checkoutName, setCheckoutName] = useState({ firstName: "", lastName: "" });
+  const [checkoutNameErrors, setCheckoutNameErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const nameMeta =
+        data.user?.user_metadata?.full_name || data.user?.user_metadata?.name;
+      if (nameMeta && typeof nameMeta === "string") {
+        const parts = nameMeta.trim().split(/\s+/);
+        const first = (parts[0] ?? "").slice(0, FIRST_NAME_MAX_LENGTH);
+        const last = (parts.slice(1).join(" ") ?? "").slice(0, LAST_NAME_MAX_LENGTH);
+        setCheckoutName({ firstName: first, lastName: last });
+      }
+    });
+  }, []);
 
   const debouncedCep = useDebounce(address.cep, 400);
   const lastKey = useRef<string>("");
@@ -41,10 +71,13 @@ export const Checkout = () => {
           (o) =>
             o.preco === selectedShipping.preco &&
             (o.service || o.id || o.transportadora) ===
-              (selectedShipping.service || selectedShipping.id || selectedShipping.transportadora)
+              (selectedShipping.service ||
+                selectedShipping.id ||
+                selectedShipping.transportadora),
         )
       : -1;
-  const derivedSelectedIndex = selectedShippingIndex >= 0 ? selectedShippingIndex : null;
+  const derivedSelectedIndex =
+    selectedShippingIndex >= 0 ? selectedShippingIndex : null;
 
   useEffect(() => {
     if (!items?.length || !validarCep(debouncedCep)) return;
@@ -59,7 +92,15 @@ export const Checkout = () => {
     setLastFreteKey(key);
     const itens = cartItemsToFreteItens(items);
     calcular(debouncedCep, itens);
-  }, [debouncedCep, items, calcular, clearError, setSelectedShipping, setLastFreteKey, lastFreteKey]);
+  }, [
+    debouncedCep,
+    items,
+    calcular,
+    clearError,
+    setSelectedShipping,
+    setLastFreteKey,
+    lastFreteKey,
+  ]);
 
   // Proteção contra carrinho vazio
   if (!items || items.length === 0) {
@@ -99,19 +140,39 @@ export const Checkout = () => {
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
 
-  const handleSelectShipping = (op: import("../../types").OpcaoFrete, _index: number) => {
+  const handleSelectShipping = (
+    op: import("../../types").OpcaoFrete,
+    _index: number,
+  ) => {
     setSelectedShipping(op);
   };
 
-  // --- NAVEGAÇÃO ---
+  const validateCheckoutName = (): boolean => {
+    const err: Record<string, string> = {};
+    const first = checkoutName.firstName.trim();
+    const last = checkoutName.lastName.trim();
+    if (!first) err.firstName = messages.firstNameRequired;
+    else if (first.length > FIRST_NAME_MAX_LENGTH) err.firstName = messages.firstNameMaxLength;
+    if (!last) err.lastName = messages.lastNameRequired;
+    else if (last.length > LAST_NAME_MAX_LENGTH) err.lastName = messages.lastNameMaxLength;
+    setCheckoutNameErrors(err);
+    return Object.keys(err).length === 0;
+  };
+
   const handleSelection = (method: string) => {
     if (!canSelectPayment) return;
+    if (!validateCheckoutName()) return;
+    const state = {
+      firstName: checkoutName.firstName.trim(),
+      lastName: checkoutName.lastName.trim(),
+      ...(method === "pix" ? { defaultMethod: "pix" as const } : method === "boleto" ? { defaultMethod: "boleto" as const } : {}),
+    };
     if (method === "credit") {
-      navigate("/checkout/credit");
+      navigate("/checkout/credit", { state: { firstName: state.firstName, lastName: state.lastName } });
     } else if (method === "pix") {
-      navigate("/checkout/pix-boleto", { state: { defaultMethod: "pix" } });
+      navigate("/checkout/pix-boleto", { state: { defaultMethod: "pix", firstName: state.firstName, lastName: state.lastName } });
     } else if (method === "boleto") {
-      navigate("/checkout/pix-boleto", { state: { defaultMethod: "boleto" } });
+      navigate("/checkout/pix-boleto", { state: { defaultMethod: "boleto", firstName: state.firstName, lastName: state.lastName } });
     }
   };
 
@@ -232,7 +293,10 @@ export const Checkout = () => {
           <Lock size={28} color="#10b981" /> Finalizar Compra
         </h1>
 
-        <div className="checkout-grid" style={styles.grid as React.CSSProperties}>
+        <div
+          className="checkout-grid"
+          style={styles.grid as React.CSSProperties}
+        >
           <style>{`
             @media (max-width: 900px) { .checkout-grid { grid-template-columns: 1fr !important; } }
             .hover-card:hover { border-color: #10b981 !important; transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.15) !important; }
@@ -240,6 +304,108 @@ export const Checkout = () => {
 
           {/* --- COLUNA ESQUERDA (OPÇÕES) --- */}
           <div>
+            <div
+              style={{
+                backgroundColor: colors.card,
+                padding: "20px",
+                borderRadius: "12px",
+                border: `1px solid ${colors.border}`,
+                marginBottom: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  marginBottom: "16px",
+                  color: colors.text,
+                  fontWeight: "bold",
+                  fontSize: "15px",
+                }}
+              >
+                <User size={20} color={colors.muted} /> Dados do comprador
+              </div>
+              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                <div style={{ flex: 1 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: colors.muted,
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Nome *
+                  </label>
+                  <input
+                    type="text"
+                    value={checkoutName.firstName}
+                    onChange={(e) => {
+                      const v = e.target.value.slice(0, FIRST_NAME_MAX_LENGTH);
+                      setCheckoutName((p) => ({ ...p, firstName: v }));
+                      if (checkoutNameErrors.firstName) setCheckoutNameErrors((p) => ({ ...p, firstName: "" }));
+                    }}
+                    placeholder="Ex: João"
+                    maxLength={FIRST_NAME_MAX_LENGTH}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      border: `1px solid ${checkoutNameErrors.firstName ? "#dc2626" : colors.border}`,
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                      fontSize: "14px",
+                    }}
+                  />
+                  {checkoutNameErrors.firstName && (
+                    <span style={{ fontSize: "12px", color: "#dc2626", marginTop: "4px", display: "block" }}>
+                      {checkoutNameErrors.firstName}
+                    </span>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: colors.muted,
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Sobrenome *
+                  </label>
+                  <input
+                    type="text"
+                    value={checkoutName.lastName}
+                    onChange={(e) => {
+                      const v = e.target.value.slice(0, LAST_NAME_MAX_LENGTH);
+                      setCheckoutName((p) => ({ ...p, lastName: v }));
+                      if (checkoutNameErrors.lastName) setCheckoutNameErrors((p) => ({ ...p, lastName: "" }));
+                    }}
+                    placeholder="Ex: da Silva"
+                    maxLength={LAST_NAME_MAX_LENGTH}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      border: `1px solid ${checkoutNameErrors.lastName ? "#dc2626" : colors.border}`,
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                      fontSize: "14px",
+                    }}
+                  />
+                  {checkoutNameErrors.lastName && (
+                    <span style={{ fontSize: "12px", color: "#dc2626", marginTop: "4px", display: "block" }}>
+                      {checkoutNameErrors.lastName}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div
               style={{
                 backgroundColor: colors.card,
@@ -493,7 +659,16 @@ export const Checkout = () => {
                       >
                         {item.name}
                       </div>
-                      <div style={{ fontSize: 12, color: colors.muted, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: colors.muted,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         {item.color && (
                           <span
                             style={{

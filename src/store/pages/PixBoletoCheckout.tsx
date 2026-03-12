@@ -258,9 +258,11 @@ export const PixBoletoCheckout = () => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) {
         setFormData((prev) => ({ ...prev, email: data.user.email! }));
-        const nameMeta =
-          data.user.user_metadata?.full_name || data.user.user_metadata?.name;
-        if (nameMeta) setFormData((prev) => ({ ...prev, fullName: nameMeta }));
+      }
+      const nameMeta =
+        data.user?.user_metadata?.full_name || data.user?.user_metadata?.name;
+      if (nameMeta && typeof nameMeta === "string") {
+        setFormData((prev) => ({ ...prev, fullName: nameMeta.trim() }));
       }
     });
   }, []);
@@ -354,7 +356,7 @@ export const PixBoletoCheckout = () => {
       const safeItems = items || [];
       if (safeItems.length === 0) throw new Error("Carrinho vazio.");
 
-      const names = formData.fullName.trim().split(" ");
+      const names = formData.fullName.trim().split(/\s+/);
       const safeNumber = formData.number.trim() || "S/N";
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
 
@@ -364,8 +366,8 @@ export const PixBoletoCheckout = () => {
         user_id: user.id,
         payer: {
           email: formData.email,
-          first_name: names[0],
-          last_name: names.slice(1).join(" "),
+          first_name: names[0] ?? "",
+          last_name: names.slice(1).join(" ") ?? "",
           identification: {
             type: "CPF",
             number: normalizarCpf(formData.cpf),
@@ -598,7 +600,7 @@ export const PixBoletoCheckout = () => {
               <User size={20} color={colors.muted} /> Dados do Pagador
             </div>
 
-            <label style={styles.label}>Nome Completo</label>
+            <label style={styles.label}>Nome completo</label>
             <input
               style={{
                 ...styles.input,

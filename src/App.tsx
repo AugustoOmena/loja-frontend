@@ -24,6 +24,7 @@ import { Products } from "./backoffice/pages/Products";
 import { Users } from "./backoffice/pages/Users";
 import { Dashboard } from "./backoffice/pages/Dashboard";
 import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
+import { MelhorEnvioCallback } from "./backoffice/pages/MelhorEnvioCallback";
 
 import { StoreHome } from "./store/pages/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
@@ -100,6 +101,10 @@ function App() {
                 <Route path="produtos" element={<Products />} />
                 <Route path="usuarios" element={<Users />} />
                 <Route path="pedidos" element={<PedidosBackoffice />} />
+                <Route
+                  path="integrations/melhorenvio/callback"
+                  element={<MelhorEnvioCallback />}
+                />
               </Route>
             </Routes>
           </BrowserRouter>
