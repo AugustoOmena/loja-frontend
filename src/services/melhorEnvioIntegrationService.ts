@@ -91,11 +91,11 @@ export function isMelhorEnvioCartUpstreamError(
 
 function getApiGatewayBaseUrl(): string {
   const raw =
-    import.meta.env.VITE_API_GATEWAY_URL || import.meta.env.VITE_API_URL || "";
+    import.meta.env.VITE_API_MELHOR_ENVIO_MICRO_SERVICO_URL || import.meta.env.VITE_API_URL || "";
   const baseUrl = raw.replace(/\/$/, "");
   if (!baseUrl) {
     throw new Error(
-      "VITE_API_GATEWAY_URL não configurada (ou VITE_API_URL ausente)."
+      "VITE_API_MELHOR_ENVIO_MICRO_SERVICO_URL não configurada (ou VITE_API_URL ausente)."
     );
   }
   return baseUrl;
