@@ -80,7 +80,7 @@ export const BackofficeLayout = () => {
               letterSpacing: "1px",
             }}
           >
-            LOJA
+            LOJA DE PRAIA
           </h2>
           <p style={{ fontSize: "12px", color: "#64748b" }}>Admin Panel</p>
         </div>
