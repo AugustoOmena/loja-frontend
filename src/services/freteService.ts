@@ -50,7 +50,7 @@ export async function calcularFrete(
       length: item.length,
       weight: item.weight,
       quantity: item.quantity ?? 1,
-      insurance_value: item.insurance_value ?? 0,
+      insurance_value: 0,
     })),
   };
 
