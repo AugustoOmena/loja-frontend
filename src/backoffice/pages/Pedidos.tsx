@@ -337,7 +337,7 @@ export const PedidosBackoffice = () => {
       const fixedVolume = {
         weight: 0.3,
         width: 11,
-        height: 2,
+        height: 20,
         length: 16,
       };
       const volumes = [fixedVolume];
