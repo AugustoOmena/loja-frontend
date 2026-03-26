@@ -1,30 +1,40 @@
 import { useState, useCallback } from "react";
-import { calcularFrete } from "../services/freteService";
+import {
+  calcularFrete,
+  pacoteUnicoFrete,
+  FRETE_DIM_CM,
+  FRETE_PESO_POR_UNIDADE_KG,
+} from "../services/freteService";
 import type { ItemFrete, OpcaoFrete } from "../types";
 
-const DEFAULTS: ItemFrete = {
-  width: 16,
-  height: 12,
-  length: 20,
-  weight: 0.3,
-  quantity: 1,
-  insurance_value: 0,
-};
+/** Cotação sem carrinho: 1 unidade → 0,3 kg no pacote padrão. */
+function pacotePadraoUmaUnidade(): ItemFrete {
+  return pacoteUnicoFrete([
+    {
+      ...FRETE_DIM_CM,
+      weight: 0,
+      quantity: 1,
+      insurance_value: 0,
+    },
+  ]);
+}
 
 /**
- * Converte itens do carrinho em um pacote único com dimensões padrão.
- * Quando produtos tiverem width/height/length/weight, usar; senão, agrupar em um pacote.
+ * Um único volume: 16×12×20 cm, peso = (soma das quantidades) × 0,3 kg, seguro 0.
+ * `quantity` no objeto = total de unidades no carrinho (mín. 1), para o `calcularFrete`
+ * aplicar a mesma regra via `pacoteUnicoFrete` sem perder o total.
  */
-export function cartItemsToFreteItens(
-  items: { quantity: number }[],
-  defaults: Partial<ItemFrete> = {}
-): ItemFrete[] {
-  const base = { ...DEFAULTS, ...defaults };
-  const totalQty = Math.max(1, items.reduce((acc, i) => acc + i.quantity, 0));
+export function cartItemsToFreteItens(items: { quantity: number }[]): ItemFrete[] {
+  const totalUnidades = Math.max(
+    1,
+    items.reduce((acc, i) => acc + i.quantity, 0)
+  );
   return [
     {
-      ...base,
-      quantity: totalQty,
+      ...FRETE_DIM_CM,
+      weight: totalUnidades * FRETE_PESO_POR_UNIDADE_KG,
+      quantity: totalUnidades,
+      insurance_value: 0,
     },
   ];
 }
@@ -43,7 +53,7 @@ export function useFrete(): UseFreteResult {
   const [error, setError] = useState<string | null>(null);
 
   const calcular = useCallback(async (cep: string, itens?: ItemFrete[]) => {
-    const freteItens = itens ?? [DEFAULTS];
+    const freteItens = itens ?? [pacotePadraoUmaUnidade()];
     setLoading(true);
     setError(null);
     setOpcoes([]);
