@@ -5,38 +5,38 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
-import { CartProvider } from "./contexts/CartContext";
-import { AddressProvider } from "./contexts/AddressContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { AddressProvider } from "@/contexts/AddressContext";
 
 // --- COMPONENTES GLOBAIS ---
-import { CartDrawer } from "./components/CartDrawer";
-import { PrivateRoute } from "./components/PrivateRoute";
+import { CartDrawer } from "@/shared/components/CartDrawer";
+import { PrivateRoute } from "@/shared/components/PrivateRoute";
 
 // --- LAYOUTS ---
-import { BackofficeLayout } from "./backoffice/layouts/BackofficeLayout";
-import { ClientLayout } from "./store/layouts/ClientLayout";
+import { BackofficeLayout } from "@/backoffice/layouts/BackofficeLayout";
+import { ClientLayout } from "@/store/layouts/ClientLayout";
 
 // --- PÁGINAS ---
-import { LoginBackoffice } from "./backoffice/pages/Login";
-import { Products } from "./backoffice/pages/Products";
-import { Users } from "./backoffice/pages/Users";
-import { Dashboard } from "./backoffice/pages/Dashboard";
-import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
-import { MelhorEnvioCallback } from "./backoffice/pages/MelhorEnvioCallback";
+import { LoginBackoffice } from "@/backoffice/features/auth/pages/Login";
+import { Products } from "@/backoffice/features/products/pages/Products";
+import { Users } from "@/backoffice/features/users/pages/Users";
+import { Dashboard } from "@/backoffice/features/dashboard/pages/Dashboard";
+import { PedidosBackoffice } from "@/backoffice/features/orders/pages/Pedidos";
+import { MelhorEnvioCallback } from "@/backoffice/features/integrations/pages/MelhorEnvioCallback";
 
-import { StoreHome } from "./store/pages/StoreHome";
-import { ProductDetails } from "./store/pages/ProductDetails";
-import { Login } from "./pages/Login";
-import { AuthCallback } from "./pages/AuthCallback";
-import { Checkout } from "./store/pages/Checkout";
-import { PixBoletoCheckout } from "./store/pages/PixBoletoCheckout";
-import { CreditCardCheckout } from "./store/pages/CreditCardCheckout";
+import { StoreHome } from "@/store/features/catalog/pages/StoreHome";
+import { ProductDetails } from "@/store/features/catalog/pages/ProductDetails";
+import { Login } from "@/store/features/auth/pages/Login";
+import { AuthCallback } from "@/store/features/auth/pages/AuthCallback";
+import { Checkout } from "@/store/features/checkout/pages/Checkout";
+import { PixBoletoCheckout } from "@/store/features/checkout/pages/PixBoletoCheckout";
+import { CreditCardCheckout } from "@/store/features/checkout/pages/CreditCardCheckout";
 
-import { Profile } from "./store/pages/client/Profile";
-import { OrderList } from "./store/pages/client/OrderList";
-import { Settings } from "./store/pages/client/Settings";
+import { Profile } from "@/store/features/account/pages/Profile";
+import { OrderList } from "@/store/features/account/pages/OrderList";
+import { Settings } from "@/store/features/account/pages/Settings";
 
 function App() {
   return (

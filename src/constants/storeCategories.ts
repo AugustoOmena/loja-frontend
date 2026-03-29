@@ -1,4 +1,4 @@
-import type { CategoryOption } from "../components/ProductSearchAndCategories";
+import type { CategoryOption } from "@/store/features/catalog/components/ProductSearchAndCategories";
 
 export const STORE_CATEGORIES: CategoryOption[] = [
   { id: "", label: "Todos" },
