@@ -5,6 +5,7 @@ import type {
   FreteResponse,
   FreteErrorBody,
 } from "../types";
+import { getApiAuthHeaders } from "@/services/apiAuthHeaders";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const REQUEST_TIMEOUT_MS = 15000;
@@ -60,7 +61,10 @@ export async function calcularFrete(
   try {
     const response = await fetch(`${baseUrl}/frete`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getApiAuthHeaders()),
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     });

@@ -1,3 +1,5 @@
+import { getApiAuthHeaders } from "@/services/apiAuthHeaders";
+
 export interface MelhorEnvioStatusResponse {
   connected: boolean;
 }
@@ -173,6 +175,7 @@ export async function melhorEnvioGetStatus(): Promise<MelhorEnvioStatusResponse>
   const baseUrl = getApiGatewayBaseUrl();
   const response = await fetch(`${baseUrl}/integrations/melhorenvio/status`, {
     method: "GET",
+    headers: await getApiAuthHeaders(),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -195,14 +198,15 @@ export async function melhorEnvioGetAuthorizeUrl(params: {
 
   const cacheBuster = `&t=${Date.now()}`;
   const requestUrl = `${baseUrl}/integrations/melhorenvio/authorize-url?${search.toString()}${cacheBuster}`;
-  const response = await fetch(requestUrl, { 
+  const response = await fetch(requestUrl, {
     method: "GET",
-    mode: "cors", 
+    mode: "cors",
     cache: "no-store",
     headers: {
       "Pragma": "no-cache",
-      "Cache-Control": "no-cache"
-    }
+      "Cache-Control": "no-cache",
+      ...(await getApiAuthHeaders()),
+    },
   });
 
   const text = await response.text();
@@ -237,7 +241,10 @@ export async function melhorEnvioCallback(params: {
   search.set("redirect_uri", params.redirect_uri);
 
   const requestUrl = `${baseUrl}/integrations/melhorenvio/callback?${search.toString()}`;
-  const response = await fetch(requestUrl, { method: "GET" });
+  const response = await fetch(requestUrl, {
+    method: "GET",
+    headers: await getApiAuthHeaders(),
+  });
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -261,7 +268,10 @@ export async function melhorEnvioAddToCart(
   const baseUrl = getApiGatewayBaseUrl();
   const response = await fetch(`${baseUrl}/cart`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(await getApiAuthHeaders()),
+    },
     body: JSON.stringify(body),
   });
   const data = (await response.json().catch(() => ({}))) as CartErrorResponse;

@@ -4,6 +4,7 @@ import { useAddress } from "@/contexts/AddressContext";
 import { cartItemsToFreteItens } from "@/store/features/checkout/hooks/useFrete";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/services/supabaseClient";
+import { getApiAuthHeaders } from "@/services/apiAuthHeaders";
 import {
   QrCode,
   FileText,
@@ -403,7 +404,10 @@ export const PixBoletoCheckout = () => {
       const API_URL = import.meta.env.VITE_API_URL;
       const response = await fetch(`${API_URL}/pagamento`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getApiAuthHeaders()),
+        },
         body: JSON.stringify(payload),
       });
 

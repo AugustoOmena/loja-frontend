@@ -1,3 +1,5 @@
+import { getApiAuthHeaders } from "@/services/apiAuthHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 export interface OrderItemApi {
@@ -95,7 +97,9 @@ export const listByUser = async (
   const search = new URLSearchParams({ user_id: params.userId });
   if (params.page != null) search.set("page", String(params.page));
   if (params.limit != null) search.set("limit", String(params.limit));
-  const response = await fetch(`${API_URL}/pedidos?${search.toString()}`);
+  const response = await fetch(`${API_URL}/pedidos?${search.toString()}`, {
+    headers: await getApiAuthHeaders(),
+  });
   if (!response.ok) throw new Error("Erro ao buscar pedidos");
   const data = await response.json();
   return Array.isArray(data) ? data : data.data ?? data.orders ?? [];
@@ -113,7 +117,7 @@ export const listAllBackoffice = async (
   if (params?.page != null) search.set("page", String(params.page));
   if (params?.limit != null) search.set("limit", String(params.limit));
   const response = await fetch(`${API_URL}/pedidos?${search.toString()}`, {
-    headers: backofficeHeaders,
+    headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
   });
   if (!response.ok) throw new Error("Erro ao buscar pedidos");
   const data = await response.json();
@@ -130,7 +134,8 @@ export const getByIdForUser = async (
 ): Promise<OrderApi> => {
   const params = new URLSearchParams({ user_id: userId });
   const response = await fetch(
-    `${API_URL}/pedidos/${orderId}?${params.toString()}`
+    `${API_URL}/pedidos/${orderId}?${params.toString()}`,
+    { headers: await getApiAuthHeaders() }
   );
   if (!response.ok) throw new Error("Erro ao buscar pedido");
   return response.json();
@@ -147,7 +152,9 @@ export const getByIdBackoffice = async (
   const params = new URLSearchParams({ user_id: userId });
   const response = await fetch(
     `${API_URL}/pedidos/${orderId}?${params.toString()}`,
-    { headers: backofficeHeaders }
+    {
+      headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
+    }
   );
   if (!response.ok) throw new Error("Erro ao buscar pedido");
   return response.json();
@@ -166,7 +173,10 @@ export const requestCancellation = async (
     `${API_URL}/pedidos/${orderId}/solicitar-cancelamento`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getApiAuthHeaders()),
+      },
       body: JSON.stringify(body),
     }
   );
@@ -185,7 +195,7 @@ export const backofficeFullCancel = async (
 ): Promise<OrderApi> => {
   const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
     method: "PUT",
-    headers: backofficeHeaders,
+    headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
     body: JSON.stringify({
       full_cancel: true,
       refund_method: refundMethod,
@@ -207,7 +217,7 @@ export const backofficeCancelItems = async (
 ): Promise<OrderApi> => {
   const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
     method: "PUT",
-    headers: backofficeHeaders,
+    headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
     body: JSON.stringify({
       cancel_item_ids: cancelItemIds,
       refund_method: refundMethod,
@@ -227,7 +237,7 @@ export const backofficeUpdateStatus = async (
 ): Promise<OrderApi> => {
   const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
     method: "PUT",
-    headers: backofficeHeaders,
+    headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
     body: JSON.stringify({ status }),
   });
   if (!response.ok) throw new Error("Erro ao atualizar status");

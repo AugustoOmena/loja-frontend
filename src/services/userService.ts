@@ -1,4 +1,5 @@
 import type { UserProfile, UserFilters, PaginatedResponse } from '../types'; // Importe PaginatedResponse
+import { getApiAuthHeaders } from '@/services/apiAuthHeaders';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -12,7 +13,9 @@ export const userService = {
     if (filters.role) params.append('role', filters.role);
     if (filters.sort) params.append('sort', filters.sort);
 
-    const response = await fetch(`${API_URL}/usuarios?${params.toString()}`);
+    const response = await fetch(`${API_URL}/usuarios?${params.toString()}`, {
+      headers: await getApiAuthHeaders(),
+    });
     if (!response.ok) throw new Error('Erro ao buscar usuários');
     return response.json();
   },
@@ -21,7 +24,10 @@ export const userService = {
   update: async (user: UserProfile) => {
     const response = await fetch(`${API_URL}/usuarios`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await getApiAuthHeaders()),
+      },
       body: JSON.stringify(user),
     });
     if (!response.ok) throw new Error('Erro ao atualizar usuário');
@@ -32,7 +38,10 @@ export const userService = {
   delete: async (id: string) => {
     const response = await fetch(`${API_URL}/usuarios`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await getApiAuthHeaders()),
+      },
       body: JSON.stringify({ id }),
     });
     if (!response.ok) throw new Error('Erro ao deletar usuário');

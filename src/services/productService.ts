@@ -1,6 +1,12 @@
 import type { Product, ProductInput, PaginatedResponse, ProductFilters } from '../types';
+import { getApiAuthHeaders } from '@/services/apiAuthHeaders';
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+const jsonAuthHeaders = async () => ({
+  'Content-Type': 'application/json',
+  ...(await getApiAuthHeaders()),
+});
 
 export const productService = {
   getAll: async (filters: ProductFilters): Promise<PaginatedResponse<Product>> => {
@@ -13,14 +19,16 @@ export const productService = {
     if (filters.size) params.append('size', filters.size);
     if (filters.sort) params.append('sort', filters.sort);
 
-    const response = await fetch(`${API_URL}/produtos?${params.toString()}`);
+    const response = await fetch(`${API_URL}/produtos?${params.toString()}`, {
+      headers: await getApiAuthHeaders(),
+    });
     if (!response.ok) throw new Error('Erro ao buscar produtos');
     return response.json();
   },
   create: async (product: ProductInput) => {
     const response = await fetch(`${API_URL}/produtos`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await jsonAuthHeaders(),
       body: JSON.stringify(product),
     });
     if (!response.ok) throw new Error('Erro ao criar produto');
@@ -30,7 +38,7 @@ export const productService = {
   update: async (product: Product) => {
     const response = await fetch(`${API_URL}/produtos`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await jsonAuthHeaders(),
       body: JSON.stringify(product),
     });
     if (!response.ok) throw new Error('Erro ao atualizar produto');
@@ -40,7 +48,7 @@ export const productService = {
 delete: async (id: number) => {
     const response = await fetch(`${API_URL}/produtos/${id}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await jsonAuthHeaders(),
     });
 
     if (!response.ok) throw new Error('Erro ao deletar produto');
@@ -52,7 +60,9 @@ delete: async (id: number) => {
 
   getAllForExport: async (): Promise<Product[]> => {
     // Pedimos um limite alto (ex: 1000) para trazer tudo de uma vez
-    const response = await fetch(`${API_URL}/produtos?limit=1000&page=1`);
+    const response = await fetch(`${API_URL}/produtos?limit=1000&page=1`, {
+      headers: await getApiAuthHeaders(),
+    });
     if (!response.ok) throw new Error('Erro ao baixar dados para exportação');
     const json = await response.json();
     return json.data; // Retorna apenas a lista pura
@@ -70,7 +80,9 @@ delete: async (id: number) => {
     // --- CORREÇÃO: ADICIONANDO CATEGORIA ---
     if (filters.category) params.append('category', filters.category);
 
-    const response = await fetch(`${API_URL}/produtos?${params.toString()}`);
+    const response = await fetch(`${API_URL}/produtos?${params.toString()}`, {
+      headers: await getApiAuthHeaders(),
+    });
     if (!response.ok) throw new Error('Erro ao buscar produtos');
     return response.json();
   },
@@ -78,9 +90,7 @@ delete: async (id: number) => {
     // Erro comum: esquecer de colocar /${id} no final
     const response = await fetch(`${API_URL}/produtos/${id}`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: await jsonAuthHeaders(),
     });
 
     if (!response.ok) {

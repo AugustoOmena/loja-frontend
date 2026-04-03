@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/services/supabaseClient";
+import { getApiAuthHeaders } from "@/services/apiAuthHeaders";
 import { useCart } from "@/contexts/CartContext";
 import { CheckoutErrorModal } from "@/shared/components/CheckoutErrorModal";
 import { formatCpf, normalizarCpf, validarCpf } from "@/utils/inputMasks";
@@ -385,7 +386,10 @@ export const CreditCardCheckout = () => {
       const API_URL = import.meta.env.VITE_API_URL || "";
       const response = await fetch(`${API_URL}/pagamento`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getApiAuthHeaders()),
+        },
         body: JSON.stringify(payload),
       });
 

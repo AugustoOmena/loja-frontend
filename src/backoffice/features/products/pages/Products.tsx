@@ -26,6 +26,7 @@ import {
 } from "@tanstack/react-query";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getProductQuantity } from "@/utils/productHelpers";
+import { getApiAuthHeaders } from "@/services/apiAuthHeaders";
 
 // Opções para Cor (nome -> hex). "Todas" para itens sem cor. Cores claras: borda fina cinza.
 const COLOR_MAP: Record<string, string> = {
@@ -331,7 +332,10 @@ export const Products = () => {
 
       const response = await fetch(`${API_URL}/produtos/exportar`, {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getApiAuthHeaders()),
+        },
       });
 
       if (!response.ok) {

@@ -1,3 +1,5 @@
+import { getApiAuthHeaders } from "@/services/apiAuthHeaders";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const backofficeHeaders = {
@@ -42,6 +44,7 @@ export const createShipment = async (
       headers: {
         ...backofficeHeaders,
         "X-User-Id": userId,
+        ...(await getApiAuthHeaders()),
       },
     }
   );
@@ -62,7 +65,9 @@ export const createShipment = async (
 export const getFulfillmentTracking = async (
   orderId: string
 ): Promise<FulfillmentTrackingResponse> => {
-  const response = await fetch(`${API_URL}/fulfillment/${orderId}/tracking`);
+  const response = await fetch(`${API_URL}/fulfillment/${orderId}/tracking`, {
+    headers: await getApiAuthHeaders(),
+  });
   if (!response.ok) throw new Error("Erro ao buscar rastreio");
   return response.json();
 };
