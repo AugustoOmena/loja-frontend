@@ -115,7 +115,7 @@ export const PedidosBackoffice = () => {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const data = await listAllBackoffice(user.id);
+      const data = await listAllBackoffice();
       setOrders(data.map(mapApiOrderToOrder));
     } catch (err) {
       console.error("Erro ao buscar pedidos:", err);
@@ -175,7 +175,7 @@ export const PedidosBackoffice = () => {
     setEnvioError(null);
     setEnvioSuccess(null);
     setTrackingData(null);
-    getByIdBackoffice(orderIdToDetail, user.id)
+    getByIdBackoffice(orderIdToDetail)
       .then((api) => setSelectedOrder(mapApiOrderToOrder(api)))
       .catch(() => {})
       .finally(() => setModalDetailLoading(false));

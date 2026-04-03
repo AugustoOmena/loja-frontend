@@ -19,7 +19,7 @@ import { MobileBottomNav } from "@/store/shared/components/MobileBottomNav";
 import { STORE_CATEGORIES } from "@/constants/storeCategories";
 
 export const Profile = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const { colors, theme } = useTheme();
 
@@ -40,7 +40,10 @@ export const Profile = () => {
 
     const fetchCounts = async () => {
       try {
-        const orders = await listByUser({ userId: user.id });
+        const orders = await listByUser({
+          userId: user.id,
+          accessToken: session?.access_token,
+        });
         const paymentCount = orders.filter(
           (o) => o.status === "pending"
         ).length;
@@ -70,7 +73,7 @@ export const Profile = () => {
     };
 
     fetchCounts();
-  }, [user]);
+  }, [user, session?.access_token]);
 
   const menuItems = [
     {

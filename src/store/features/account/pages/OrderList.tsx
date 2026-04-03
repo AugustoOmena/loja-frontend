@@ -49,7 +49,7 @@ const contentWidth = { maxWidth: "1000px", margin: "0 auto", padding: "0 20px" }
 
 export const OrderList = () => {
   const { type } = useParams();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const { colors } = useTheme();
   const [orders, setOrders] = useState<OrderApi[]>([]);
@@ -74,7 +74,10 @@ export const OrderList = () => {
           setOrders([]);
           return;
         }
-        const data = await listByUser({ userId: user.id });
+        const data = await listByUser({
+          userId: user.id,
+          accessToken: session?.access_token,
+        });
         const filtered = data.filter((o) =>
           screenConfig.statuses.includes(o.status)
         );
@@ -88,7 +91,7 @@ export const OrderList = () => {
     };
 
     fetchOrders();
-  }, [user, type]);
+  }, [user, type, session?.access_token]);
 
   const openDetail = useCallback(
     async (order: OrderApi) => {
@@ -96,7 +99,11 @@ export const OrderList = () => {
       setModalOrder(order);
       setDetailLoading(true);
       try {
-        const full = await getByIdForUser(order.id, user.id);
+        const full = await getByIdForUser(
+          order.id,
+          user.id,
+          session?.access_token
+        );
         setModalOrder(full);
       } catch {
         setModalOrder(order);
@@ -104,7 +111,7 @@ export const OrderList = () => {
         setDetailLoading(false);
       }
     },
-    [user]
+    [user, session?.access_token]
   );
 
   const closeModal = useCallback(() => setModalOrder(null), []);

@@ -1,12 +1,22 @@
 import { supabase } from "@/services/supabaseClient";
 
 /**
- * JWT do Supabase para a API HTTP (Lambda) validar o usuário e a role.
- * Sem isso, rotas como GET /pedidos?user_id= são tratadas como "listar tudo" e retornam 403.
+ * JWT do Supabase para a API HTTP (Lambda) validar o usuário.
+ * `VITE_API_SEND_SUPABASE_JWT=false` desliga o header (útil se a API não validar JWT do Supabase).
  */
-export async function getApiAuthHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+export async function getApiAuthHeaders(
+  accessToken?: string | null
+): Promise<Record<string, string>> {
+  if (import.meta.env.VITE_API_SEND_SUPABASE_JWT === "false") {
+    return {};
+  }
+  let token: string | undefined;
+  if (typeof accessToken === "string" && accessToken.length > 0) {
+    token = accessToken;
+  } else {
+    const { data } = await supabase.auth.getSession();
+    token = data.session?.access_token;
+  }
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }

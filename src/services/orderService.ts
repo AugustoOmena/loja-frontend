@@ -81,10 +81,23 @@ const backofficeHeaders = {
   "X-Backoffice": "true",
 };
 
+async function orderApiErrorMessage(response: Response): Promise<string> {
+  try {
+    const j = (await response.json()) as { error?: string; message?: string };
+    if (typeof j.error === "string" && j.error) return j.error;
+    if (typeof j.message === "string" && j.message) return j.message;
+  } catch {
+    /* ignore */
+  }
+  return `Erro HTTP ${response.status}`;
+}
+
 export interface ListOrdersParams {
   userId: string;
   page?: number;
   limit?: number;
+  /** Token da sessão atual (evita corrida com getSession em alguns mounts) */
+  accessToken?: string | null;
 }
 
 /**
@@ -98,28 +111,36 @@ export const listByUser = async (
   if (params.page != null) search.set("page", String(params.page));
   if (params.limit != null) search.set("limit", String(params.limit));
   const response = await fetch(`${API_URL}/pedidos?${search.toString()}`, {
-    headers: await getApiAuthHeaders(),
+    headers: await getApiAuthHeaders(params.accessToken),
   });
-  if (!response.ok) throw new Error("Erro ao buscar pedidos");
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   const data = await response.json();
   return Array.isArray(data) ? data : data.data ?? data.orders ?? [];
 };
 
 /**
- * BACKOFFICE: Lista todos os pedidos (admin)
- * GET /pedidos?user_id=<uuid>&page=&limit= com X-Backoffice: true
+ * BACKOFFICE: Lista todos os pedidos (admin).
+ * Não envia `user_id` na query: o UUID do admin era interpretado como filtro de cliente e zerava a lista.
+ * GET /pedidos?page=&limit= com X-Backoffice: true + Bearer
  */
-export const listAllBackoffice = async (
-  userId: string,
-  params?: { page?: number; limit?: number }
-): Promise<OrderApi[]> => {
-  const search = new URLSearchParams({ user_id: userId });
+export const listAllBackoffice = async (params?: {
+  page?: number;
+  limit?: number;
+}): Promise<OrderApi[]> => {
+  const search = new URLSearchParams();
   if (params?.page != null) search.set("page", String(params.page));
   if (params?.limit != null) search.set("limit", String(params.limit));
-  const response = await fetch(`${API_URL}/pedidos?${search.toString()}`, {
+  const qs = search.toString();
+  const url =
+    qs.length > 0 ? `${API_URL}/pedidos?${qs}` : `${API_URL}/pedidos`;
+  const response = await fetch(url, {
     headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
   });
-  if (!response.ok) throw new Error("Erro ao buscar pedidos");
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   const data = await response.json();
   return Array.isArray(data) ? data : data.data ?? data.orders ?? [];
 };
@@ -130,33 +151,33 @@ export const listAllBackoffice = async (
  */
 export const getByIdForUser = async (
   orderId: string,
-  userId: string
+  userId: string,
+  accessToken?: string | null
 ): Promise<OrderApi> => {
   const params = new URLSearchParams({ user_id: userId });
   const response = await fetch(
     `${API_URL}/pedidos/${orderId}?${params.toString()}`,
-    { headers: await getApiAuthHeaders() }
+    { headers: await getApiAuthHeaders(accessToken) }
   );
-  if (!response.ok) throw new Error("Erro ao buscar pedido");
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   return response.json();
 };
 
 /**
  * BACKOFFICE: Detalhe de um pedido (com shipping_address, etc.)
- * GET /pedidos/<order_id>?user_id=<uuid> com X-Backoffice: true
+ * GET /pedidos/<order_id> com X-Backoffice: true (sem user_id na query — admin autenticado via JWT)
  */
 export const getByIdBackoffice = async (
-  orderId: string,
-  userId: string
+  orderId: string
 ): Promise<OrderApi> => {
-  const params = new URLSearchParams({ user_id: userId });
-  const response = await fetch(
-    `${API_URL}/pedidos/${orderId}?${params.toString()}`,
-    {
-      headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
-    }
-  );
-  if (!response.ok) throw new Error("Erro ao buscar pedido");
+  const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
+    headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
+  });
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   return response.json();
 };
 
@@ -180,7 +201,9 @@ export const requestCancellation = async (
       body: JSON.stringify(body),
     }
   );
-  if (!response.ok) throw new Error("Erro ao solicitar cancelamento");
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   return response.json();
 };
 
@@ -201,7 +224,9 @@ export const backofficeFullCancel = async (
       refund_method: refundMethod,
     }),
   });
-  if (!response.ok) throw new Error("Erro ao cancelar pedido");
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   return response.json();
 };
 
@@ -223,7 +248,9 @@ export const backofficeCancelItems = async (
       refund_method: refundMethod,
     }),
   });
-  if (!response.ok) throw new Error("Erro ao cancelar itens");
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   return response.json();
 };
 
@@ -240,6 +267,8 @@ export const backofficeUpdateStatus = async (
     headers: { ...backofficeHeaders, ...(await getApiAuthHeaders()) },
     body: JSON.stringify({ status }),
   });
-  if (!response.ok) throw new Error("Erro ao atualizar status");
+  if (!response.ok) {
+    throw new Error(await orderApiErrorMessage(response));
+  }
   return response.json();
 };
