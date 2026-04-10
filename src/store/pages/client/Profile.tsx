@@ -8,7 +8,6 @@ import {
   Wallet,
   Package,
   Truck,
-  MessageSquare,
   // RotateCcw, // devoluções comentado
   UserCircle,
   Home,
@@ -31,7 +30,6 @@ export const Profile = () => {
     payment: 0,
     shipping: 0,
     shipped: 0,
-    review: 0,
     returns: 0,
   });
 
@@ -55,7 +53,6 @@ export const Profile = () => {
           payment: paymentCount,
           shipping: shippingCount,
           shipped: shippedCount,
-          review: 0,
           returns: 0,
         });
       } catch {
@@ -63,7 +60,6 @@ export const Profile = () => {
           payment: 0,
           shipping: 0,
           shipped: 0,
-          review: 0,
           returns: 0,
         });
       }
@@ -90,12 +86,6 @@ export const Profile = () => {
       icon: <Truck size={24} />,
       count: counts.shipped,
       route: "/pedidos/enviados",
-    },
-    {
-      label: "Avaliar",
-      icon: <MessageSquare size={24} />,
-      count: counts.review,
-      route: "/pedidos/avaliar",
     },
     // {
     //   label: "Devolução",

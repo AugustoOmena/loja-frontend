@@ -33,11 +33,6 @@ const SCREEN_CONFIG: Record<
     statuses: ["shipped"],
     emptyMsg: "Nenhum pedido em trânsito.",
   },
-  avaliar: {
-    title: "Para Avaliar",
-    statuses: ["delivered"],
-    emptyMsg: "Nenhum pedido para avaliar.",
-  },
   devolucao: {
     title: "Devoluções",
     statuses: ["returned"],
@@ -63,6 +58,12 @@ export const OrderList = () => {
   const config = type ? SCREEN_CONFIG[type] : SCREEN_CONFIG.pagamento;
 
   useEffect(() => {
+    if (type === "avaliar") {
+      navigate("/minha-conta", { replace: true });
+    }
+  }, [type, navigate]);
+
+  useEffect(() => {
     if (!user) return;
     const screenConfig = type ? SCREEN_CONFIG[type] : SCREEN_CONFIG.pagamento;
     if (!screenConfig) return;
@@ -70,7 +71,7 @@ export const OrderList = () => {
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        if (["enviados", "avaliar", "devolucao"].includes(type || "")) {
+        if (["enviados", "devolucao"].includes(type || "")) {
           setOrders([]);
           return;
         }
