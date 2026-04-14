@@ -6,12 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:mobile": "npm run build && npx cap sync",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
     "lint": "eslint .",
     "preview": "vite preview",
     "populate:firebase": "node scripts/populateFirebaseREST.js",
     "automate:products": "node scripts/automate-products.cjs"
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.0",
     "@mercadopago/sdk-js": "^0.0.3",
     "@supabase/supabase-js": "^2.90.1",
     "@tanstack/react-query": "^5.90.18",
@@ -22,6 +27,9 @@
     "react-router-dom": "^7.12.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.0",
     "@types/node": "^24.10.1",
