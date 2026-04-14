@@ -64,9 +64,8 @@ export const authService = {
 
   async sendPasswordReset(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // Onde o usuário vai cair após clicar no email para trocar a senha
-      // Geralmente é uma rota '/redefinir-senha' ou a própria home com um modal
-      redirectTo: `${window.location.origin}/minha-conta/dados`, 
+      // Rota pública específica para redefinição de senha.
+      redirectTo: `${window.location.origin}/redefinir-senha`,
     });
     if (error) throw error;
   },

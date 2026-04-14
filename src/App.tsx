@@ -30,6 +30,7 @@ import { StoreHome } from "./store/pages/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
 import { Login } from "./pages/Login";
 import { AuthCallback } from "./pages/AuthCallback";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Checkout } from "./store/pages/Checkout";
 import { PixBoletoCheckout } from "./store/pages/PixBoletoCheckout";
 import { CreditCardCheckout } from "./store/pages/CreditCardCheckout";
@@ -52,6 +53,8 @@ function App() {
               ==================================================== */}
               <Route path="/login" element={<Login />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/redefinir-senha" element={<ResetPassword />} />
+              <Route path="/minha-conta/dados" element={<ResetPassword />} />
               <Route path="/backoffice/login" element={<LoginBackoffice />} />
 
               {/* Layout Principal da Loja (Com Menu Bottom) */}
