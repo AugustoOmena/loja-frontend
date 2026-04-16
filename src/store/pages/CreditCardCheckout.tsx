@@ -350,7 +350,7 @@ export const CreditCardCheckout = () => {
           email: formData.email,
           first_name: destFirstName,
           last_name: destLastName,
-          phone: destPhone ? { number: destPhone } : undefined,
+          phone: destPhone || undefined,
           identification: {
             type: formData.docType,
             number: cleanDoc,

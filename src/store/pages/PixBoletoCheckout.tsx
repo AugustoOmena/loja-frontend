@@ -372,7 +372,7 @@ export const PixBoletoCheckout = () => {
           email: formData.email,
           first_name: destinationFirstName || names[0] || "",
           last_name: destinationLastName || names.slice(1).join(" ") || "",
-          phone: destinationPhone ? { number: destinationPhone } : undefined,
+          phone: destinationPhone || undefined,
           identification: {
             type: "CPF",
             number: normalizarCpf(formData.cpf),
