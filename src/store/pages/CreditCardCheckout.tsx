@@ -333,9 +333,10 @@ export const CreditCardCheckout = () => {
 
       const safeNumber = (address.number || "").trim() || "S/N";
       const safeNeighborhood = (address.neighborhood || "").trim() || "Centro";
-      const checkoutState = location.state as { firstName?: string; lastName?: string } | null;
+      const checkoutState = location.state as { firstName?: string; lastName?: string; phone?: string } | null;
       const destFirstName = (checkoutState?.firstName ?? "").trim();
       const destLastName = (checkoutState?.lastName ?? "").trim();
+      const destPhone = (checkoutState?.phone ?? "").replace(/\D/g, "");
 
       // Envia itens + frete separado para o backend calcular corretamente.
       // first_name/last_name = destinatário (só do Checkout). Nome no cartão não é usado para isso.
@@ -349,6 +350,7 @@ export const CreditCardCheckout = () => {
           email: formData.email,
           first_name: destFirstName,
           last_name: destLastName,
+          phone: destPhone ? { number: destPhone } : undefined,
           identification: {
             type: formData.docType,
             number: cleanDoc,

@@ -24,6 +24,18 @@ import { supabase } from "../../services/supabaseClient";
 
 const FIRST_NAME_MAX_LENGTH = 50;
 const LAST_NAME_MAX_LENGTH = 80;
+const PHONE_MIN_DIGITS = 10;
+const PHONE_MAX_DIGITS = 11;
+
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, PHONE_MAX_DIGITS);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
 
 export const Checkout = () => {
   const {
@@ -45,7 +57,7 @@ export const Checkout = () => {
     location.state as { selectedPaymentMethod?: string }
   )?.selectedPaymentMethod;
 
-  const [checkoutName, setCheckoutName] = useState({ firstName: "", lastName: "" });
+  const [checkoutName, setCheckoutName] = useState({ firstName: "", lastName: "", phone: "" });
   const [checkoutNameErrors, setCheckoutNameErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -56,7 +68,7 @@ export const Checkout = () => {
         const parts = nameMeta.trim().split(/\s+/);
         const first = (parts[0] ?? "").slice(0, FIRST_NAME_MAX_LENGTH);
         const last = (parts.slice(1).join(" ") ?? "").slice(0, LAST_NAME_MAX_LENGTH);
-        setCheckoutName({ firstName: first, lastName: last });
+        setCheckoutName({ firstName: first, lastName: last, phone: "" });
       }
     });
   }, []);
@@ -151,10 +163,15 @@ export const Checkout = () => {
     const err: Record<string, string> = {};
     const first = checkoutName.firstName.trim();
     const last = checkoutName.lastName.trim();
+    const phoneDigits = checkoutName.phone.replace(/\D/g, "");
     if (!first) err.firstName = messages.firstNameRequired;
     else if (first.length > FIRST_NAME_MAX_LENGTH) err.firstName = messages.firstNameMaxLength;
     if (!last) err.lastName = messages.lastNameRequired;
     else if (last.length > LAST_NAME_MAX_LENGTH) err.lastName = messages.lastNameMaxLength;
+    if (!phoneDigits) err.phone = messages.phoneRequired;
+    else if (phoneDigits.length < PHONE_MIN_DIGITS || phoneDigits.length > PHONE_MAX_DIGITS) {
+      err.phone = messages.phoneInvalid;
+    }
     setCheckoutNameErrors(err);
     return Object.keys(err).length === 0;
   };
@@ -165,14 +182,15 @@ export const Checkout = () => {
     const state = {
       firstName: checkoutName.firstName.trim(),
       lastName: checkoutName.lastName.trim(),
+      phone: checkoutName.phone.replace(/\D/g, ""),
       ...(method === "pix" ? { defaultMethod: "pix" as const } : method === "boleto" ? { defaultMethod: "boleto" as const } : {}),
     };
     if (method === "credit") {
-      navigate("/checkout/credit", { state: { firstName: state.firstName, lastName: state.lastName } });
+      navigate("/checkout/credit", { state: { firstName: state.firstName, lastName: state.lastName, phone: state.phone } });
     } else if (method === "pix") {
-      navigate("/checkout/pix-boleto", { state: { defaultMethod: "pix", firstName: state.firstName, lastName: state.lastName } });
+      navigate("/checkout/pix-boleto", { state: { defaultMethod: "pix", firstName: state.firstName, lastName: state.lastName, phone: state.phone } });
     } else if (method === "boleto") {
-      navigate("/checkout/pix-boleto", { state: { defaultMethod: "boleto", firstName: state.firstName, lastName: state.lastName } });
+      navigate("/checkout/pix-boleto", { state: { defaultMethod: "boleto", firstName: state.firstName, lastName: state.lastName, phone: state.phone } });
     }
   };
 
@@ -403,6 +421,43 @@ export const Checkout = () => {
                     </span>
                   )}
                 </div>
+              </div>
+              <div style={{ marginBottom: "6px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: colors.muted,
+                    marginBottom: "6px",
+                  }}
+                >
+                  Telefone *
+                </label>
+                <input
+                  type="tel"
+                  value={checkoutName.phone}
+                  onChange={(e) => {
+                    setCheckoutName((p) => ({ ...p, phone: formatPhone(e.target.value) }));
+                    if (checkoutNameErrors.phone) setCheckoutNameErrors((p) => ({ ...p, phone: "" }));
+                  }}
+                  placeholder="Ex: (11) 99999-9999"
+                  maxLength={15}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: `1px solid ${checkoutNameErrors.phone ? "#dc2626" : colors.border}`,
+                    backgroundColor: colors.bg,
+                    color: colors.text,
+                    fontSize: "14px",
+                  }}
+                />
+                {checkoutNameErrors.phone && (
+                  <span style={{ fontSize: "12px", color: "#dc2626", marginTop: "4px", display: "block" }}>
+                    {checkoutNameErrors.phone}
+                  </span>
+                )}
               </div>
             </div>
 

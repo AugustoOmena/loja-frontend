@@ -20,6 +20,8 @@ export const messages = {
   fullNameFirstLast: "Digite nome e sobrenome.",
   firstNameRequired: "Nome é obrigatório.",
   lastNameRequired: "Sobrenome é obrigatório.",
+  phoneRequired: "Telefone é obrigatório.",
+  phoneInvalid: "Digite um telefone válido com DDD.",
   firstNameMaxLength: "Nome deve ter no máximo 50 caracteres.",
   lastNameMaxLength: "Sobrenome deve ter no máximo 80 caracteres.",
   emailRequired: "E-mail é obrigatório.",

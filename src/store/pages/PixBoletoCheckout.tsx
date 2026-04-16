@@ -356,6 +356,10 @@ export const PixBoletoCheckout = () => {
       const safeItems = items || [];
       if (safeItems.length === 0) throw new Error("Carrinho vazio.");
 
+      const checkoutState = location.state as { firstName?: string; lastName?: string; phone?: string } | null;
+      const destinationFirstName = (checkoutState?.firstName ?? "").trim();
+      const destinationLastName = (checkoutState?.lastName ?? "").trim();
+      const destinationPhone = (checkoutState?.phone ?? "").replace(/\D/g, "");
       const names = formData.fullName.trim().split(/\s+/);
       const safeNumber = formData.number.trim() || "S/N";
       const safeNeighborhood = formData.neighborhood.trim() || "Centro";
@@ -366,8 +370,9 @@ export const PixBoletoCheckout = () => {
         user_id: user.id,
         payer: {
           email: formData.email,
-          first_name: names[0] ?? "",
-          last_name: names.slice(1).join(" ") ?? "",
+          first_name: destinationFirstName || names[0] || "",
+          last_name: destinationLastName || names.slice(1).join(" ") || "",
+          phone: destinationPhone ? { number: destinationPhone } : undefined,
           identification: {
             type: "CPF",
             number: normalizarCpf(formData.cpf),
