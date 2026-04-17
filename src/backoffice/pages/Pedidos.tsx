@@ -4,7 +4,6 @@ import { useTheme } from "../../contexts/ThemeContext";
 import {
   listAllBackoffice,
   getByIdBackoffice,
-  backofficeFullCancel,
   backofficeCancelItems,
   backofficeUpdateDeliveryStatus,
   type OrderApi,
@@ -42,6 +41,8 @@ import {
   X,
   Search,
   Filter,
+  ChevronLeft,
+  ChevronRight,
   User,
   MapPin,
   Truck,
@@ -59,7 +60,7 @@ interface Order extends OrderApi {
 
 /**
  * Reembolso via voucher: fluxo e chamadas com `refund_method: "voucher"` permanecem no código;
- * enquanto `false`, o botão na UI fica desativado e cancelamento total usa Mercado Pago.
+ * enquanto `false`, o botão na UI fica desativado; remoção de itens com estorno usa Mercado Pago.
  */
 const VOUCHER_REFUND_FEATURE_ENABLED = false;
 
@@ -139,6 +140,9 @@ export const PedidosBackoffice = () => {
   const { colors, theme } = useTheme();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ordersListPage, setOrdersListPage] = useState(1);
+  const [ordersListLimit, setOrdersListLimit] = useState(20);
+  const [ordersTotalCount, setOrdersTotalCount] = useState<number | null>(null);
 
   // --- MELHOR ENVIO (OAUTH) ---
   const [melhorEnvioConnected, setMelhorEnvioConnected] = useState<
@@ -204,18 +208,27 @@ export const PedidosBackoffice = () => {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const data = await listAllBackoffice(user.id);
-      setOrders(data.map(mapApiOrderToOrder));
+      const { orders: rows, total } = await listAllBackoffice(user.id, {
+        page: ordersListPage,
+        limit: ordersListLimit,
+      });
+      setOrders(rows.map(mapApiOrderToOrder));
+      setOrdersTotalCount(total);
     } catch (err) {
       console.error("Erro ao buscar pedidos:", err);
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, ordersListPage, ordersListLimit]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  /** Filtros de listagem são no cliente; ao mudar status, volta à página 1 da API (se não estiver). */
+  useEffect(() => {
+    setOrdersListPage(1);
+  }, [paymentStatusFilter, deliveryStatusFilter]);
 
   const fetchMelhorEnvioStatus = useCallback(async () => {
     setMelhorEnvioStatusLoading(true);
@@ -308,6 +321,16 @@ export const PedidosBackoffice = () => {
     return true;
   });
 
+  const ordersTotalPages =
+    ordersTotalCount != null && ordersTotalCount > 0
+      ? Math.max(1, Math.ceil(ordersTotalCount / ordersListLimit))
+      : null;
+  const canPrevOrdersPage = ordersListPage > 1;
+  const canNextOrdersPage =
+    ordersTotalPages != null
+      ? ordersListPage < ordersTotalPages
+      : orders.length >= ordersListLimit;
+
   // --- ALTERAR STATUS DE ENTREGA (Melhor Envio / fulfillment) ---
   const handleDeliveryStatusSelect = (newDeliveryStatus: string) => {
     setDeliveryStatusToConfirm(newDeliveryStatus);
@@ -328,25 +351,6 @@ export const PedidosBackoffice = () => {
       setIsDeliveryStatusConfirmOpen(false);
     } catch {
       alert("Erro ao atualizar a situação do envio.");
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  const handleFullCancel = async () => {
-    if (!selectedOrder) return;
-    if (!confirm("ATENÇÃO: Cancelar pedido?")) return;
-    setProcessingAction(true);
-    try {
-      const updatedApi = await backofficeFullCancel(
-        selectedOrder.id,
-        VOUCHER_REFUND_FEATURE_ENABLED ? "voucher" : "mp"
-      );
-      const updated = mapApiOrderToOrder(updatedApi);
-      setSelectedOrder(updated);
-      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
-    } catch {
-      alert("Erro ao cancelar pedido.");
     } finally {
       setProcessingAction(false);
     }
@@ -757,21 +761,6 @@ export const PedidosBackoffice = () => {
       marginBottom: "8px",
       border: `1px solid ${colors.border}`,
     },
-    cancelBtn: {
-      width: "100%",
-      padding: "12px",
-      backgroundColor: "#fee2e2",
-      color: "#991b1b",
-      border: "1px solid #fecaca",
-      borderRadius: "8px",
-      fontWeight: "bold",
-      cursor: "pointer",
-      marginTop: "30px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "8px",
-    },
     confirmBtn: {
       flex: 1,
       padding: "10px",
@@ -911,6 +900,31 @@ export const PedidosBackoffice = () => {
             <option value="cancelled">Entrega cancelada</option>
           </select>
         </div>
+        <div style={styles.filterWrapper}>
+          <span
+            style={{
+              fontSize: "12px",
+              color: colors.muted,
+              paddingLeft: "6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Por página
+          </span>
+          <select
+            style={styles.filterSelect}
+            value={ordersListLimit}
+            onChange={(e) => {
+              setOrdersListLimit(Number(e.target.value));
+              setOrdersListPage(1);
+            }}
+            aria-label="Quantidade de pedidos por página"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
       </div>
 
       <div style={styles.tableContainer}>
@@ -1004,6 +1018,90 @@ export const PedidosBackoffice = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          marginTop: "14px",
+          marginBottom: "8px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "13px",
+            color: colors.muted,
+          }}
+        >
+          {ordersTotalCount != null ? (
+            <>
+              {ordersTotalCount === 0
+                ? "Nenhum pedido."
+                : `Exibindo ${Math.min(
+                    (ordersListPage - 1) * ordersListLimit + 1,
+                    ordersTotalCount
+                  )}–${Math.min(
+                    ordersListPage * ordersListLimit,
+                    ordersTotalCount
+                  )} de ${ordersTotalCount}`}
+            </>
+          ) : (
+            <>
+              Página {ordersListPage}
+              {orders.length < ordersListLimit
+                ? ` · ${orders.length} pedido(s) nesta página`
+                : ` · até ${ordersListLimit} por página`}
+            </>
+          )}
+          {filteredOrders.length === 0 && orders.length > 0 && (
+            <div
+              style={{
+                marginTop: "6px",
+                fontSize: "12px",
+                color: "#b45309",
+              }}
+            >
+              Nenhum pedido desta página corresponde aos filtros atuais.
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            type="button"
+            disabled={!canPrevOrdersPage || loading}
+            onClick={() => setOrdersListPage((p) => Math.max(1, p - 1))}
+            style={{
+              ...styles.actionBtn,
+              opacity: canPrevOrdersPage && !loading ? 1 : 0.45,
+              cursor: canPrevOrdersPage && !loading ? "pointer" : "not-allowed",
+            }}
+            aria-label="Página anterior"
+          >
+            <ChevronLeft size={18} /> Anterior
+          </button>
+          <span style={{ fontSize: "13px", color: colors.text, minWidth: "100px", textAlign: "center" }}>
+            {ordersTotalPages != null
+              ? `Pág. ${ordersListPage} / ${ordersTotalPages}`
+              : `Pág. ${ordersListPage}`}
+          </span>
+          <button
+            type="button"
+            disabled={!canNextOrdersPage || loading}
+            onClick={() => setOrdersListPage((p) => p + 1)}
+            style={{
+              ...styles.actionBtn,
+              opacity: canNextOrdersPage && !loading ? 1 : 0.45,
+              cursor: canNextOrdersPage && !loading ? "pointer" : "not-allowed",
+            }}
+            aria-label="Próxima página"
+          >
+            Próxima <ChevronRight size={18} />
+          </button>
+        </div>
       </div>
 
       {isModalOpen && selectedOrder && (
@@ -1759,15 +1857,25 @@ export const PedidosBackoffice = () => {
               </div>
             )}
 
-            {getEffectiveDeliveryStatus(selectedOrder) !== "cancelled" && (
-              <button
-                onClick={handleFullCancel}
-                disabled={processingAction}
-                style={styles.cancelBtn}
-              >
-                <XCircle size={20} /> Cancelar Pedido Totalmente
-              </button>
-            )}
+            <p
+              style={{
+                marginTop: "24px",
+                marginBottom: 0,
+                fontSize: "13px",
+                color: colors.muted,
+                lineHeight: 1.55,
+                padding: "14px 16px",
+                backgroundColor: theme === "dark" ? "#0f172a" : "#f1f5f9",
+                borderRadius: "8px",
+                border: `1px solid ${colors.border}`,
+              }}
+            >
+              <strong>Cancelamento do pedido:</strong> não há botão de
+              cancelamento total aqui. O pedido deve ser tratado como encerrado
+              ou cancelado quando <strong>todos os produtos</strong> tiverem
+              sido removidos com estorno (Mercado Pago) — o backend passa a
+              refletir isso (por exemplo, entrega cancelada ou pedido sem itens).
+            </p>
           </div>
         </div>
       )}

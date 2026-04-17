@@ -49,19 +49,20 @@ export const Dashboard = () => {
   const fetchDashboardData = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const [productCountRes, userCountRes, orders] = await Promise.all([
+      const [productCountRes, userCountRes, ordersPage] = await Promise.all([
         supabase.from("products").select("*", { count: "exact", head: true }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
-        listAllBackoffice(user.id, { limit: 5000 }),
+        listAllBackoffice(user.id, { page: 1, limit: 5000 }),
       ]);
 
+      const orders = ordersPage.orders;
       const totalRevenue =
         orders
           .filter((o) => getEffectivePaymentStatus(o) === "approved")
           .reduce((acc, curr) => acc + (curr.total_amount || 0), 0) || 0;
       setStats({
         revenue: totalRevenue,
-        totalOrders: orders.length,
+        totalOrders: ordersPage.total ?? orders.length,
         totalProducts: productCountRes.count || 0,
         totalCustomers: userCountRes.count || 0,
       });

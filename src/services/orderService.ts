@@ -106,23 +106,55 @@ export const listByUser = async (
   return Array.isArray(data) ? data : data.data ?? data.orders ?? [];
 };
 
+/** Resposta paginada de GET /pedidos (backoffice). */
+export interface BackofficeOrdersPageResult {
+  orders: OrderApi[];
+  /** Total de registros, se a API enviar (`total`, `count` ou `meta.total`). */
+  total: number | null;
+}
+
+function parseBackofficePedidosListJson(data: unknown): BackofficeOrdersPageResult {
+  if (Array.isArray(data)) {
+    return { orders: data as OrderApi[], total: null };
+  }
+  if (!data || typeof data !== "object") {
+    return { orders: [], total: null };
+  }
+  const rec = data as Record<string, unknown>;
+  const rawList = rec.data ?? rec.orders ?? rec.items ?? [];
+  const list = (Array.isArray(rawList) ? rawList : []) as OrderApi[];
+  let total: number | null = null;
+  if (typeof rec.total === "number" && Number.isFinite(rec.total)) {
+    total = rec.total;
+  } else if (typeof rec.count === "number" && Number.isFinite(rec.count)) {
+    total = rec.count;
+  } else if (rec.meta && typeof rec.meta === "object") {
+    const m = (rec.meta as Record<string, unknown>).total;
+    if (typeof m === "number" && Number.isFinite(m)) total = m;
+  }
+  return { orders: list, total };
+}
+
 /**
- * BACKOFFICE: Lista todos os pedidos (admin)
- * GET /pedidos?user_id=<uuid>&page=&limit= com X-Backoffice: true
+ * BACKOFFICE: Lista pedidos (admin), paginado.
+ * GET /pedidos?user_id=<uuid>&page=1&limit=20 com X-Backoffice: true
+ * (page e limit sempre enviados; padrão page=1, limit=20 se omitidos em `params`).
  */
 export const listAllBackoffice = async (
   userId: string,
   params?: { page?: number; limit?: number }
-): Promise<OrderApi[]> => {
+): Promise<BackofficeOrdersPageResult> => {
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 20;
   const search = new URLSearchParams({ user_id: userId });
-  if (params?.page != null) search.set("page", String(params.page));
-  if (params?.limit != null) search.set("limit", String(params.limit));
+  search.set("page", String(page));
+  search.set("limit", String(limit));
   const response = await fetch(`${API_URL}/pedidos?${search.toString()}`, {
     headers: backofficeHeaders,
   });
   if (!response.ok) throw new Error("Erro ao buscar pedidos");
   const data = await response.json();
-  return Array.isArray(data) ? data : data.data ?? data.orders ?? [];
+  return parseBackofficePedidosListJson(data);
 };
 
 /**
