@@ -84,6 +84,37 @@ export function matchesClientOrderStatusToken(
   }
 }
 
+/**
+ * Soma valores já reembolsados (mercadoria) a partir de `refund_requests`,
+ * considerando entradas com status `refunded` (formato pode variar no backend).
+ */
+export function sumRefundedMerchandiseBrl(order: OrderApi): number {
+  const rr = order.refund_requests;
+  if (!Array.isArray(rr)) return 0;
+  let sum = 0;
+  for (const entry of rr) {
+    if (!entry || typeof entry !== "object") continue;
+    const r = entry as Record<string, unknown>;
+    const st = String(r.status ?? r.refund_status ?? "").toLowerCase();
+    if (st !== "refunded") continue;
+    const raw = r.amount ?? r.refund_amount ?? r.value;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (Number.isFinite(n) && n > 0) sum += n;
+  }
+  return Math.round(sum * 100) / 100;
+}
+
+/**
+ * Teto de mercadoria ainda reembolsável no backoffice:
+ * `(total_amount - shipping_amount) - reembolsos já refunded`.
+ */
+export function getMaxRefundableMerchandiseBrl(order: OrderApi): number {
+  const total = Number(order.total_amount) || 0;
+  const ship = Number(order.shipping_amount ?? 0);
+  const cap = Math.max(0, total - ship);
+  return Math.max(0, Math.round((cap - sumRefundedMerchandiseBrl(order)) * 100) / 100);
+}
+
 /** Dados normalizados de pagamento extraídos do pedido (PIX ou boleto) */
 export interface OrderPaymentFields {
   paymentCode: string;

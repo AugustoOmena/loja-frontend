@@ -233,9 +233,26 @@ export const backofficeFullCancel = async (
 };
 
 /**
- * BACKOFFICE: Cancelamento parcial (itens)
- * PUT /pedidos/<order_id> com X-Backoffice: true
- * Body: { cancel_item_ids: ["uuid1"], refund_method: "voucher" | "mp" }
+ * BACKOFFICE: Reembolso por valor (fluxo principal).
+ * PUT /pedidos/<order_id> — body `{ refund_method, refund_amount }`.
+ * Não enviar `cancel_item_ids` nem `full_cancel` junto. Teto no servidor.
+ */
+export const backofficeRefundByAmount = async (
+  orderId: string,
+  body: { refund_method: "mp" | "voucher"; refund_amount: number }
+): Promise<OrderApi> => {
+  const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
+    method: "PUT",
+    headers: backofficeHeaders,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error("Erro ao processar reembolso");
+  return response.json();
+};
+
+/**
+ * BACKOFFICE (legado): cancelamento por linhas em `order_items`.
+ * PUT /pedidos/<order_id> — body `{ cancel_item_ids, refund_method }`.
  */
 export const backofficeCancelItems = async (
   orderId: string,

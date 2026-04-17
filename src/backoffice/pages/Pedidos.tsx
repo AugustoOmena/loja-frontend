@@ -4,7 +4,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import {
   listAllBackoffice,
   getByIdBackoffice,
-  backofficeCancelItems,
+  backofficeRefundByAmount,
   backofficeUpdateDeliveryStatus,
   type OrderApi,
 } from "../../services/orderService";
@@ -26,16 +26,15 @@ import {
 import {
   getEffectiveDeliveryStatus,
   getEffectivePaymentStatus,
+  getMaxRefundableMerchandiseBrl,
   getShippingServiceDisplayName,
+  sumRefundedMerchandiseBrl,
 } from "../../utils/orderHelpers";
 import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
 import {
   Eye,
   XCircle,
-  AlertTriangle,
   Package,
-  Trash2,
-  Ticket,
   CreditCard,
   Loader2,
   X,
@@ -58,11 +57,12 @@ interface Order extends OrderApi {
   user_email: string;
 }
 
-/**
- * Reembolso via voucher: fluxo e chamadas com `refund_method: "voucher"` permanecem no código;
- * enquanto `false`, o botão na UI fica desativado; remoção de itens com estorno usa Mercado Pago.
- */
-const VOUCHER_REFUND_FEATURE_ENABLED = false;
+function parseMoneyInputBr(raw: string): number | null {
+  const t = raw.trim().replace(/\s/g, "").replace(",", ".");
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
 
 function formatBrazilPhoneAdmin(raw: string | undefined | null): string {
   const d = digitsOnly(raw ?? "");
@@ -170,10 +170,7 @@ export const PedidosBackoffice = () => {
     useState(false);
   const [deliveryStatusToConfirm, setDeliveryStatusToConfirm] =
     useState<string>("");
-  const [itemToRemove, setItemToRemove] = useState<OrderItem | null>(null);
-  const [compensationType, setCompensationType] = useState<
-    "refund" | "voucher" | null
-  >(null);
+  const [refundAmountInput, setRefundAmountInput] = useState("");
   const [envioLoading, setEnvioLoading] = useState(false);
   const [envioError, setEnvioError] = useState<string | null>(null);
   const [envioSuccess, setEnvioSuccess] = useState<string | null>(null);
@@ -282,6 +279,10 @@ export const PedidosBackoffice = () => {
       .catch(() => {})
       .finally(() => setModalDetailLoading(false));
   }, [isModalOpen, orderIdToDetail, user?.id]);
+
+  useEffect(() => {
+    setRefundAmountInput("");
+  }, [orderIdToDetail]);
 
   // Rastreio via API de fulfillment (opcional; ver VITE_ENABLE_FULFILLMENT_TRACKING)
   useEffect(() => {
@@ -491,31 +492,42 @@ export const PedidosBackoffice = () => {
     }
   };
 
-  const handleRemoveItemConfirm = async () => {
-    if (!selectedOrder || !itemToRemove || !compensationType) return;
+  const handleRefundByAmountSubmit = async () => {
+    if (!selectedOrder) return;
+    const maxBrl = getMaxRefundableMerchandiseBrl(selectedOrder);
+    const amount = parseMoneyInputBr(refundAmountInput);
+    if (amount == null || amount <= 0) {
+      alert("Informe um valor válido em reais.");
+      return;
+    }
+    const rounded = Math.round(amount * 100) / 100;
+    if (rounded > maxBrl + 0.0001) {
+      alert(
+        `Valor acima do máximo reembolsável neste pedido (R$ ${maxBrl.toFixed(2)}).`
+      );
+      return;
+    }
+    if (
+      !confirm(
+        `Confirmar reembolso de R$ ${rounded.toFixed(2)} via Mercado Pago?`
+      )
+    ) {
+      return;
+    }
     setProcessingAction(true);
     try {
-      const refundMethod = compensationType === "voucher" ? "voucher" : "mp";
-      const updatedApi = await backofficeCancelItems(
-        selectedOrder.id,
-        [itemToRemove.id],
-        refundMethod
-      );
+      const updatedApi = await backofficeRefundByAmount(selectedOrder.id, {
+        refund_method: "mp",
+        refund_amount: rounded,
+      });
       const updated = mapApiOrderToOrder(updatedApi);
       setSelectedOrder(updated);
-      setOrders((prev) =>
-        prev.map((o) => (o.id === updated.id ? updated : o))
-      );
-      alert(
-        compensationType === "voucher"
-          ? "Item removido. Voucher gerado."
-          : "Item removido. Reembolso solicitado."
-      );
-      setItemToRemove(null);
-      setCompensationType(null);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setRefundAmountInput("");
+      alert("Reembolso registrado.");
     } catch (e) {
       console.error(e);
-      alert("Erro ao remover item.");
+      alert("Erro ao processar reembolso.");
     } finally {
       setProcessingAction(false);
     }
@@ -1635,21 +1647,6 @@ export const PedidosBackoffice = () => {
                         {item.quantity}x R$ {safeFormat(item.price)}
                       </div>
                     </div>
-                    {getEffectiveDeliveryStatus(selectedOrder) !== "cancelled" && (
-                      <button
-                        onClick={() => setItemToRemove(item)}
-                        disabled={processingAction}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: colors.muted,
-                          cursor: "pointer",
-                          padding: "5px",
-                        }}
-                      >
-                        <Trash2 size={18} color="#ef4444" />
-                      </button>
-                    )}
                   </div>
                 ))
               )}
@@ -1738,143 +1735,114 @@ export const PedidosBackoffice = () => {
               })()}
             </div>
 
-            {itemToRemove && (
-              <div
-                style={{
-                  backgroundColor: theme === "dark" ? "#334155" : "#f1f5f9",
-                  padding: "15px",
-                  borderRadius: "8px",
-                  marginTop: "15px",
-                  border: "1px solid #ef4444",
-                }}
-              >
+            <h3 style={styles.sectionTitle}>
+              <CreditCard size={18} /> Reembolso (Mercado Pago)
+            </h3>
+            {(() => {
+              const maxBrl = getMaxRefundableMerchandiseBrl(selectedOrder);
+              const already = sumRefundedMerchandiseBrl(selectedOrder);
+              return (
                 <div
                   style={{
-                    fontWeight: "bold",
-                    marginBottom: "10px",
+                    padding: "16px",
+                    marginBottom: "20px",
+                    backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc",
+                    borderRadius: "8px",
+                    border: `1px solid ${colors.border}`,
+                    fontSize: "14px",
                     color: colors.text,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
                   }}
                 >
-                  <AlertTriangle size={16} color="#ef4444" /> Removendo:{" "}
-                  {itemToRemove.product_name}
-                </div>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    marginBottom: "10px",
-                    color: colors.muted,
-                  }}
-                >
-                  Compensar: R${" "}
-                  {safeFormat(
-                    (Number(itemToRemove.price) || 0) *
-                      (Number(itemToRemove.quantity) || 1),
+                  <p
+                    style={{
+                      margin: "0 0 10px 0",
+                      fontSize: "13px",
+                      color: colors.muted,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Informe o valor em reais a reembolsar (somente mercadoria;
+                    frete não entra). O servidor valida o teto; aqui o máximo
+                    estimado é <strong>R$ {maxBrl.toFixed(2)}</strong>
+                    {already > 0 && (
+                      <>
+                        {" "}
+                        (já reembolsado em mercadoria: R$ {already.toFixed(2)})
+                      </>
+                    )}
+                    .
+                  </p>
+                  {maxBrl <= 0 ? (
+                    <p style={{ margin: 0, color: colors.muted, fontSize: "13px" }}>
+                      Não há saldo de mercadoria disponível para novo reembolso.
+                    </p>
+                  ) : (
+                    <>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: colors.muted,
+                        }}
+                      >
+                        Valor (R$)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="ex.: 49,90"
+                        value={refundAmountInput}
+                        onChange={(e) => setRefundAmountInput(e.target.value)}
+                        disabled={processingAction}
+                        style={{
+                          width: "100%",
+                          maxWidth: "220px",
+                          padding: "10px 12px",
+                          borderRadius: "6px",
+                          border: `1px solid ${colors.border}`,
+                          backgroundColor: colors.bg,
+                          color: colors.text,
+                          fontSize: "15px",
+                          marginBottom: "12px",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRefundByAmountSubmit}
+                        disabled={processingAction}
+                        style={{
+                          ...styles.actionBtn,
+                          backgroundColor: "#b45309",
+                          color: "white",
+                          border: "none",
+                          padding: "10px 16px",
+                        }}
+                      >
+                        {processingAction ? (
+                          <Loader2 className="animate-spin" size={16} />
+                        ) : (
+                          "Solicitar reembolso"
+                        )}
+                      </button>
+                    </>
                   )}
-                  ?
-                </p>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button
-                    type="button"
-                    disabled={!VOUCHER_REFUND_FEATURE_ENABLED}
-                    title={
-                      VOUCHER_REFUND_FEATURE_ENABLED
-                        ? undefined
-                        : "Voucher em desenvolvimento — use Estornar (Mercado Pago)."
-                    }
-                    onClick={() => setCompensationType("voucher")}
-                    style={{
-                      ...styles.actionBtn,
-                      opacity: VOUCHER_REFUND_FEATURE_ENABLED ? 1 : 0.55,
-                      cursor: VOUCHER_REFUND_FEATURE_ENABLED
-                        ? "pointer"
-                        : "not-allowed",
-                      backgroundColor:
-                        compensationType === "voucher"
-                          ? colors.text
-                          : "transparent",
-                      color:
-                        compensationType === "voucher"
-                          ? colors.bg
-                          : colors.text,
-                    }}
-                  >
-                    <Ticket size={16} /> Voucher
-                  </button>
-                  <button
-                    onClick={() => setCompensationType("refund")}
-                    style={{
-                      ...styles.actionBtn,
-                      backgroundColor:
-                        compensationType === "refund"
-                          ? colors.text
-                          : "transparent",
-                      color:
-                        compensationType === "refund" ? colors.bg : colors.text,
-                    }}
-                  >
-                    <CreditCard size={16} /> Estornar
-                  </button>
                 </div>
-                {compensationType && (
-                  <button
-                    onClick={handleRemoveItemConfirm}
-                    disabled={processingAction}
-                    style={{
-                      width: "100%",
-                      marginTop: "15px",
-                      padding: "10px",
-                      backgroundColor: "#ef4444",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {processingAction ? "Processando..." : "Confirmar Remoção"}
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setItemToRemove(null);
-                    setCompensationType(null);
-                  }}
-                  style={{
-                    width: "100%",
-                    marginTop: "10px",
-                    border: "none",
-                    background: "none",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    color: colors.muted,
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            )}
+              );
+            })()}
 
             <p
               style={{
-                marginTop: "24px",
+                marginTop: "20px",
                 marginBottom: 0,
-                fontSize: "13px",
+                fontSize: "12px",
                 color: colors.muted,
-                lineHeight: 1.55,
-                padding: "14px 16px",
-                backgroundColor: theme === "dark" ? "#0f172a" : "#f1f5f9",
-                borderRadius: "8px",
-                border: `1px solid ${colors.border}`,
+                lineHeight: 1.45,
               }}
             >
-              <strong>Cancelamento do pedido:</strong> não há botão de
-              cancelamento total aqui. O pedido deve ser tratado como encerrado
-              ou cancelado quando <strong>todos os produtos</strong> tiverem
-              sido removidos com estorno (Mercado Pago) — o backend passa a
-              refletir isso (por exemplo, entrega cancelada ou pedido sem itens).
+              Pedido considerado cancelado quando todos os itens forem estornados
+              (regra no backend).
             </p>
           </div>
         </div>
