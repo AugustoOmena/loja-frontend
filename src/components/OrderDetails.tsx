@@ -153,6 +153,20 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
             dateStyle: "long",
           })}
         </span>
+        <span
+          style={{
+            fontSize: "15px",
+            fontWeight: "700",
+            color: colors.text,
+            marginLeft: "auto",
+          }}
+        >
+          Total do pedido:{" "}
+          {order.total_amount.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })}
+        </span>
       </div>
 
       {/* Pagamento pendente (PIX ou Boleto) */}

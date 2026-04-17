@@ -53,6 +53,12 @@ interface Order extends OrderApi {
   user_email: string;
 }
 
+/**
+ * Reembolso via voucher: fluxo e chamadas com `refund_method: "voucher"` permanecem no código;
+ * enquanto `false`, o botão na UI fica desativado e cancelamento total usa Mercado Pago.
+ */
+const VOUCHER_REFUND_FEATURE_ENABLED = false;
+
 export const PedidosBackoffice = () => {
   const { user } = useAuth();
   const { colors, theme } = useTheme();
@@ -245,7 +251,7 @@ export const PedidosBackoffice = () => {
       setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
       setIsDeliveryStatusConfirmOpen(false);
     } catch {
-      alert("Erro ao atualizar status de entrega.");
+      alert("Erro ao atualizar a situação do envio.");
     } finally {
       setProcessingAction(false);
     }
@@ -258,7 +264,7 @@ export const PedidosBackoffice = () => {
     try {
       const updatedApi = await backofficeFullCancel(
         selectedOrder.id,
-        "voucher"
+        VOUCHER_REFUND_FEATURE_ENABLED ? "voucher" : "mp"
       );
       const updated = mapApiOrderToOrder(updatedApi);
       setSelectedOrder(updated);
@@ -1007,7 +1013,7 @@ export const PedidosBackoffice = () => {
                   color: colors.muted,
                 }}
               >
-                Status de entrega (Melhor Envio / fulfillment)
+                Situação do envio ao cliente
               </label>
               <p
                 style={{
@@ -1017,9 +1023,11 @@ export const PedidosBackoffice = () => {
                   lineHeight: 1.45,
                 }}
               >
-                Alterações aqui enviam{" "}
-                <code style={{ fontSize: "11px" }}>delivery_status</code> na API
-                (etiquetas e webhooks do Melhor Envio atualizam este fluxo).
+                Mostra em que etapa o pedido está na entrega (aguardando envio,
+                a caminho, entregue, etc.). Se você usa o Melhor Envio com
+                etiqueta de frete, essa informação costuma ser atualizada
+                automaticamente; use o menu abaixo para ajustar à mão quando
+                precisar corrigir ou registrar algo que o sistema não marcou.
               </p>
               <select
                 value={getEffectiveDeliveryStatus(selectedOrder)}
@@ -1360,9 +1368,20 @@ export const PedidosBackoffice = () => {
                 </p>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <button
+                    type="button"
+                    disabled={!VOUCHER_REFUND_FEATURE_ENABLED}
+                    title={
+                      VOUCHER_REFUND_FEATURE_ENABLED
+                        ? undefined
+                        : "Voucher em desenvolvimento — use Estornar (Mercado Pago)."
+                    }
                     onClick={() => setCompensationType("voucher")}
                     style={{
                       ...styles.actionBtn,
+                      opacity: VOUCHER_REFUND_FEATURE_ENABLED ? 1 : 0.55,
+                      cursor: VOUCHER_REFUND_FEATURE_ENABLED
+                        ? "pointer"
+                        : "not-allowed",
                       backgroundColor:
                         compensationType === "voucher"
                           ? colors.text
@@ -1453,7 +1472,7 @@ export const PedidosBackoffice = () => {
                 color: colors.text,
               }}
             >
-              Confirmar alteração de entrega?
+              Confirmar mudança no envio?
             </h3>
             <p
               style={{
@@ -1462,11 +1481,11 @@ export const PedidosBackoffice = () => {
                 marginBottom: "25px",
               }}
             >
-              Definir status de entrega como{" "}
+              O pedido passará a aparecer como{" "}
               <strong>
                 {getDeliveryStatusLabel(deliveryStatusToConfirm)}
-              </strong>
-              ?
+              </strong>{" "}
+              na lista e nos detalhes.
             </p>
             <div style={{ display: "flex", gap: "10px" }}>
               <button
