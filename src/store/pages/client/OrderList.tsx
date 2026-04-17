@@ -12,6 +12,7 @@ import { RecommendedProducts } from "../../../components/RecommendedProducts";
 import { RevealOnScrollProductSearchBar } from "../../../components/RevealOnScrollProductSearchBar";
 import { OrderDetails } from "../../../components/OrderDetails";
 import { STORE_CATEGORIES } from "../../../constants/storeCategories";
+import { matchesClientOrderStatusToken } from "../../../utils/orderHelpers";
 
 // Tipos de lista baseados na rota
 const SCREEN_CONFIG: Record<
@@ -77,7 +78,9 @@ export const OrderList = () => {
         }
         const data = await listByUser({ userId: user.id });
         const filtered = data.filter((o) =>
-          screenConfig.statuses.includes(o.status)
+          screenConfig.statuses.some((token) =>
+            matchesClientOrderStatusToken(o, token)
+          )
         );
         setOrders(filtered);
       } catch (err) {

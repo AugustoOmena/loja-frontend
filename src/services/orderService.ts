@@ -30,7 +30,12 @@ export interface OrderAddressApi {
 export interface OrderApi {
   id: string;
   user_id: string;
-  status: string;
+  /** Legado: coluna única antiga; pode ainda vir como alias de entrega em respostas antigas */
+  status?: string;
+  /** Mercado Pago / pagamento (pending, approved, rejected, …) */
+  payment_status?: string | null;
+  /** Melhor Envio / entrega (pending, in_process, shipped, delivered, cancelled) */
+  delivery_status?: string | null;
   total_amount: number;
   payment_method?: string | null;
   payment_id?: string | null;
@@ -218,18 +223,19 @@ export const backofficeCancelItems = async (
 };
 
 /**
- * BACKOFFICE: Atualizar status (se o microserviço suportar)
- * PUT /pedidos/<order_id> com body { status }
+ * BACKOFFICE: Atualizar status de entrega (Melhor Envio / fulfillment).
+ * PUT /pedidos/<order_id> com body { delivery_status } (contrato oficial).
+ * O backend ainda aceita { status } como alias de delivery_status.
  */
-export const backofficeUpdateStatus = async (
+export const backofficeUpdateDeliveryStatus = async (
   orderId: string,
-  status: string
+  deliveryStatus: string
 ): Promise<OrderApi> => {
   const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
     method: "PUT",
     headers: backofficeHeaders,
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ delivery_status: deliveryStatus }),
   });
-  if (!response.ok) throw new Error("Erro ao atualizar status");
+  if (!response.ok) throw new Error("Erro ao atualizar status de entrega");
   return response.json();
 };

@@ -16,6 +16,10 @@ import { RecommendedProducts } from "../../../components/RecommendedProducts";
 import { RevealOnScrollProductSearchBar } from "../../../components/RevealOnScrollProductSearchBar";
 import { MobileBottomNav } from "../../../components/MobileBottomNav";
 import { STORE_CATEGORIES } from "../../../constants/storeCategories";
+import {
+  getEffectiveDeliveryStatus,
+  getEffectivePaymentStatus,
+} from "../../../utils/orderHelpers";
 
 export const Profile = () => {
   const { user } = useAuth();
@@ -40,13 +44,15 @@ export const Profile = () => {
       try {
         const orders = await listByUser({ userId: user.id });
         const paymentCount = orders.filter(
-          (o) => o.status === "pending"
+          (o) => getEffectivePaymentStatus(o) === "pending"
         ).length;
-        const shippingCount = orders.filter((o) =>
-          ["approved", "in_process"].includes(o.status)
-        ).length;
+        const shippingCount = orders.filter((o) => {
+          const pay = getEffectivePaymentStatus(o);
+          const del = getEffectiveDeliveryStatus(o);
+          return pay === "approved" && ["pending", "in_process"].includes(del);
+        }).length;
         const shippedCount = orders.filter((o) =>
-          ["shipped", "delivered"].includes(o.status)
+          ["shipped", "delivered"].includes(getEffectiveDeliveryStatus(o))
         ).length;
 
         setCounts({

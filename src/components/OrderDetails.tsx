@@ -5,6 +5,8 @@ import { getFulfillmentTracking } from "../services/fulfillmentService";
 import type { TrackingEvent } from "../services/fulfillmentService";
 import { MapPin, Package, Truck, Calendar } from "lucide-react";
 import {
+  getClientOrderDisplayStatusKey,
+  getEffectiveDeliveryStatus,
   getOrderPaymentFields,
   getShippingServiceDisplayName,
   shouldShowPaymentBlock,
@@ -44,15 +46,16 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
   const [trackingLoading, setTrackingLoading] = useState(false);
 
   useEffect(() => {
+    const delivery = getEffectiveDeliveryStatus(order);
     const shouldFetch =
-      order.id && (order.tracking_code || order.status === "shipped");
+      order.id && (order.tracking_code || delivery === "shipped");
     if (!shouldFetch) return;
     setTrackingLoading(true);
     getFulfillmentTracking(order.id)
       .then((res) => setTrackingEvents(res.tracking_events ?? []))
       .catch(() => setTrackingEvents([]))
       .finally(() => setTrackingLoading(false));
-  }, [order.id, order.tracking_code, order.status]);
+  }, [order.id, order.tracking_code, order.delivery_status, order.status]);
 
   const items = order.items ?? [];
   const subtotalProducts = items.reduce(
@@ -76,7 +79,8 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
   const paymentFields = getOrderPaymentFields(order);
   const showPaymentBlock = shouldShowPaymentBlock(order, paymentFields);
 
-  const statusStyle = STATUS_COLOR[order.status] ?? {
+  const displayStatusKey = getClientOrderDisplayStatusKey(order);
+  const statusStyle = STATUS_COLOR[displayStatusKey] ?? {
     bg: colors.border,
     text: colors.text,
   };
@@ -133,7 +137,7 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
           }}
         >
           <Package size={14} />
-          {STATUS_LABEL[order.status] ?? order.status}
+          {STATUS_LABEL[displayStatusKey] ?? displayStatusKey}
         </span>
         <span
           style={{

@@ -1,5 +1,89 @@
 import type { OrderApi } from "../services/orderService";
 
+const LEGACY_DELIVERY_ONLY = new Set([
+  "in_process",
+  "shipped",
+  "delivered",
+]);
+
+const LEGACY_PAYMENT_LIKE = new Set([
+  "pending",
+  "approved",
+  "rejected",
+  "refunded",
+  "charged_back",
+  "in_mediation",
+]);
+
+/**
+ * Status de entrega efetivo (Melhor Envio), com fallback para respostas que ainda
+ * expõem apenas `status` (modelo antigo misturado).
+ */
+export function getEffectiveDeliveryStatus(order: OrderApi): string {
+  const d = order.delivery_status?.trim();
+  if (d) return d;
+  const s = (order.status ?? "").trim();
+  if (s === "cancelled") return s;
+  if (LEGACY_DELIVERY_ONLY.has(s)) return s;
+  if (LEGACY_PAYMENT_LIKE.has(s)) return "pending";
+  return s || "pending";
+}
+
+/**
+ * Status de pagamento efetivo (ex.: Mercado Pago), com fallback para `status` legado.
+ */
+export function getEffectivePaymentStatus(order: OrderApi): string {
+  const p = order.payment_status?.trim();
+  if (p) return p;
+  const s = (order.status ?? "").trim();
+  if (LEGACY_DELIVERY_ONLY.has(s)) return "approved";
+  if (LEGACY_PAYMENT_LIKE.has(s)) return s;
+  if (s === "cancelled") return "cancelled";
+  return s || "pending";
+}
+
+/**
+ * Token de status para UI da loja (badge único), alinhado ao modelo
+ * payment + delivery sem coluna `status`.
+ */
+export function getClientOrderDisplayStatusKey(order: OrderApi): string {
+  const pay = getEffectivePaymentStatus(order);
+  const del = getEffectiveDeliveryStatus(order);
+  if (pay === "pending") return "pending";
+  if (del === "cancelled") return "cancelled";
+  if (del === "delivered") return "delivered";
+  if (del === "shipped") return "shipped";
+  if (del === "in_process") return "in_process";
+  if (pay === "approved" && del === "pending") return "approved";
+  return (order.status ?? "").trim() || pay;
+}
+
+/** Filtro das listas "pagamento" / "envio" / "enviados" (tokens do modelo antigo). */
+export function matchesClientOrderStatusToken(
+  order: OrderApi,
+  legacyToken: string
+): boolean {
+  if ((order.status ?? "") === legacyToken) return true;
+  const pay = getEffectivePaymentStatus(order);
+  const del = getEffectiveDeliveryStatus(order);
+  switch (legacyToken) {
+    case "pending":
+      return pay === "pending";
+    case "approved":
+      return pay === "approved" && del === "pending";
+    case "in_process":
+      return pay === "approved" && del === "in_process";
+    case "shipped":
+      return del === "shipped";
+    case "delivered":
+      return del === "delivered";
+    case "returned":
+      return pay === "returned" || del === "returned";
+    default:
+      return pay === legacyToken || del === legacyToken;
+  }
+}
+
 /** Dados normalizados de pagamento extraídos do pedido (PIX ou boleto) */
 export interface OrderPaymentFields {
   paymentCode: string;
@@ -33,7 +117,7 @@ export function getOrderPaymentFields(order: OrderApi): OrderPaymentFields {
 
 /** Indica se o pedido está com status "pendente" (aguardando pagamento) */
 export function isOrderPending(order: OrderApi): boolean {
-  return (order.status ?? "").toLowerCase() === "pending";
+  return getEffectivePaymentStatus(order).toLowerCase() === "pending";
 }
 
 /**

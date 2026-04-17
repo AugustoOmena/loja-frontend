@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { listAllBackoffice } from "../../services/orderService";
+import {
+  getEffectiveDeliveryStatus,
+  getEffectivePaymentStatus,
+} from "../../utils/orderHelpers";
 import { supabase } from "../../services/supabaseClient";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -24,7 +28,8 @@ interface RecentOrder {
   id: string;
   created_at: string;
   total_amount: number;
-  status: string;
+  payment_status: string;
+  delivery_status: string;
   user_id: string;
 }
 
@@ -52,7 +57,7 @@ export const Dashboard = () => {
 
       const totalRevenue =
         orders
-          .filter((o) => o.status === "approved")
+          .filter((o) => getEffectivePaymentStatus(o) === "approved")
           .reduce((acc, curr) => acc + (curr.total_amount || 0), 0) || 0;
       setStats({
         revenue: totalRevenue,
@@ -65,7 +70,8 @@ export const Dashboard = () => {
           id: o.id,
           created_at: o.created_at,
           total_amount: o.total_amount,
-          status: o.status,
+          payment_status: getEffectivePaymentStatus(o),
+          delivery_status: getEffectiveDeliveryStatus(o),
           user_id: o.user_id,
         }))
       );
@@ -80,13 +86,30 @@ export const Dashboard = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const getStatusColor = (status: string) => {
+  const getPaymentStatusColor = (status: string) => {
     switch (status) {
       case "approved":
         return "#10b981";
       case "pending":
         return "#f59e0b";
       case "rejected":
+      case "cancelled":
+        return "#ef4444";
+      default:
+        return colors.muted;
+    }
+  };
+
+  const getDeliveryStatusColor = (status: string) => {
+    switch (status) {
+      case "delivered":
+        return "#10b981";
+      case "shipped":
+      case "in_process":
+        return "#6366f1";
+      case "pending":
+        return "#f59e0b";
+      case "cancelled":
         return "#ef4444";
       default:
         return colors.muted;
@@ -309,7 +332,8 @@ export const Dashboard = () => {
                 <th style={styles.th}>ID</th>
                 <th style={styles.th}>Data</th>
                 <th style={styles.th}>Valor</th>
-                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Pagamento</th>
+                <th style={styles.th}>Entrega</th>
               </tr>
             </thead>
             <tbody>
@@ -344,14 +368,38 @@ export const Dashboard = () => {
                         borderRadius: "20px",
                         fontSize: "12px",
                         fontWeight: "bold",
-                        backgroundColor: getStatusColor(order.status) + "20",
-                        color: getStatusColor(order.status),
-                        border: `1px solid ${getStatusColor(order.status)}`,
+                        backgroundColor:
+                          getPaymentStatusColor(order.payment_status) + "20",
+                        color: getPaymentStatusColor(order.payment_status),
+                        border: `1px solid ${getPaymentStatusColor(order.payment_status)}`,
                       }}
                     >
-                      {order.status === "approved" && <CheckCircle size={12} />}
-                      {order.status === "rejected" && <XCircle size={12} />}
-                      {order.status}
+                      {order.payment_status === "approved" && (
+                        <CheckCircle size={12} />
+                      )}
+                      {order.payment_status === "rejected" && (
+                        <XCircle size={12} />
+                      )}
+                      {order.payment_status}
+                    </span>
+                  </td>
+                  <td style={styles.td}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        padding: "4px 10px",
+                        borderRadius: "20px",
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        backgroundColor:
+                          getDeliveryStatusColor(order.delivery_status) + "20",
+                        color: getDeliveryStatusColor(order.delivery_status),
+                        border: `1px solid ${getDeliveryStatusColor(order.delivery_status)}`,
+                      }}
+                    >
+                      {order.delivery_status}
                     </span>
                   </td>
                 </tr>

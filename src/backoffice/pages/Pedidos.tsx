@@ -6,7 +6,7 @@ import {
   getByIdBackoffice,
   backofficeFullCancel,
   backofficeCancelItems,
-  backofficeUpdateStatus,
+  backofficeUpdateDeliveryStatus,
   type OrderApi,
 } from "../../services/orderService";
 import {
@@ -23,7 +23,11 @@ import {
   melhorEnvioGetAuthorizeUrl,
   melhorEnvioGetStatus,
 } from "../../services/melhorEnvioIntegrationService";
-import { getShippingServiceDisplayName } from "../../utils/orderHelpers";
+import {
+  getEffectiveDeliveryStatus,
+  getEffectivePaymentStatus,
+  getShippingServiceDisplayName,
+} from "../../utils/orderHelpers";
 import { CheckoutErrorModal } from "../../components/CheckoutErrorModal";
 import {
   Eye,
@@ -66,7 +70,9 @@ export const PedidosBackoffice = () => {
   >(null);
 
   // --- FILTROS ---
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
+  const [deliveryStatusFilter, setDeliveryStatusFilter] =
+    useState<string>("all");
   const [searchText, setSearchText] = useState("");
 
   // --- ESTADOS DOS MODAIS ---
@@ -75,8 +81,10 @@ export const PedidosBackoffice = () => {
   const [processingAction, setProcessingAction] = useState(false);
 
   // --- ESTADOS DE AÇÃO ---
-  const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
-  const [statusToConfirm, setStatusToConfirm] = useState<string>("");
+  const [isDeliveryStatusConfirmOpen, setIsDeliveryStatusConfirmOpen] =
+    useState(false);
+  const [deliveryStatusToConfirm, setDeliveryStatusToConfirm] =
+    useState<string>("");
   const [itemToRemove, setItemToRemove] = useState<OrderItem | null>(null);
   const [compensationType, setCompensationType] = useState<
     "refund" | "voucher" | null
@@ -181,22 +189,34 @@ export const PedidosBackoffice = () => {
       .finally(() => setModalDetailLoading(false));
   }, [isModalOpen, orderIdToDetail, user?.id]);
 
-  // Busca rastreio quando o pedido tem tracking_code ou status shipped
+  // Busca rastreio quando o pedido tem tracking_code ou entrega "shipped"
   useEffect(() => {
     if (!selectedOrder?.id || !isModalOpen) return;
+    const delivery = getEffectiveDeliveryStatus(selectedOrder);
     const hasTracking =
-      selectedOrder.tracking_code || selectedOrder.status === "shipped";
+      selectedOrder.tracking_code || delivery === "shipped";
     if (!hasTracking) return;
     setTrackingLoading(true);
     getFulfillmentTracking(selectedOrder.id)
       .then(setTrackingData)
       .catch(() => setTrackingData(null))
       .finally(() => setTrackingLoading(false));
-  }, [selectedOrder?.id, selectedOrder?.tracking_code, selectedOrder?.status, isModalOpen]);
+  }, [
+    selectedOrder?.id,
+    selectedOrder?.tracking_code,
+    selectedOrder?.delivery_status,
+    selectedOrder?.status,
+    isModalOpen,
+  ]);
 
   // --- FILTRAGEM ---
   const filteredOrders = orders.filter((order) => {
-    if (statusFilter !== "all" && order.status !== statusFilter) return false;
+    const pay = getEffectivePaymentStatus(order);
+    const del = getEffectiveDeliveryStatus(order);
+    if (paymentStatusFilter !== "all" && pay !== paymentStatusFilter)
+      return false;
+    if (deliveryStatusFilter !== "all" && del !== deliveryStatusFilter)
+      return false;
     if (searchText) {
       const searchLower = searchText.toLowerCase();
       const idMatch = order.id.toLowerCase().includes(searchLower);
@@ -206,26 +226,26 @@ export const PedidosBackoffice = () => {
     return true;
   });
 
-  // --- ALTERAR STATUS ---
-  const handleStatusSelect = (newStatus: string) => {
-    setStatusToConfirm(newStatus);
-    setIsStatusConfirmOpen(true);
+  // --- ALTERAR STATUS DE ENTREGA (Melhor Envio / fulfillment) ---
+  const handleDeliveryStatusSelect = (newDeliveryStatus: string) => {
+    setDeliveryStatusToConfirm(newDeliveryStatus);
+    setIsDeliveryStatusConfirmOpen(true);
   };
 
-  const confirmStatusChange = async () => {
-    if (!selectedOrder || !statusToConfirm) return;
+  const confirmDeliveryStatusChange = async () => {
+    if (!selectedOrder || !deliveryStatusToConfirm) return;
     setProcessingAction(true);
     try {
-      const updatedApi = await backofficeUpdateStatus(
+      const updatedApi = await backofficeUpdateDeliveryStatus(
         selectedOrder.id,
-        statusToConfirm
+        deliveryStatusToConfirm
       );
       const updated = mapApiOrderToOrder(updatedApi);
       setSelectedOrder(updated);
       setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
-      setIsStatusConfirmOpen(false);
+      setIsDeliveryStatusConfirmOpen(false);
     } catch {
-      alert("Erro ao atualizar status.");
+      alert("Erro ao atualizar status de entrega.");
     } finally {
       setProcessingAction(false);
     }
@@ -416,30 +436,63 @@ export const PedidosBackoffice = () => {
   };
 
   // --- HELPERS VISUAIS ---
-  const getStatusColor = (status: string) => {
+  const getDeliveryStatusColor = (status: string) => {
     switch (status) {
-      case "approved":
-        return { bg: "#dcfce7", color: "#166534" };
       case "pending":
         return { bg: "#fef9c3", color: "#854d0e" };
       case "in_process":
         return { bg: "#dbeafe", color: "#1e40af" };
       case "shipped":
         return { bg: "#f3e8ff", color: "#6b21a8" };
+      case "delivered":
+        return { bg: "#dcfce7", color: "#166534" };
       case "cancelled":
         return { bg: "#fee2e2", color: "#991b1b" };
       default:
         return { bg: "#f3f4f6", color: "#374151" };
     }
   };
-  const getStatusLabel = (status: string) => {
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return { bg: "#dcfce7", color: "#166534" };
+      case "pending":
+      case "in_process":
+        return { bg: "#fef9c3", color: "#854d0e" };
+      case "rejected":
+      case "cancelled":
+        return { bg: "#fee2e2", color: "#991b1b" };
+      case "refunded":
+      case "charged_back":
+        return { bg: "#e5e7eb", color: "#374151" };
+      default:
+        return { bg: "#f3f4f6", color: "#374151" };
+    }
+  };
+
+  const getDeliveryStatusLabel = (status: string) => {
     const map: Record<string, string> = {
       pending: "Pendente",
-      approved: "Pago",
-      in_process: "Processando",
+      in_process: "Em processamento",
       shipped: "Enviado",
       delivered: "Entregue",
       cancelled: "Cancelado",
+    };
+    return map[status] || status;
+  };
+
+  const getPaymentStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      pending: "Pagamento pendente",
+      approved: "Pagamento aprovado",
+      rejected: "Pagamento recusado",
+      cancelled: "Pagamento cancelado",
+      refunded: "Reembolsado",
+      charged_back: "Contestação (chargeback)",
+      in_mediation: "Em disputa",
+      authorized: "Autorizado",
+      in_process: "Em processamento",
     };
     return map[status] || status;
   };
@@ -524,8 +577,11 @@ export const PedidosBackoffice = () => {
       borderBottom: `1px solid ${colors.border}`,
       color: colors.text,
     },
-    badge: (status: string) => {
-      const style = getStatusColor(status);
+    badge: (status: string, kind: "payment" | "delivery") => {
+      const style =
+        kind === "payment"
+          ? getPaymentStatusColor(status)
+          : getDeliveryStatusColor(status);
       return {
         backgroundColor: style.bg,
         color: style.color,
@@ -743,16 +799,34 @@ export const PedidosBackoffice = () => {
           <Filter size={18} color={colors.muted} />
           <select
             style={styles.filterSelect}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={paymentStatusFilter}
+            onChange={(e) => setPaymentStatusFilter(e.target.value)}
+            aria-label="Filtrar por status de pagamento"
           >
-            <option value="all">Todos os Status</option>
-            <option value="pending">Pendente</option>
-            <option value="approved">Pago</option>
-            <option value="in_process">Processando</option>
+            <option value="all">Pagamento: todos</option>
+            <option value="pending">Pagamento pendente</option>
+            <option value="approved">Pagamento aprovado</option>
+            <option value="rejected">Pagamento recusado</option>
+            <option value="refunded">Reembolsado</option>
+            <option value="charged_back">Chargeback</option>
+            <option value="cancelled">Pagamento cancelado</option>
+            <option value="in_mediation">Em disputa</option>
+          </select>
+        </div>
+        <div style={styles.filterWrapper}>
+          <Filter size={18} color={colors.muted} />
+          <select
+            style={styles.filterSelect}
+            value={deliveryStatusFilter}
+            onChange={(e) => setDeliveryStatusFilter(e.target.value)}
+            aria-label="Filtrar por status de entrega"
+          >
+            <option value="all">Entrega: todas</option>
+            <option value="pending">Entrega pendente</option>
+            <option value="in_process">Em processamento</option>
             <option value="shipped">Enviado</option>
             <option value="delivered">Entregue</option>
-            <option value="cancelled">Cancelado</option>
+            <option value="cancelled">Entrega cancelada</option>
           </select>
         </div>
       </div>
@@ -764,7 +838,8 @@ export const PedidosBackoffice = () => {
               <th style={styles.th}>ID</th>
               <th style={styles.th}>Cliente</th>
               <th style={styles.th}>Data</th>
-              <th style={styles.th}>Status</th>
+              <th style={styles.th}>Pagamento</th>
+              <th style={styles.th}>Entrega</th>
               <th style={styles.th}>Total</th>
               <th style={styles.th}>Ações</th>
             </tr>
@@ -790,8 +865,25 @@ export const PedidosBackoffice = () => {
                     {new Date(order.created_at).toLocaleDateString()}
                   </td>
                   <td style={styles.td}>
-                    <span style={styles.badge(order.status)}>
-                      {getStatusLabel(order.status)}
+                    <span
+                      style={styles.badge(
+                        getEffectivePaymentStatus(order),
+                        "payment"
+                      )}
+                    >
+                      {getPaymentStatusLabel(getEffectivePaymentStatus(order))}
+                    </span>
+                  </td>
+                  <td style={styles.td}>
+                    <span
+                      style={styles.badge(
+                        getEffectiveDeliveryStatus(order),
+                        "delivery"
+                      )}
+                    >
+                      {getDeliveryStatusLabel(
+                        getEffectiveDeliveryStatus(order)
+                      )}
                     </span>
                   </td>
                   <td style={styles.td}>R$ {safeFormat(order.total_amount)}</td>
@@ -812,7 +904,7 @@ export const PedidosBackoffice = () => {
             ) : (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   style={{
                     padding: "30px",
                     textAlign: "center",
@@ -869,17 +961,69 @@ export const PedidosBackoffice = () => {
               <label
                 style={{
                   display: "block",
+                  marginBottom: "6px",
+                  fontSize: "13px",
+                  fontWeight: "bold",
+                  color: colors.muted,
+                }}
+              >
+                Status do pagamento (Mercado Pago)
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "10px",
+                  marginBottom: "16px",
+                }}
+              >
+                <span
+                  style={styles.badge(
+                    getEffectivePaymentStatus(selectedOrder),
+                    "payment"
+                  )}
+                >
+                  {getPaymentStatusLabel(
+                    getEffectivePaymentStatus(selectedOrder)
+                  )}
+                </span>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: colors.muted,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {getEffectivePaymentStatus(selectedOrder)}
+                </span>
+              </div>
+              <label
+                style={{
+                  display: "block",
                   marginBottom: "5px",
                   fontSize: "13px",
                   fontWeight: "bold",
                   color: colors.muted,
                 }}
               >
-                Alterar Status
+                Status de entrega (Melhor Envio / fulfillment)
               </label>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: colors.muted,
+                  margin: "0 0 8px 0",
+                  lineHeight: 1.45,
+                }}
+              >
+                Alterações aqui enviam{" "}
+                <code style={{ fontSize: "11px" }}>delivery_status</code> na API
+                (etiquetas e webhooks do Melhor Envio atualizam este fluxo).
+              </p>
               <select
-                value={selectedOrder.status}
-                onChange={(e) => handleStatusSelect(e.target.value)}
+                value={getEffectiveDeliveryStatus(selectedOrder)}
+                onChange={(e) => handleDeliveryStatusSelect(e.target.value)}
                 disabled={processingAction}
                 style={{
                   width: "100%",
@@ -892,8 +1036,7 @@ export const PedidosBackoffice = () => {
                 }}
               >
                 <option value="pending">Pendente</option>
-                <option value="approved">Pago</option>
-                <option value="in_process">Em Processamento</option>
+                <option value="in_process">Em processamento</option>
                 <option value="shipped">Enviado</option>
                 <option value="delivered">Entregue</option>
                 <option value="cancelled">Cancelado</option>
@@ -972,7 +1115,7 @@ export const PedidosBackoffice = () => {
                     )}
                   </div>
                 )}
-                {selectedOrder.status !== "cancelled" && (
+                {getEffectiveDeliveryStatus(selectedOrder) !== "cancelled" && (
                   <>
                     <button
                       type="button"
@@ -1158,7 +1301,7 @@ export const PedidosBackoffice = () => {
                         {item.quantity}x R$ {safeFormat(item.price)}
                       </div>
                     </div>
-                    {selectedOrder.status !== "cancelled" && (
+                    {getEffectiveDeliveryStatus(selectedOrder) !== "cancelled" && (
                       <button
                         onClick={() => setItemToRemove(item)}
                         disabled={processingAction}
@@ -1286,7 +1429,7 @@ export const PedidosBackoffice = () => {
               </div>
             )}
 
-            {selectedOrder.status !== "cancelled" && (
+            {getEffectiveDeliveryStatus(selectedOrder) !== "cancelled" && (
               <button
                 onClick={handleFullCancel}
                 disabled={processingAction}
@@ -1299,7 +1442,7 @@ export const PedidosBackoffice = () => {
         </div>
       )}
 
-      {isStatusConfirmOpen && (
+      {isDeliveryStatusConfirmOpen && (
         <div style={styles.confirmOverlay}>
           <div style={styles.confirmModal}>
             <h3
@@ -1310,7 +1453,7 @@ export const PedidosBackoffice = () => {
                 color: colors.text,
               }}
             >
-              Confirmar alteração?
+              Confirmar alteração de entrega?
             </h3>
             <p
               style={{
@@ -1319,16 +1462,23 @@ export const PedidosBackoffice = () => {
                 marginBottom: "25px",
               }}
             >
-              Para <strong>{getStatusLabel(statusToConfirm)}</strong>?
+              Definir status de entrega como{" "}
+              <strong>
+                {getDeliveryStatusLabel(deliveryStatusToConfirm)}
+              </strong>
+              ?
             </p>
             <div style={{ display: "flex", gap: "10px" }}>
               <button
-                onClick={() => setIsStatusConfirmOpen(false)}
+                onClick={() => setIsDeliveryStatusConfirmOpen(false)}
                 style={styles.abortBtn}
               >
                 Cancelar
               </button>
-              <button onClick={confirmStatusChange} style={styles.confirmBtn}>
+              <button
+                onClick={confirmDeliveryStatusChange}
+                style={styles.confirmBtn}
+              >
                 {processingAction ? (
                   <Loader2 className="animate-spin" />
                 ) : (
