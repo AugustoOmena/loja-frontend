@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../../services/orderService";
 import {
   getFulfillmentTracking,
+  isFulfillmentTrackingFetchEnabled,
   type FulfillmentTrackingResponse,
 } from "../../services/fulfillmentService";
 import {
@@ -44,6 +45,8 @@ import {
   User,
   MapPin,
   Truck,
+  Phone,
+  IdCard,
 } from "lucide-react";
 
 import type { OrderItem } from "../../types/index";
@@ -58,6 +61,40 @@ interface Order extends OrderApi {
  * enquanto `false`, o botão na UI fica desativado e cancelamento total usa Mercado Pago.
  */
 const VOUCHER_REFUND_FEATURE_ENABLED = false;
+
+function formatBrazilPhoneAdmin(raw: string | undefined | null): string {
+  const d = digitsOnly(raw ?? "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 9) return `${d.slice(0, 5)}-${d.slice(5)}`;
+  if (d.length > 0) return d;
+  return "—";
+}
+
+function maskTaxIdForAdmin(raw: string | undefined | null): string {
+  const d = digitsOnly(raw ?? "");
+  if (d.length === 11)
+    return `${d.slice(0, 3)}.***.***-${d.slice(-2)}`;
+  if (d.length === 14)
+    return `${d.slice(0, 2)}.***.***/****-${d.slice(-2)}`;
+  if (d.length > 4) return `${d.slice(0, 2)}••••${d.slice(-2)}`;
+  if (d.length > 0) return "•••";
+  return "—";
+}
+
+type PayerShape = {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  identification?: { type?: string; number?: string };
+};
+
+function getPayerFromOrder(order: OrderApi): PayerShape | undefined {
+  const p = order.payer;
+  if (p && typeof p === "object" && !Array.isArray(p)) return p as PayerShape;
+  return undefined;
+}
 
 export const PedidosBackoffice = () => {
   const { user } = useAuth();
@@ -195,8 +232,9 @@ export const PedidosBackoffice = () => {
       .finally(() => setModalDetailLoading(false));
   }, [isModalOpen, orderIdToDetail, user?.id]);
 
-  // Busca rastreio quando o pedido tem tracking_code ou entrega "shipped"
+  // Rastreio via API de fulfillment (opcional; ver VITE_ENABLE_FULFILLMENT_TRACKING)
   useEffect(() => {
+    if (!isFulfillmentTrackingFetchEnabled()) return;
     if (!selectedOrder?.id || !isModalOpen) return;
     const delivery = getEffectiveDeliveryStatus(selectedOrder);
     const hasTracking =
@@ -1023,11 +1061,8 @@ export const PedidosBackoffice = () => {
                   lineHeight: 1.45,
                 }}
               >
-                Mostra em que etapa o pedido está na entrega (aguardando envio,
-                a caminho, entregue, etc.). Se você usa o Melhor Envio com
-                etiqueta de frete, essa informação costuma ser atualizada
-                automaticamente; use o menu abaixo para ajustar à mão quando
-                precisar corrigir ou registrar algo que o sistema não marcou.
+                Etapa do envio. O Melhor Envio costuma atualizar sozinho; use o
+                menu só para ajustar manualmente, se precisar.
               </p>
               <select
                 value={getEffectiveDeliveryStatus(selectedOrder)}
@@ -1050,6 +1085,144 @@ export const PedidosBackoffice = () => {
                 <option value="cancelled">Cancelado</option>
               </select>
             </div>
+
+            {/* Cliente (pagador) */}
+            <h3 style={styles.sectionTitle}>
+              <User size={18} /> Cliente (pagador)
+            </h3>
+            {modalDetailLoading ? (
+              <div
+                style={{
+                  padding: "12px",
+                  color: colors.muted,
+                  fontSize: "14px",
+                  marginBottom: "16px",
+                }}
+              >
+                Carregando dados do cliente...
+              </div>
+            ) : (
+              (() => {
+                const payer = getPayerFromOrder(selectedOrder);
+                const fullName = [payer?.first_name, payer?.last_name]
+                  .filter(Boolean)
+                  .map((s) => String(s).trim())
+                  .join(" ")
+                  .trim();
+                const email =
+                  payer?.email?.trim() ||
+                  selectedOrder.user_email?.trim() ||
+                  "";
+                const phoneRaw = payer?.phone;
+                const idType = payer?.identification?.type?.trim() || "Doc.";
+                const idMasked = maskTaxIdForAdmin(
+                  payer?.identification?.number
+                );
+                const rows: { icon?: ReactNode; label: string; value: string }[] = [
+                  {
+                    icon: <User size={14} />,
+                    label: "Nome",
+                    value: fullName || "—",
+                  },
+                  {
+                    label: "E-mail",
+                    value: email || "—",
+                  },
+                  {
+                    icon: <Phone size={14} />,
+                    label: "Telefone",
+                    value: formatBrazilPhoneAdmin(phoneRaw),
+                  },
+                  {
+                    icon: <IdCard size={14} />,
+                    label: idType,
+                    value: idMasked,
+                  },
+                  {
+                    label: "ID do cliente (conta)",
+                    value: selectedOrder.user_id,
+                  },
+                ];
+                return (
+                  <div
+                    style={{
+                      padding: "14px 16px",
+                      backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc",
+                      borderRadius: "8px",
+                      border: `1px solid ${colors.border}`,
+                      marginBottom: "16px",
+                      fontSize: "14px",
+                      color: colors.text,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fill, minmax(220px, 1fr))",
+                        gap: "12px 20px",
+                      }}
+                    >
+                      {rows.map((row) => (
+                        <div key={row.label}>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              color: colors.muted,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                              marginBottom: "4px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            {row.icon ?? null}
+                            {row.label}
+                          </div>
+                          <div
+                            style={{
+                              fontWeight: row.label.includes("ID") ? "500" : "600",
+                              fontFamily: row.label.includes("ID")
+                                ? "ui-monospace, monospace"
+                                : "inherit",
+                              fontSize: row.label.includes("ID") ? "12px" : "14px",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {row.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedOrder.payment_method && (
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          paddingTop: "12px",
+                          borderTop: `1px solid ${colors.border}`,
+                          fontSize: "13px",
+                          color: colors.muted,
+                        }}
+                      >
+                        <span style={{ fontWeight: "600", marginRight: "8px" }}>
+                          Pagamento na loja:
+                        </span>
+                        {String(selectedOrder.payment_method)}
+                        {selectedOrder.mp_payment_id != null &&
+                          String(selectedOrder.mp_payment_id).trim() !== "" && (
+                            <span style={{ marginLeft: "8px" }}>
+                              (MP #{selectedOrder.mp_payment_id})
+                            </span>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            )}
 
             {/* Endereço de entrega */}
             <h3 style={styles.sectionTitle}>
@@ -1201,7 +1374,7 @@ export const PedidosBackoffice = () => {
                     {envioError}
                   </p>
                 )}
-                {/* Rastreio: exibido quando o pedido tem tracking ou status shipped */}
+                {/* Rastreio: só consulta API se VITE_ENABLE_FULFILLMENT_TRACKING=true */}
                 {(trackingLoading || trackingData) && (
                   <div
                     style={{

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "../contexts/ThemeContext";
 import type { OrderApi } from "../services/orderService";
-import { getFulfillmentTracking } from "../services/fulfillmentService";
+import {
+  getFulfillmentTracking,
+  isFulfillmentTrackingFetchEnabled,
+} from "../services/fulfillmentService";
 import type { TrackingEvent } from "../services/fulfillmentService";
 import { MapPin, Package, Truck, Calendar } from "lucide-react";
 import {
@@ -46,6 +49,7 @@ export function OrderDetails({ order, loading = false }: OrderDetailsProps) {
   const [trackingLoading, setTrackingLoading] = useState(false);
 
   useEffect(() => {
+    if (!isFulfillmentTrackingFetchEnabled()) return;
     const delivery = getEffectiveDeliveryStatus(order);
     const shouldFetch =
       order.id && (order.tracking_code || delivery === "shipped");

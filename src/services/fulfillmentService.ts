@@ -56,6 +56,15 @@ export const createShipment = async (
 };
 
 /**
+ * Quando `true`, o front chama GET /fulfillment/{order_id}/tracking.
+ * Por padrão fica desligado para não gerar 404 até o endpoint existir no backend.
+ * Ative com `VITE_ENABLE_FULFILLMENT_TRACKING=true` no `.env`.
+ */
+export function isFulfillmentTrackingFetchEnabled(): boolean {
+  return import.meta.env.VITE_ENABLE_FULFILLMENT_TRACKING === "true";
+}
+
+/**
  * CLIENTE ou BACKOFFICE: Consulta rastreamento do pedido.
  * GET /fulfillment/{order_id}/tracking
  */
