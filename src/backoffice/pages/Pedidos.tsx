@@ -47,6 +47,7 @@ import {
   Truck,
   Phone,
   IdCard,
+  Calendar,
 } from "lucide-react";
 
 import type { OrderItem } from "../../types/index";
@@ -69,6 +70,43 @@ function formatBrazilPhoneAdmin(raw: string | undefined | null): string {
   if (d.length === 9) return `${d.slice(0, 5)}-${d.slice(5)}`;
   if (d.length > 0) return d;
   return "—";
+}
+
+/** Data e hora exatas do pedido (fuso local do navegador). */
+function formatOrderPlacedAtBr(
+  createdAt: string,
+  variant: "full" | "compact" = "full"
+): string {
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return createdAt;
+  if (variant === "compact") {
+    return d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  }
+  return d.toLocaleString("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+function formatCepDisplay(zip: string | undefined | null): string {
+  const d = digitsOnly(zip ?? "");
+  if (d.length === 8) return `${d.slice(0, 5)}-${d.slice(5)}`;
+  const t = (zip ?? "").trim();
+  return t || "—";
 }
 
 function maskTaxIdForAdmin(raw: string | undefined | null): string {
@@ -881,7 +919,7 @@ export const PedidosBackoffice = () => {
             <tr>
               <th style={styles.th}>ID</th>
               <th style={styles.th}>Cliente</th>
-              <th style={styles.th}>Data</th>
+              <th style={styles.th}>Data / hora</th>
               <th style={styles.th}>Pagamento</th>
               <th style={styles.th}>Entrega</th>
               <th style={styles.th}>Total</th>
@@ -905,8 +943,13 @@ export const PedidosBackoffice = () => {
                       </span>
                     </div>
                   </td>
-                  <td style={styles.td}>
-                    {new Date(order.created_at).toLocaleDateString()}
+                  <td
+                    style={styles.td}
+                    title={formatOrderPlacedAtBr(order.created_at, "full")}
+                  >
+                    <span style={{ fontSize: "12px", lineHeight: 1.35 }}>
+                      {formatOrderPlacedAtBr(order.created_at, "compact")}
+                    </span>
                   </td>
                   <td style={styles.td}>
                     <span
@@ -974,14 +1017,34 @@ export const PedidosBackoffice = () => {
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: "2px",
                     color: colors.muted,
                     fontSize: "13px",
                     marginTop: "4px",
                   }}
                 >
-                  <User size={14} /> {selectedOrder.user_email}
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <Calendar size={14} />
+                    Pedido feito em
+                  </span>
+                  <span
+                    style={{
+                      fontWeight: "600",
+                      color: colors.text,
+                      paddingLeft: "20px",
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {formatOrderPlacedAtBr(selectedOrder.created_at, "full")}
+                  </span>
                 </div>
               </div>
               <button
@@ -1011,7 +1074,7 @@ export const PedidosBackoffice = () => {
                   color: colors.muted,
                 }}
               >
-                Status do pagamento (Mercado Pago)
+                Pagamento
               </label>
               <div
                 style={{
@@ -1031,15 +1094,6 @@ export const PedidosBackoffice = () => {
                   {getPaymentStatusLabel(
                     getEffectivePaymentStatus(selectedOrder)
                   )}
-                </span>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: colors.muted,
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {getEffectivePaymentStatus(selectedOrder)}
                 </span>
               </div>
               <label
@@ -1208,12 +1262,13 @@ export const PedidosBackoffice = () => {
                         }}
                       >
                         <span style={{ fontWeight: "600", marginRight: "8px" }}>
-                          Pagamento na loja:
+                          Meio na loja:
                         </span>
                         {String(selectedOrder.payment_method)}
                         {selectedOrder.mp_payment_id != null &&
                           String(selectedOrder.mp_payment_id).trim() !== "" && (
                             <span style={{ marginLeft: "8px" }}>
+                              {" "}
                               (MP #{selectedOrder.mp_payment_id})
                             </span>
                           )}
@@ -1246,7 +1301,7 @@ export const PedidosBackoffice = () => {
                 }}
               >
                 {[
-                  ["CEP", selectedOrder.shipping_address.zip_code],
+                  ["CEP", formatCepDisplay(selectedOrder.shipping_address.zip_code)],
                   ["Logradouro", selectedOrder.shipping_address.street_name],
                   ["Número", selectedOrder.shipping_address.street_number],
                   ["Complemento", selectedOrder.shipping_address.complement],
@@ -1500,6 +1555,89 @@ export const PedidosBackoffice = () => {
                   </div>
                 ))
               )}
+            </div>
+
+            <h3 style={styles.sectionTitle}>
+              <CreditCard size={18} /> Valores do pedido
+            </h3>
+            <div
+              style={{
+                padding: "16px",
+                marginBottom: "20px",
+                backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc",
+                borderRadius: "8px",
+                border: `1px solid ${colors.border}`,
+                fontSize: "14px",
+                color: colors.text,
+              }}
+            >
+              {(() => {
+                const subtotalItens = selectedOrder.items.reduce(
+                  (sum, it) =>
+                    sum +
+                    (Number(it.price) || 0) * (Number(it.quantity) || 0),
+                  0
+                );
+                const freteInformado =
+                  selectedOrder.shipping_amount != null
+                    ? Number(selectedOrder.shipping_amount)
+                    : null;
+                const freteExibido =
+                  freteInformado != null && !Number.isNaN(freteInformado)
+                    ? freteInformado
+                    : Math.max(
+                        0,
+                        Number(selectedOrder.total_amount) - subtotalItens
+                      );
+                return (
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: "10px",
+                      }}
+                    >
+                      <span style={{ color: colors.muted }}>
+                        Subtotal (produtos)
+                      </span>
+                      <span style={{ fontWeight: "600" }}>
+                        R$ {safeFormat(subtotalItens)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      <span style={{ color: colors.muted }}>Frete</span>
+                      <span style={{ fontWeight: "600" }}>
+                        R$ {safeFormat(freteExibido)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        paddingTop: "12px",
+                        borderTop: `2px solid ${colors.border}`,
+                        fontSize: "17px",
+                        fontWeight: "700",
+                      }}
+                    >
+                      <span>Total do pedido</span>
+                      <span>
+                        {Number(selectedOrder.total_amount).toLocaleString(
+                          "pt-BR",
+                          { style: "currency", currency: "BRL" }
+                        )}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {itemToRemove && (
