@@ -18,6 +18,8 @@ export interface MelhorEnvioCartAddress {
   name: string;
   /** CPF ou CNPJ: apenas dígitos. */
   document?: string;
+  /** Telefone (remetente ou destinatário): apenas dígitos, ex.: 24981021079. */
+  phone?: string;
   postal_code: string;
   address: string;
   number?: string;
@@ -132,6 +134,7 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
     import.meta.env.VITE_MELHORENVIO_FROM_POSTAL_CODE
   ).slice(0, 8);
   const document = digitsOnly(import.meta.env.VITE_MELHORENVIO_FROM_DOCUMENT);
+  const phone = digitsOnly(import.meta.env.VITE_MELHORENVIO_FROM_PHONE);
   const address = (import.meta.env.VITE_MELHORENVIO_FROM_ADDRESS ?? "").trim();
   const city = (import.meta.env.VITE_MELHORENVIO_FROM_CITY ?? "").trim();
   const state_abbr = (import.meta.env.VITE_MELHORENVIO_FROM_STATE ?? "").trim();
@@ -144,6 +147,9 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
     );
   }
   if (!document) missing.push("VITE_MELHORENVIO_FROM_DOCUMENT");
+  if (!phone || phone.length < 10) {
+    missing.push("VITE_MELHORENVIO_FROM_PHONE");
+  }
   if (!address) missing.push("VITE_MELHORENVIO_FROM_ADDRESS");
   if (!city) missing.push("VITE_MELHORENVIO_FROM_CITY");
   if (!state_abbr) missing.push("VITE_MELHORENVIO_FROM_STATE");
@@ -158,6 +164,7 @@ export function getMelhorEnvioFromAddress(): MelhorEnvioCartAddress {
   return {
     name,
     document,
+    phone,
     postal_code,
     address,
     number,
