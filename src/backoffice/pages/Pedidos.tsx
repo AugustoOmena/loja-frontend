@@ -22,6 +22,7 @@ import {
   melhorEnvioAddToCart,
   melhorEnvioGetAuthorizeUrl,
   melhorEnvioGetStatus,
+  getMelhorEnvioCartInsuranceValueBrl,
 } from "../../services/melhorEnvioIntegrationService";
 import {
   getEffectiveDeliveryStatus,
@@ -473,6 +474,9 @@ export const PedidosBackoffice = () => {
         },
         products,
         volumes,
+        options: {
+          insurance_value: getMelhorEnvioCartInsuranceValueBrl(),
+        },
       });
 
       setEnvioSuccess("Frete inserido no carrinho do Melhor Envio.");

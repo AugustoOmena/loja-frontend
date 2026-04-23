@@ -50,6 +50,35 @@ export interface MelhorEnvioCartProduct {
   unitary_value: string;
 }
 
+/** Só o que enviamos no `options` do carrinho; o microserviço pode mesclar o restante. */
+export interface MelhorEnvioCartOptions {
+  insurance_value: number;
+}
+
+/** Padrão R$ 1,00 — evita 422 quando a ME exige valor segurado mínimo no carrinho. */
+const MELHORENVIO_CART_INSURANCE_DEFAULT_BRL = 1;
+
+/**
+ * Valor de `options.insurance_value` no POST `/cart` (backoffice).
+ * Padrão: R$ 1,00 (`MELHORENVIO_CART_INSURANCE_DEFAULT_BRL` no arquivo). Override: `VITE_MELHORENVIO_CART_INSURANCE_VALUE_BRL` (ex.: `0` se PAC/Correios e seu fluxo aceitarem).
+ *
+ * Cotação (ME calcula na API): https://docs.melhorenvio.com.br/reference/calculo-de-fretes-por-produtos
+ * Carrinho: https://docs.melhorenvio.com.br/reference/inserir-fretes-no-carrinho
+ */
+export function getMelhorEnvioCartInsuranceValueBrl(): number {
+  const raw = String(
+    import.meta.env.VITE_MELHORENVIO_CART_INSURANCE_VALUE_BRL ?? ""
+  ).trim();
+  if (raw === "") {
+    return MELHORENVIO_CART_INSURANCE_DEFAULT_BRL;
+  }
+  const n = Number(raw.replace(",", "."));
+  if (!Number.isFinite(n) || n < 0) {
+    return MELHORENVIO_CART_INSURANCE_DEFAULT_BRL;
+  }
+  return Math.round(n * 100) / 100;
+}
+
 /**
  * Payload para POST /cart conforme doc Melhor Envio (Campos obrigatórios).
  * - service: ID do serviço de frete
@@ -57,6 +86,7 @@ export interface MelhorEnvioCartProduct {
  * - to: destinatário
  * - products: array de produtos (quantity/unitary_value em string)
  * - volumes: array de pacotes (obrigatório)
+ * - options: mínimo `insurance_value` quando necessário (ver `getMelhorEnvioCartInsuranceValueBrl`)
  */
 export interface MelhorEnvioAddToCartRequest {
   order_id: string;
@@ -66,6 +96,7 @@ export interface MelhorEnvioAddToCartRequest {
   to: MelhorEnvioCartAddress;
   products: MelhorEnvioCartProduct[];
   volumes: MelhorEnvioCartVolume[];
+  options?: MelhorEnvioCartOptions;
 }
 
 export type MelhorEnvioAddToCartResponse = Record<string, unknown>;
