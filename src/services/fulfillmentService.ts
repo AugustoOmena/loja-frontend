@@ -2,7 +2,6 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const backofficeHeaders = {
   "Content-Type": "application/json",
-  "X-Backoffice": "true",
 };
 
 /** Resposta de sucesso ao criar etiqueta no Melhor Envio */
@@ -27,7 +26,7 @@ export interface FulfillmentTrackingResponse {
 
 /**
  * BACKOFFICE: Cria etiqueta no carrinho do Melhor Envio.
- * POST /fulfillment/{order_id}/create-shipment (sem body).
+ * POST backoffice/fulfillment/{order_id}/create-shipment (sem body).
  * O backend usa o shipping_service já gravado no pedido no pagamento.
  * Admin deve acessar o painel Melhor Envio para pagar e imprimir.
  */
@@ -36,7 +35,7 @@ export const createShipment = async (
   userId: string
 ): Promise<CreateShipmentResponse> => {
   const response = await fetch(
-    `${API_URL}/fulfillment/${orderId}/create-shipment`,
+    `${API_URL}/backoffice/fulfillment/${orderId}/create-shipment`,
     {
       method: "POST",
       headers: {

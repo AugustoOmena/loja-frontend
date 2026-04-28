@@ -81,7 +81,6 @@ export interface PaymentInfoApi {
 
 const backofficeHeaders = {
   "Content-Type": "application/json",
-  "X-Backoffice": "true",
 };
 
 export interface ListOrdersParams {
@@ -137,7 +136,7 @@ function parseBackofficePedidosListJson(data: unknown): BackofficeOrdersPageResu
 
 /**
  * BACKOFFICE: Lista pedidos (admin), paginado.
- * GET /pedidos?user_id=<uuid>&page=1&limit=20 com X-Backoffice: true
+ * GET backoffice/pedidos?user_id=<uuid>&page=1&limit=20 com X-Backoffice: true
  * (page e limit sempre enviados; padrão page=1, limit=20 se omitidos em `params`).
  */
 export const listAllBackoffice = async (
@@ -149,7 +148,7 @@ export const listAllBackoffice = async (
   const search = new URLSearchParams({ user_id: userId });
   search.set("page", String(page));
   search.set("limit", String(limit));
-  const response = await fetch(`${API_URL}/pedidos?${search.toString()}`, {
+  const response = await fetch(`${API_URL}/backoffice/pedidos?${search.toString()}`, {
     headers: backofficeHeaders,
   });
   if (!response.ok) throw new Error("Erro ao buscar pedidos");
@@ -175,7 +174,7 @@ export const getByIdForUser = async (
 
 /**
  * BACKOFFICE: Detalhe de um pedido (com shipping_address, etc.)
- * GET /pedidos/<order_id>?user_id=<uuid> com X-Backoffice: true
+ * GET backoffice/pedidos/<order_id>?user_id=<uuid>
  */
 export const getByIdBackoffice = async (
   orderId: string,
@@ -183,7 +182,7 @@ export const getByIdBackoffice = async (
 ): Promise<OrderApi> => {
   const params = new URLSearchParams({ user_id: userId });
   const response = await fetch(
-    `${API_URL}/pedidos/${orderId}?${params.toString()}`,
+    `${API_URL}/backoffice/pedidos/${orderId}?${params.toString()}`,
     { headers: backofficeHeaders }
   );
   if (!response.ok) throw new Error("Erro ao buscar pedido");
@@ -213,14 +212,14 @@ export const requestCancellation = async (
 
 /**
  * BACKOFFICE: Cancelamento total
- * PUT /pedidos/<order_id> com X-Backoffice: true
+ * PUT backoffice/pedidos/<order_id>
  * Body: { full_cancel: true, refund_method: "voucher" | "mp" }
  */
 export const backofficeFullCancel = async (
   orderId: string,
   refundMethod: "voucher" | "mp"
 ): Promise<OrderApi> => {
-  const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
+  const response = await fetch(`${API_URL}/backoffice/pedidos/${orderId}`, {
     method: "PUT",
     headers: backofficeHeaders,
     body: JSON.stringify({
@@ -234,14 +233,14 @@ export const backofficeFullCancel = async (
 
 /**
  * BACKOFFICE: Reembolso por valor (fluxo principal).
- * PUT /pedidos/<order_id> — body `{ refund_method, refund_amount }`.
+ * PUT backoffice/pedidos/<order_id> — body `{ refund_method, refund_amount }`.
  * Não enviar `cancel_item_ids` nem `full_cancel` junto. Teto no servidor.
  */
 export const backofficeRefundByAmount = async (
   orderId: string,
   body: { refund_method: "mp" | "voucher"; refund_amount: number }
 ): Promise<OrderApi> => {
-  const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
+  const response = await fetch(`${API_URL}/backoffice/pedidos/${orderId}`, {
     method: "PUT",
     headers: backofficeHeaders,
     body: JSON.stringify(body),
@@ -252,14 +251,14 @@ export const backofficeRefundByAmount = async (
 
 /**
  * BACKOFFICE (legado): cancelamento por linhas em `order_items`.
- * PUT /pedidos/<order_id> — body `{ cancel_item_ids, refund_method }`.
+ * PUT backoffice/pedidos/<order_id> — body `{ cancel_item_ids, refund_method }`.
  */
 export const backofficeCancelItems = async (
   orderId: string,
   cancelItemIds: string[],
   refundMethod: "voucher" | "mp"
 ): Promise<OrderApi> => {
-  const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
+  const response = await fetch(`${API_URL}/backoffice/pedidos/${orderId}`, {
     method: "PUT",
     headers: backofficeHeaders,
     body: JSON.stringify({
@@ -273,14 +272,14 @@ export const backofficeCancelItems = async (
 
 /**
  * BACKOFFICE: Atualizar status de entrega (Melhor Envio / fulfillment).
- * PUT /pedidos/<order_id> com body { delivery_status } (contrato oficial).
+ * PUT backoffice/pedidos/<order_id> com body { delivery_status } (contrato oficial).
  * O backend ainda aceita { status } como alias de delivery_status.
  */
 export const backofficeUpdateDeliveryStatus = async (
   orderId: string,
   deliveryStatus: string
 ): Promise<OrderApi> => {
-  const response = await fetch(`${API_URL}/pedidos/${orderId}`, {
+  const response = await fetch(`${API_URL}/backoffice/pedidos/${orderId}`, {
     method: "PUT",
     headers: backofficeHeaders,
     body: JSON.stringify({ delivery_status: deliveryStatus }),
