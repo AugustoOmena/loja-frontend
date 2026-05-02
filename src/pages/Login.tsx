@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/authService";
 import { AlertCircle, ArrowLeft, CheckCircle } from "lucide-react";
 
@@ -392,6 +392,25 @@ export const Login = () => {
             </>
           )}
         </div>
+
+        <p
+          style={{
+            marginTop: "20px",
+            fontSize: "11px",
+            color: "#94a3b8",
+            textAlign: "center",
+            lineHeight: "1.6",
+          }}
+        >
+          Ao continuar, você concorda com nossos{" "}
+          <Link
+            to="/termos-de-uso"
+            style={{ color: "#64748b", fontWeight: "600", textDecoration: "underline" }}
+          >
+            Termos de Uso e Privacidade
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

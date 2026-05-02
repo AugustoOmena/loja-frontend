@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { useTheme } from "../../contexts/ThemeContext";
+import { StoreFooter } from "../../components/StoreFooter";
 
 export const ClientLayout = () => {
   const { colors } = useTheme();
@@ -10,9 +11,14 @@ export const ClientLayout = () => {
         minHeight: "100vh",
         backgroundColor: colors.bg,
         fontFamily: "sans-serif",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <Outlet />
+      <div style={{ flex: 1 }}>
+        <Outlet />
+      </div>
+      <StoreFooter />
     </div>
   );
 };

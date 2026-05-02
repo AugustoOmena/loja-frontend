@@ -28,6 +28,8 @@ import { MelhorEnvioCallback } from "./backoffice/pages/MelhorEnvioCallback";
 
 import { StoreHome } from "./store/pages/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
+import { PoliticaReembolso } from "./store/pages/policies/PoliticaReembolso";
+import { TermosDeUso } from "./store/pages/policies/TermosDeUso";
 import { Login } from "./pages/Login";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ResetPassword } from "./pages/ResetPassword";
@@ -61,6 +63,8 @@ function App() {
               <Route path="/" element={<ClientLayout />}>
                 <Route index element={<StoreHome />} />
                 <Route path="produto/:id" element={<ProductDetails />} />
+                <Route path="politica-de-reembolso" element={<PoliticaReembolso />} />
+                <Route path="termos-de-uso" element={<TermosDeUso />} />
 
                 {/* PROTEÇÃO 1: Minha Conta (Dentro do layout com menu) 
                    Aninhamos dentro do PrivateRoute

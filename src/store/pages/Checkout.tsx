@@ -14,6 +14,7 @@ import {
   AlertCircle,
   User,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useFrete, cartItemsToFreteItens } from "../../hooks/useFrete";
 import { ShippingSection } from "../../components/ShippingSection";
@@ -59,6 +60,7 @@ export const Checkout = () => {
 
   const [checkoutName, setCheckoutName] = useState({ firstName: "", lastName: "", phone: "" });
   const [checkoutNameErrors, setCheckoutNameErrors] = useState<Record<string, string>>({});
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -148,6 +150,8 @@ export const Checkout = () => {
   const cepValido = validarCep(address.cep);
   /** Só permite escolher meio de pagamento quando o frete estiver selecionado */
   const canSelectPayment = !!selectedShipping;
+  /** Só pode avançar quando frete selecionado E termos aceitos */
+  const canProceed = canSelectPayment && termsAccepted;
 
   const shippingCost = selectedShipping?.preco ?? 0;
   const totalComFrete = cartTotal + shippingCost;
@@ -529,14 +533,64 @@ export const Checkout = () => {
               </div>
             )}
 
+            {/* Aceite dos termos */}
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                padding: "16px",
+                marginBottom: "20px",
+                borderRadius: "10px",
+                backgroundColor: termsAccepted
+                  ? "rgba(16,185,129,0.06)"
+                  : colors.card,
+                border: `1px solid ${termsAccepted ? "#10b981" : colors.border}`,
+                cursor: "pointer",
+                fontSize: "13px",
+                color: colors.muted,
+                lineHeight: "1.5",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                style={{ marginTop: "2px", accentColor: "#10b981", cursor: "pointer", flexShrink: 0 }}
+              />
+              <span>
+                Li e concordo com os{" "}
+                <Link
+                  to="/termos-de-uso"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#10b981", fontWeight: "600" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Termos de Uso e Privacidade
+                </Link>{" "}
+                e a{" "}
+                <Link
+                  to="/politica-de-reembolso"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#10b981", fontWeight: "600" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Política de Reembolso e Devoluções
+                </Link>
+                .
+              </span>
+            </label>
+
             <div style={styles.subtitle}>Escolha o método de pagamento</div>
 
             {/* Opção 1: Cartão – contorno verde só no PIX; aqui só destaque de seleção (borda neutra) */}
             <div
               style={{
                 ...styles.optionCard,
-                opacity: canSelectPayment ? 1 : 0.6,
-                pointerEvents: canSelectPayment ? "auto" : "none",
+                opacity: canProceed ? 1 : 0.6,
+                pointerEvents: canProceed ? "auto" : "none",
                 border:
                   selectedPaymentMethod === "credit"
                     ? `2px solid ${colors.border}`
@@ -582,8 +636,8 @@ export const Checkout = () => {
                     : theme === "dark"
                       ? "rgba(16,185,129,0.05)"
                       : "#f0fdf4",
-                opacity: canSelectPayment ? 1 : 0.6,
-                pointerEvents: canSelectPayment ? "auto" : "none",
+                opacity: canProceed ? 1 : 0.6,
+                pointerEvents: canProceed ? "auto" : "none",
               }}
               className="hover-card"
               onClick={() => handleSelection("pix")}
@@ -617,8 +671,8 @@ export const Checkout = () => {
             <div
               style={{
                 ...styles.optionCard,
-                opacity: canSelectPayment ? 1 : 0.6,
-                pointerEvents: canSelectPayment ? "auto" : "none",
+                opacity: canProceed ? 1 : 0.6,
+                pointerEvents: canProceed ? "auto" : "none",
                 border:
                   selectedPaymentMethod === "boleto"
                     ? `2px solid ${colors.border}`
