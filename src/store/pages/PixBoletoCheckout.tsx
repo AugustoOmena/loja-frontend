@@ -398,10 +398,8 @@ export const PixBoletoCheckout = () => {
         })),
         frete: shippingCost,
         cep: (formData.zipCode || "").replace(/\D/g, ""),
-        frete_service:
-          selectedShipping?.service ??
-          selectedShipping?.id ??
-          selectedShipping?.transportadora,
+        frete_service: selectedShipping?.service ?? selectedShipping?.transportadora,
+        frete_agency_id: selectedShipping?.agency_id ?? null,
         frete_itens: cartItemsToFreteItens(safeItems),
       };
 

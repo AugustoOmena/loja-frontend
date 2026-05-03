@@ -84,10 +84,8 @@ export const Checkout = () => {
       ? opcoes.findIndex(
           (o) =>
             o.preco === selectedShipping.preco &&
-            (o.service || o.id || o.transportadora) ===
-              (selectedShipping.service ||
-                selectedShipping.id ||
-                selectedShipping.transportadora),
+            (o.service ?? o.transportadora) ===
+              (selectedShipping.service ?? selectedShipping.transportadora),
         )
       : -1;
   const derivedSelectedIndex =
