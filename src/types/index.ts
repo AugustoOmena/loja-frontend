@@ -138,13 +138,16 @@ export interface ItemFrete {
 
 /** Opção de frete retornada pela API */
 export interface OpcaoFrete {
+  /** Nome da transportadora: "Jadlog", "Correios", "J&T", etc. */
   transportadora: string;
+  /** Nome do serviço dentro da transportadora: ".Package", "PAC", "SEDEX", etc. */
+  servico?: string;
   preco: number;
   prazo_entrega_dias: number | null;
-  /** Identificador do serviço (ex: "jadlog_package", "correios_pac") - backend deve retornar para validação */
-  service?: string;
-  /** Id da opção no Melhor Envio - alternativa ao service */
-  id?: string | number;
+  /** ID numérico do serviço no Melhor Envio (1=PAC, 2=SEDEX, 3=Jadlog .Package…) */
+  service?: number | null;
+  /** ID da agência de postagem — obrigatório para Jadlog; deve ser repassado ao inserir no carrinho */
+  agency_id?: number | null;
 }
 
 /** Request body para POST /frete */

@@ -15,12 +15,15 @@ function formatPrazo(dias: number | null): string {
   return `${dias} dias úteis`;
 }
 
-/** JadLog usa .Package, .Com etc. — exibir como JadLog */
-const JADLOG_ALIASES = [".package", ".com"];
-function formatTransportadoraDisplay(name: string): string {
-  const n = name?.trim().toLowerCase() || "";
-  if (JADLOG_ALIASES.includes(n) || n.startsWith(".jadlog")) return "JadLog";
-  return name?.trim() || name;
+/**
+ * Monta o nome completo de exibição: "Correios PAC", "Jadlog .Package", etc.
+ * `transportadora` vem do backend como nome da empresa; `servico` é o nome do serviço.
+ */
+function formatNomeCompleto(transportadora: string, servico?: string): string {
+  const carrier = transportadora?.trim() || "Transportadora";
+  const svc = servico?.trim();
+  if (!svc) return carrier;
+  return `${carrier} ${svc}`;
 }
 
 interface ShippingSectionProps {
@@ -121,7 +124,7 @@ export function ShippingSection({
                   />
                   <div>
                     <span style={{ fontWeight: 600, color: colors.text }}>
-                      {formatTransportadoraDisplay(op.transportadora)}
+                      {formatNomeCompleto(op.transportadora, op.servico)}
                     </span>
                     <span style={{ marginLeft: 10, fontSize: 13, color: colors.muted }}>
                       {formatPrazo(op.prazo_entrega_dias)}
