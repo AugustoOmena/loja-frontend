@@ -3,7 +3,7 @@
 import { initializeApp } from "firebase/app";
 import {
   initializeAppCheck,
-  ReCaptchaV3Provider,
+  ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 import { getDatabase } from "firebase/database";
 
@@ -23,7 +23,7 @@ const app = initializeApp(firebaseConfig);
 
 // Inicializa o Firebase App Check com reCAPTCHA v3
 initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider(
+  provider: new ReCaptchaEnterpriseProvider(
     import.meta.env.VITE_RECAPTCHA_SITE_KEY
   ),
   isTokenAutoRefreshEnabled: true,
