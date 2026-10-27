@@ -20,7 +20,7 @@ import { ClientLayout } from "./store/layouts/ClientLayout";
 
 // --- PÁGINAS ---
 import { LoginBackoffice } from "./backoffice/pages/Login";
-import { Products } from "./backoffice/pages/Products";
+import { Products } from "./backoffice/pages/Products/Products";
 import { Users } from "./backoffice/pages/Users";
 import { Dashboard } from "./backoffice/pages/Dashboard";
 import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
