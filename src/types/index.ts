@@ -1,13 +1,15 @@
 /** Variante do produto: cor + tamanho + quantidade (e opcionalmente sku). Firebase envia `stock`, backend pode enviar `stock_quantity`. */
 export interface ProductVariant {
+  id?: number;
+  product_id?: number;
   color: string;
   size: string;
-  /** Backend / app */
-  stock_quantity?: number;
-  /** Firebase Realtime Database (normalizado para stock_quantity no service) */
-  stock?: number;
+  stock_quantity: number;
   sku?: string;
+  image?: string;       // Foto principal da variante
+  images?: string[];    // Lista de fotos da variante
 }
+
 
 export interface Product {
   id?: number;

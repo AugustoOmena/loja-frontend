@@ -13,10 +13,16 @@ import {
   ArrowUpDown,
   Image as ImageIcon,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { productService } from "../../services/productService";
 import { uploadService } from "../../services/uploadService";
-import type { Product, ProductFilters, ProductInput, ProductVariant } from "../../types";
+import type {
+  Product,
+  ProductFilters,
+  ProductInput,
+  ProductVariant,
+} from "../../types";
 import { useDebounce } from "../../hooks/useDebounce";
 import {
   useQuery,
@@ -27,7 +33,6 @@ import {
 import { useTheme } from "../../contexts/ThemeContext";
 import { getProductQuantity } from "../../utils/productHelpers";
 
-// Opções para Cor (nome -> hex). "Todas" para itens sem cor. Cores claras: borda fina cinza.
 const COLOR_MAP: Record<string, string> = {
   Todas: "#9CA3AF",
   AMARELO: "#EAB308",
@@ -60,24 +65,67 @@ const LIGHT_COLORS = new Set(["OFF-WHITE", "MANTEIGA"]);
 const COLOR_OPTIONS = Object.keys(COLOR_MAP);
 
 const PATTERNS = [
-  "Onça", "Oncinha", "Zebra", "Leopardo", "Animal Print",
-  "Poá", "Listrado", "Xadrez", "Vichy", "Floral",
-  "Folhagem", "Costela de Adão", "Coqueiros", "Tropical",
-  "Fundo do Mar", "Frutas", "Caju", "Geométrico",
-  "Abstrato", "Tie Dye", "Étnico", "Olho Grego",
-  "Neon", "Degradê",
+  "Onça",
+  "Oncinha",
+  "Zebra",
+  "Leopardo",
+  "Animal Print",
+  "Poá",
+  "Listrado",
+  "Xadrez",
+  "Vichy",
+  "Floral",
+  "Folhagem",
+  "Costela de Adão",
+  "Coqueiros",
+  "Tropical",
+  "Fundo do Mar",
+  "Frutas",
+  "Caju",
+  "Geométrico",
+  "Abstrato",
+  "Tie Dye",
+  "Étnico",
+  "Olho Grego",
+  "Neon",
+  "Degradê",
 ];
 
 const MATERIALS = [
-  "Poliamida", "Poliéster", "Lycra", "Cirrê", "Suplex",
-  "Fluity", "Lurex", "Canelado", "Atoalhado", "Jacquard",
-  "Tule", "Linho", "Algodão", "Viscose", "Viscolinho",
-  "Crochê", "Tricô", "Renda",
+  "Poliamida",
+  "Poliéster",
+  "Lycra",
+  "Cirrê",
+  "Suplex",
+  "Fluity",
+  "Lurex",
+  "Canelado",
+  "Atoalhado",
+  "Jacquard",
+  "Tule",
+  "Linho",
+  "Algodão",
+  "Viscose",
+  "Viscolinho",
+  "Crochê",
+  "Tricô",
+  "Renda",
 ];
 
 const SIZES = [
-  "PP", "P", "M", "G", "GG", "XGG",
-  "36", "38", "40", "42", "44", "46", "48",
+  "PP",
+  "P",
+  "M",
+  "G",
+  "GG",
+  "XGG",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "48",
   "Único",
 ];
 
@@ -117,14 +165,15 @@ export const Products = () => {
   const totalCount = data?.meta?.total || 0;
   const totalPages = Math.ceil(totalCount / pagination.limit);
 
-  // --- ESTADOS DO MODAL ---
+  // Estados do Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  /** Carregando produto completo ao editar (getById para trazer variantes) */
+  const [uploadingVariantIndex, setUploadingVariantIndex] = useState<
+    number | null
+  >(null);
   const [isLoadingProductForEdit, setIsLoadingProductForEdit] = useState(false);
 
-  /** Variantes do produto (cor + tamanho + qtde). Sempre edição por variantes. */
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   const initialFormState = {
@@ -170,7 +219,15 @@ export const Products = () => {
         material: product.material || "",
         pattern: product.pattern || "",
       });
-      setVariants(product.variants?.length ? [...product.variants] : []);
+      setVariants(
+        product.variants?.length
+          ? product.variants.map((v) => ({
+              ...v,
+              image: v.image || (v.images && v.images[0]) || undefined,
+              images: v.images || (v.image ? [v.image] : []),
+            }))
+          : [],
+      );
       setIsModalOpen(true);
       setIsLoadingProductForEdit(true);
       try {
@@ -191,6 +248,8 @@ export const Products = () => {
               size: v.size,
               stock_quantity: v.stock_quantity ?? 0,
               sku: v.sku,
+              image: v.image || (v.images && v.images[0]) || undefined,
+              images: v.images || (v.image ? [v.image] : []),
             }))
           : [];
         setVariants(list);
@@ -208,6 +267,7 @@ export const Products = () => {
     }
   };
 
+  // Upload de imagem geral do produto
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
@@ -230,6 +290,48 @@ export const Products = () => {
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
     }));
+  };
+
+  // Upload de imagem específica da variante
+  const handleVariantFileSelect = async (
+    index: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setUploadingVariantIndex(index);
+
+    try {
+      const publicUrl = await uploadService.uploadImage(file);
+      setVariants((prev) =>
+        prev.map((v, i) =>
+          i === index
+            ? {
+                ...v,
+                image: publicUrl,
+                images:
+                  v.images && v.images.length
+                    ? [...v.images, publicUrl]
+                    : [publicUrl],
+              }
+            : v,
+        ),
+      );
+    } catch (error) {
+      alert("Erro ao fazer upload da imagem da variante.");
+      console.error(error);
+    } finally {
+      setUploadingVariantIndex(null);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveVariantImage = (index: number) => {
+    setVariants((prev) =>
+      prev.map((v, i) =>
+        i === index ? { ...v, image: undefined, images: [] } : v,
+      ),
+    );
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -257,6 +359,9 @@ export const Products = () => {
         size: v.size,
         stock_quantity: Number(v.stock_quantity) || 0,
         ...(v.sku ? { sku: v.sku } : {}),
+        ...(v.image
+          ? { image: v.image, images: v.images?.length ? v.images : [v.image] }
+          : {}),
       })),
     };
     saveMutation.mutate(payload);
@@ -267,7 +372,7 @@ export const Products = () => {
 
   const hasDuplicateColorSize = (
     list: ProductVariant[],
-    excludeIndex: number | null = null
+    excludeIndex: number | null = null,
   ): boolean => {
     const seen = new Set<string>();
     for (let i = 0; i < list.length; i++) {
@@ -287,6 +392,7 @@ export const Products = () => {
       color: COLOR_OPTIONS[0] ?? "",
       size: SIZES[0] ?? "",
       stock_quantity: 0,
+      images: [],
     };
     const wouldBe = [...variants, newVariant];
     if (hasDuplicateColorSize(wouldBe)) {
@@ -296,15 +402,19 @@ export const Products = () => {
     setVariants((prev) => [...prev, newVariant]);
   };
 
-  const updateVariant = (index: number, field: keyof ProductVariant, value: string | number) => {
+  const updateVariant = (
+    index: number,
+    field: keyof ProductVariant,
+    value: string | number,
+  ) => {
     if (field !== "color" && field !== "size") {
       setVariants((prev) =>
-        prev.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+        prev.map((v, i) => (i === index ? { ...v, [field]: value } : v)),
       );
       return;
     }
     const next = variants.map((v, i) =>
-      i === index ? { ...v, [field]: value } : v
+      i === index ? { ...v, [field]: value } : v,
     );
     if (hasDuplicateColorSize(next, index)) {
       alert(DUPLICATE_VARIANT_MSG);
@@ -317,7 +427,10 @@ export const Products = () => {
     setVariants((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const totalStock = variants.reduce((s, v) => s + (Number(v.stock_quantity) || 0), 0);
+  const totalStock = variants.reduce(
+    (s, v) => s + (Number(v.stock_quantity) || 0),
+    0,
+  );
 
   const handleDelete = (id: number) => {
     if (confirm("Excluir este produto?")) deleteMutation.mutate(id);
@@ -358,9 +471,7 @@ export const Products = () => {
     }
   };
 
-  // --- ESTILOS ---
   const styles = {
-    // ... Mantive seus estilos anteriores ...
     container: {
       padding: "20px",
       maxWidth: "1200px",
@@ -639,20 +750,6 @@ export const Products = () => {
       justifyContent: "center",
       boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
     },
-    // NOVO: Estilo do Toggle
-    toggleContainer: {
-      display: "flex",
-      alignItems: "center",
-      gap: "10px",
-      cursor: "pointer",
-      marginBottom: "10px",
-    },
-    stockGrid: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: "10px",
-      marginTop: "5px",
-    },
   };
 
   if (isError)
@@ -758,7 +855,7 @@ export const Products = () => {
         </div>
       </div>
 
-      {/* Tabela */}
+      {/* Tabela de Produtos */}
       <div style={styles.tableContainer}>
         <table style={styles.table}>
           <thead>
@@ -797,7 +894,10 @@ export const Products = () => {
                         display: "flex",
                         alignItems: "center",
                         gap: "5px",
-                        color: getProductQuantity(product) < 5 ? "#ef4444" : colors.text,
+                        color:
+                          getProductQuantity(product) < 5
+                            ? "#ef4444"
+                            : colors.text,
                       }}
                     >
                       <Package size={16} /> {getProductQuantity(product)}
@@ -824,12 +924,14 @@ export const Products = () => {
                     <button
                       onClick={() => handleOpenModal(product)}
                       style={styles.iconButton}
+                      title="Editar produto"
                     >
                       <Edit size={18} color="#0284c7" />
                     </button>
                     <button
                       onClick={() => handleDelete(product.id!)}
                       style={styles.iconButton}
+                      title="Excluir produto"
                     >
                       <Trash2 size={18} color="#ef4444" />
                     </button>
@@ -872,13 +974,13 @@ export const Products = () => {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal de Criação / Edição */}
       {isModalOpen && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
-                {currentProduct ? "Editar" : "Novo"}
+                {currentProduct ? "Editar Produto" : "Novo Produto"}
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -888,275 +990,508 @@ export const Products = () => {
               </button>
             </div>
             {isLoadingProductForEdit ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px", gap: "12px", color: colors.muted }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "40px",
+                  gap: "12px",
+                  color: colors.muted,
+                }}
+              >
                 <Loader2 size={24} className="animate-spin" />
-                <span>Carregando produto...</span>
+                <span>Carregando dados do produto...</span>
               </div>
             ) : (
-            <form onSubmit={handleSave} style={styles.form}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nome</label>
-                <input
-                  required
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  style={styles.input}
-                />
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Descrição</label>
-                <textarea
-                  rows={5}
-                  placeholder="Quebras de linha serão mantidas na exibição do produto."
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  style={{ ...styles.input, resize: "vertical", whiteSpace: "pre-wrap" }}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Categoria</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) =>
-                    setFormData({ ...formData, category: e.target.value })
-                  }
-                  style={styles.input}
-                >
-                  <option value="">Selecione...</option>
-                  <option value="biquinis">Biquínis</option>
-                  <option value="saidas">Saídas de Praia</option>
-                  <option value="acessorios">Acessórios</option>
-                  <option value="promocao">Promoção</option>
-                </select>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Material</label>
-                <select
-                  value={formData.material}
-                  onChange={(e) =>
-                    setFormData({ ...formData, material: e.target.value })
-                  }
-                  style={styles.input}
-                >
-                  <option value="">Selecione...</option>
-                  {MATERIALS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Estampa</label>
-                <select
-                  value={formData.pattern}
-                  onChange={(e) =>
-                    setFormData({ ...formData, pattern: e.target.value })
-                  }
-                  style={styles.input}
-                >
-                  <option value="">Selecione...</option>
-                  {PATTERNS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* --- Estoque e Variantes --- */}
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Estoque e Variantes</label>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <span style={{ fontSize: "13px", color: colors.muted }}>
-                    Total: <b style={{ color: colors.text }}>{totalStock}</b> unidades
-                  </span>
-                  <button
-                    type="button"
-                    onClick={addVariant}
-                    style={{ ...styles.secondaryButton, padding: "6px 12px", fontSize: "13px" }}
-                  >
-                    <Plus size={14} /> Adicionar variante
-                  </button>
-                </div>
-                {variants.length === 0 ? (
-                  <div style={{ padding: "12px", border: `1px dashed ${colors.border}`, borderRadius: "6px", color: colors.muted, fontSize: "14px" }}>
-                    Nenhuma variante. Clique em &quot;Adicionar variante&quot;.
-                  </div>
-                ) : (
-                  <div style={{ border: `1px solid ${colors.border}`, borderRadius: "6px", overflow: "hidden" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: "13px" }}>
-                      <thead>
-                        <tr style={{ backgroundColor: theme === "dark" ? "#1e293b" : "#f8fafc", borderBottom: `1px solid ${colors.border}` }}>
-                          <th style={{ ...styles.th, padding: "8px 10px" }}>Cor</th>
-                          <th style={{ ...styles.th, padding: "8px 10px" }}>Tamanho</th>
-                          <th style={{ ...styles.th, padding: "8px 10px" }}>Qtde</th>
-                          <th style={{ ...styles.th, padding: "8px 10px", width: "44px" }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {variants.map((v, idx) => (
-                          <tr key={idx} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                            <td style={{ padding: "8px 10px" }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                {v.color && COLOR_MAP[v.color] && (
-                                  <span
-                                    style={{
-                                      width: "16px",
-                                      height: "16px",
-                                      borderRadius: "50%",
-                                      backgroundColor: COLOR_MAP[v.color],
-                                      border: LIGHT_COLORS.has(v.color) ? `1px solid ${colors.border}` : "none",
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                )}
-                                <select
-                                  value={v.color}
-                                  onChange={(e) => updateVariant(idx, "color", e.target.value)}
-                                  style={{ ...styles.input, padding: "6px 8px", minWidth: "120px" }}
-                                >
-                                  {COLOR_OPTIONS.map((name) => (
-                                    <option key={name} value={name}>{name}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </td>
-                            <td style={{ padding: "8px 10px" }}>
-                              <select
-                                value={v.size}
-                                onChange={(e) => updateVariant(idx, "size", e.target.value)}
-                                style={{ ...styles.input, padding: "6px 8px", minWidth: "80px" }}
-                              >
-                                {SIZES.map((s) => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td style={{ padding: "8px 10px" }}>
-                              <input
-                                type="number"
-                                min={0}
-                                value={v.stock_quantity === 0 ? "" : v.stock_quantity}
-                                onChange={(e) => updateVariant(idx, "stock_quantity", Number(e.target.value) || 0)}
-                                style={{ ...styles.input, padding: "6px 8px", width: "70px" }}
-                              />
-                            </td>
-                            <td style={{ padding: "8px" }}>
-                              <button
-                                type="button"
-                                onClick={() => removeVariant(idx)}
-                                style={styles.iconButton}
-                                title="Remover variante"
-                              >
-                                <Trash2 size={16} color="#ef4444" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Imagens</label>
-                <div style={{ marginBottom: "10px" }}>
+              <form onSubmit={handleSave} style={styles.form}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nome</label>
                   <input
-                    type="file"
-                    id="image-upload"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    style={{ display: "none" }}
-                    disabled={isUploading}
+                    required
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    style={styles.input}
                   />
-                  <label htmlFor="image-upload" style={styles.uploadButton}>
-                    {isUploading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Plus size={16} />
-                    )}
-                    {isUploading ? "Enviando..." : "Carregar Imagem"}
-                  </label>
                 </div>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {formData.images.map((img, idx) => (
-                    <div
-                      key={idx}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Descrição</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Quebras de linha serão mantidas na exibição."
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    style={{
+                      ...styles.input,
+                      resize: "vertical",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Categoria</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category: e.target.value })
+                    }
+                    style={styles.input}
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="biquinis">Biquínis</option>
+                    <option value="saidas">Saídas de Praia</option>
+                    <option value="acessorios">Acessórios</option>
+                    <option value="promocao">Promoção</option>
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Material</label>
+                  <select
+                    value={formData.material}
+                    onChange={(e) =>
+                      setFormData({ ...formData, material: e.target.value })
+                    }
+                    style={styles.input}
+                  >
+                    <option value="">Selecione...</option>
+                    {MATERIALS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Estampa</label>
+                  <select
+                    value={formData.pattern}
+                    onChange={(e) =>
+                      setFormData({ ...formData, pattern: e.target.value })
+                    }
+                    style={styles.input}
+                  >
+                    <option value="">Selecione...</option>
+                    {PATTERNS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Estoque e Variantes com Imagens Específicas */}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Estoque e Variantes</label>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <span style={{ fontSize: "13px", color: colors.muted }}>
+                      Total: <b style={{ color: colors.text }}>{totalStock}</b>{" "}
+                      unidades
+                    </span>
+                    <button
+                      type="button"
+                      onClick={addVariant}
                       style={{
-                        position: "relative",
-                        width: "60px",
-                        height: "60px",
+                        ...styles.secondaryButton,
+                        padding: "6px 12px",
+                        fontSize: "13px",
                       }}
                     >
-                      <img
-                        src={img}
-                        alt=""
+                      <Plus size={14} /> Adicionar variante
+                    </button>
+                  </div>
+
+                  {variants.length === 0 ? (
+                    <div
+                      style={{
+                        padding: "12px",
+                        border: `1px dashed ${colors.border}`,
+                        borderRadius: "6px",
+                        color: colors.muted,
+                        fontSize: "14px",
+                      }}
+                    >
+                      Nenhuma variante cadastrada. Clique em &quot;Adicionar
+                      variante&quot;.
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: "6px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <table
                         style={{
                           width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          borderRadius: "4px",
-                          border: `1px solid ${colors.border}`,
+                          borderCollapse: "collapse" as const,
+                          fontSize: "13px",
                         }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        style={styles.removeImageBtn}
                       >
-                        X
-                      </button>
+                        <thead>
+                          <tr
+                            style={{
+                              backgroundColor:
+                                theme === "dark" ? "#1e293b" : "#f8fafc",
+                              borderBottom: `1px solid ${colors.border}`,
+                            }}
+                          >
+                            <th style={{ ...styles.th, padding: "8px 10px" }}>
+                              Cor
+                            </th>
+                            <th style={{ ...styles.th, padding: "8px 10px" }}>
+                              Tamanho
+                            </th>
+                            <th style={{ ...styles.th, padding: "8px 10px" }}>
+                              Qtde
+                            </th>
+                            <th
+                              style={{
+                                ...styles.th,
+                                padding: "8px 10px",
+                                textAlign: "center" as const,
+                              }}
+                            >
+                              Foto
+                            </th>
+                            <th
+                              style={{
+                                ...styles.th,
+                                padding: "8px 10px",
+                                width: "40px",
+                              }}
+                            ></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {variants.map((v, idx) => (
+                            <tr
+                              key={idx}
+                              style={{
+                                borderBottom: `1px solid ${colors.border}`,
+                              }}
+                            >
+                              {/* Seletor de Cor */}
+                              <td style={{ padding: "8px 10px" }}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                  }}
+                                >
+                                  {v.color && COLOR_MAP[v.color] && (
+                                    <span
+                                      style={{
+                                        width: "16px",
+                                        height: "16px",
+                                        borderRadius: "50%",
+                                        backgroundColor: COLOR_MAP[v.color],
+                                        border: LIGHT_COLORS.has(v.color)
+                                          ? `1px solid ${colors.border}`
+                                          : "none",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  )}
+                                  <select
+                                    value={v.color}
+                                    onChange={(e) =>
+                                      updateVariant(
+                                        idx,
+                                        "color",
+                                        e.target.value,
+                                      )
+                                    }
+                                    style={{
+                                      ...styles.input,
+                                      padding: "6px 8px",
+                                      minWidth: "120px",
+                                    }}
+                                  >
+                                    {COLOR_OPTIONS.map((name) => (
+                                      <option key={name} value={name}>
+                                        {name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </td>
+
+                              {/* Seletor de Tamanho */}
+                              <td style={{ padding: "8px 10px" }}>
+                                <select
+                                  value={v.size}
+                                  onChange={(e) =>
+                                    updateVariant(idx, "size", e.target.value)
+                                  }
+                                  style={{
+                                    ...styles.input,
+                                    padding: "6px 8px",
+                                    minWidth: "75px",
+                                  }}
+                                >
+                                  {SIZES.map((s) => (
+                                    <option key={s} value={s}>
+                                      {s}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+
+                              {/* Quantidade em Estoque */}
+                              <td style={{ padding: "8px 10px" }}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={
+                                    v.stock_quantity === 0
+                                      ? ""
+                                      : v.stock_quantity
+                                  }
+                                  onChange={(e) =>
+                                    updateVariant(
+                                      idx,
+                                      "stock_quantity",
+                                      Number(e.target.value) || 0,
+                                    )
+                                  }
+                                  style={{
+                                    ...styles.input,
+                                    padding: "6px 8px",
+                                    width: "65px",
+                                  }}
+                                />
+                              </td>
+
+                              {/* Upload / Preview de Foto da Variante */}
+                              <td
+                                style={{
+                                  padding: "8px 10px",
+                                  textAlign: "center" as const,
+                                }}
+                              >
+                                {v.image ? (
+                                  <div
+                                    style={{
+                                      position: "relative",
+                                      display: "inline-block",
+                                      width: "34px",
+                                      height: "34px",
+                                    }}
+                                  >
+                                    <img
+                                      src={v.image}
+                                      alt={`Variante ${v.color}`}
+                                      style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        borderRadius: "4px",
+                                        border: `1px solid ${colors.border}`,
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveVariantImage(idx)
+                                      }
+                                      style={{
+                                        position: "absolute",
+                                        top: -5,
+                                        right: -5,
+                                        background: "#ef4444",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "50%",
+                                        width: "16px",
+                                        height: "16px",
+                                        fontSize: "10px",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                      title="Remover foto da variante"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <input
+                                      type="file"
+                                      id={`variant-upload-${idx}`}
+                                      accept="image/*"
+                                      onChange={(e) =>
+                                        handleVariantFileSelect(idx, e)
+                                      }
+                                      style={{ display: "none" }}
+                                      disabled={uploadingVariantIndex === idx}
+                                    />
+                                    <label
+                                      htmlFor={`variant-upload-${idx}`}
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "4px",
+                                        padding: "4px 8px",
+                                        fontSize: "11px",
+                                        border: `1px dashed ${colors.border}`,
+                                        borderRadius: "4px",
+                                        cursor: "pointer",
+                                        color: colors.muted,
+                                        backgroundColor:
+                                          theme === "dark"
+                                            ? "#1e293b"
+                                            : "#f8fafc",
+                                      }}
+                                    >
+                                      {uploadingVariantIndex === idx ? (
+                                        <Loader2
+                                          size={12}
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <Camera size={12} />
+                                      )}
+                                      Foto
+                                    </label>
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Botão de Excluir Linha */}
+                              <td style={{ padding: "8px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => removeVariant(idx)}
+                                  style={styles.iconButton}
+                                  title="Remover variante"
+                                >
+                                  <Trash2 size={16} color="#ef4444" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Preço</label>
-                <input
-                  required
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
-                  }
-                  style={styles.input}
-                />
-              </div>
-
-              <div style={styles.modalFooter}>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={styles.secondaryButton}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={styles.primaryButton}
-                  disabled={saveMutation.isPending || isUploading}
-                >
-                  {saveMutation.isPending ? (
-                    "Salvando..."
-                  ) : (
-                    <>
-                      <Save size={18} /> Salvar
-                    </>
                   )}
-                </button>
-              </div>
-            </form>
+                </div>
+
+                {/* Imagens Gerais da Galeria do Produto */}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Galeria Geral do Produto</label>
+                  <div style={{ marginBottom: "10px" }}>
+                    <input
+                      type="file"
+                      id="image-upload"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      style={{ display: "none" }}
+                      disabled={isUploading}
+                    />
+                    <label htmlFor="image-upload" style={styles.uploadButton}>
+                      {isUploading ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Plus size={16} />
+                      )}
+                      {isUploading ? "Enviando..." : "Adicionar à Galeria"}
+                    </label>
+                  </div>
+                  <div
+                    style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}
+                  >
+                    {formData.images.map((img, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          position: "relative",
+                          width: "60px",
+                          height: "60px",
+                        }}
+                      >
+                        <img
+                          src={img}
+                          alt="Foto do produto"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            borderRadius: "4px",
+                            border: `1px solid ${colors.border}`,
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          style={styles.removeImageBtn}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Preço (R$)</label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.modalFooter}>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    style={styles.secondaryButton}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    style={styles.primaryButton}
+                    disabled={
+                      saveMutation.isPending ||
+                      isUploading ||
+                      uploadingVariantIndex !== null
+                    }
+                  >
+                    {saveMutation.isPending ? (
+                      "Salvando..."
+                    ) : (
+                      <>
+                        <Save size={18} /> Salvar Produto
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>
