@@ -26,7 +26,7 @@ import { Dashboard } from "./backoffice/pages/Dashboard";
 import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
 import { MelhorEnvioCallback } from "./backoffice/pages/MelhorEnvioCallback";
 
-import { StoreHome } from "./store/pages/StoreHome";
+import { StoreHome } from "./store/pages/store-home/StoreHome";
 import { ProductDetails } from "./store/pages/ProductDetails";
 import { PoliticaReembolso } from "./store/pages/policies/PoliticaReembolso";
 import { TermosDeUso } from "./store/pages/policies/TermosDeUso";
@@ -63,7 +63,10 @@ function App() {
               <Route path="/" element={<ClientLayout />}>
                 <Route index element={<StoreHome />} />
                 <Route path="produto/:id" element={<ProductDetails />} />
-                <Route path="politica-de-reembolso" element={<PoliticaReembolso />} />
+                <Route
+                  path="politica-de-reembolso"
+                  element={<PoliticaReembolso />}
+                />
                 <Route path="termos-de-uso" element={<TermosDeUso />} />
 
                 {/* PROTEÇÃO 1: Minha Conta (Dentro do layout com menu) 
