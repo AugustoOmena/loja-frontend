@@ -13,7 +13,10 @@ import {
   Image as ImageIcon,
   Loader2,
   Camera,
+  Eye,
+  Star,
 } from "lucide-react";
+import { ProductDetails } from "../../../store/pages/product-details/ProductDetails";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { getProductQuantity } from "../../../utils/productHelpers";
 import {
@@ -72,6 +75,13 @@ export const Products = () => {
     handleDelete,
     handleExportExcel,
     saveMutation,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    setAsCover,
+    isPreviewOpen,
+    setIsPreviewOpen,
+    getPreviewData,
   } = useProducts();
 
   if (isError)
@@ -703,7 +713,10 @@ export const Products = () => {
 
                 {/* Galeria Geral do Produto (Suporte a múltiplos arquivos simultâneos) */}
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Galeria Geral do Produto</label>
+                  <label style={styles.label}>
+                    Galeria Geral do Produto (Arraste para reordenar ou clique
+                    na estrela para definir a Capa)
+                  </label>
                   <div style={{ marginBottom: "10px" }}>
                     <input
                       type="file"
@@ -725,38 +738,121 @@ export const Products = () => {
                         : "Adicionar Fotos à Galeria"}
                     </label>
                   </div>
+
                   <div
-                    style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}
+                    style={{
+                      display: "flex",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                    }}
                   >
-                    {formData.images.map((img, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          position: "relative",
-                          width: "60px",
-                          height: "60px",
-                        }}
-                      >
-                        <img
-                          src={img}
-                          alt="Foto do produto"
+                    {formData.images.map((img, idx) => {
+                      const isCover = idx === 0;
+                      return (
+                        <div
+                          key={idx}
+                          draggable
+                          onDragStart={() => handleDragStart(idx)}
+                          onDragOver={handleDragOver}
+                          onDrop={() => handleDrop(idx)}
                           style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            borderRadius: "4px",
-                            border: `1px solid ${colors.border}`,
+                            position: "relative",
+                            width: "80px",
+                            height: "80px",
+                            borderRadius: "6px",
+                            border: isCover
+                              ? "2px solid #6366f1"
+                              : `1px solid ${colors.border}`,
+                            boxShadow: isCover
+                              ? "0 0 8px rgba(99, 102, 241, 0.4)"
+                              : "none",
+                            cursor: "grab",
+                            overflow: "hidden",
+                            backgroundColor: colors.card,
                           }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveGalleryImage(idx)}
-                          style={styles.removeImageBtn}
+                          title={
+                            isCover ? "Foto de Capa" : "Arraste para reordenar"
+                          }
                         >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                          <img
+                            src={img}
+                            alt="Produto"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+
+                          {/* Selo / Botão de Capa */}
+                          {isCover ? (
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                backgroundColor: "#6366f1",
+                                color: "white",
+                                fontSize: "9px",
+                                fontWeight: "bold",
+                                textAlign: "center",
+                                padding: "2px 0",
+                              }}
+                            >
+                              CAPA
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setAsCover(idx)}
+                              style={{
+                                position: "absolute",
+                                top: "4px",
+                                left: "4px",
+                                backgroundColor: "rgba(0,0,0,0.6)",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "3px",
+                                color: "#e2e8f0",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                              title="Definir como foto de capa"
+                            >
+                              <Star size={12} />
+                            </button>
+                          )}
+
+                          {/* Botão de Remover */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGalleryImage(idx)}
+                            style={{
+                              position: "absolute",
+                              top: "4px",
+                              right: "4px",
+                              background: "#ef4444",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "50%",
+                              width: "18px",
+                              height: "18px",
+                              fontSize: "10px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                            title="Remover foto"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -779,6 +875,18 @@ export const Products = () => {
                 <div style={styles.modalFooter}>
                   <button
                     type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    style={{
+                      ...styles.secondaryButton,
+                      backgroundColor: "#6366f1",
+                      color: "white",
+                      border: "none",
+                    }}
+                  >
+                    <Eye size={18} /> Visualizar Anúncio
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setIsModalOpen(false)}
                     style={styles.secondaryButton}
                   >
@@ -793,18 +901,29 @@ export const Products = () => {
                       uploadingVariantIndex !== null
                     }
                   >
-                    {saveMutation.isPending ? (
-                      "Salvando..."
-                    ) : (
-                      <>
-                        <Save size={18} /> Salvar Produto
-                      </>
-                    )}
+                    <Save size={18} /> Salvar Produto
                   </button>
                 </div>
               </form>
             )}
           </div>
+        </div>
+      )}
+      {/* Modal Fullscreen de Prévia reaproveitando ProductDetails */}
+      {isPreviewOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: colors.bg,
+            overflowY: "auto",
+          }}
+        >
+          <ProductDetails
+            previewProduct={getPreviewData()}
+            onClosePreview={() => setIsPreviewOpen(false)}
+          />
         </div>
       )}
     </div>

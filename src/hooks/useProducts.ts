@@ -429,7 +429,63 @@ export function useProducts() {
     }
   };
 
+  const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
+const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+// Drag and drop nativo para a galeria geral
+const handleDragStart = (index: number) => {
+  setDraggedImageIndex(index);
+};
+
+const handleDragOver = (e: React.DragEvent) => {
+  e.preventDefault();
+};
+
+const handleDrop = (targetIndex: number) => {
+  if (draggedImageIndex === null || draggedImageIndex === targetIndex) return;
+  setFormData((prev) => {
+    const newImages = [...prev.images];
+    const [movedItem] = newImages.splice(draggedImageIndex, 1);
+    newImages.splice(targetIndex, 0, movedItem);
+    return { ...prev, images: newImages };
+  });
+  setDraggedImageIndex(null);
+};
+
+// Define imediatamente qualquer foto como capa (posição 0)
+const setAsCover = (index: number) => {
+  if (index === 0) return;
+  setFormData((prev) => {
+    const newImages = [...prev.images];
+    const [movedItem] = newImages.splice(index, 1);
+    newImages.unshift(movedItem);
+    return { ...prev, images: newImages };
+  });
+};
+
+// Constrói o objeto Product formatado para o preview do cliente
+const getPreviewData = (): Product => {
   return {
+    id: currentProduct?.id || 999999,
+    name: formData.name || "Pré-visualização do Produto",
+    description: formData.description || "",
+    price: parseFloat(formData.price) || 0,
+    category: formData.category || "",
+    material: formData.material || "",
+    pattern: formData.pattern || "",
+    images: formData.images,
+    size: null,
+    variants: variants.map((v) => ({
+      color: v.color,
+      size: v.size,
+      stock_quantity: Number(v.stock_quantity) || 0,
+      image: v.image,
+      images: v.images,
+    })),
+  };
+};
+
+return {
     pagination,
     setPagination,
     sort,
@@ -469,5 +525,13 @@ export function useProducts() {
     handleDelete,
     handleExportExcel,
     saveMutation,
+    draggedImageIndex,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    setAsCover,
+    isPreviewOpen,
+    setIsPreviewOpen,
+    getPreviewData,
   };
 }

@@ -27,7 +27,7 @@ import { PedidosBackoffice } from "./backoffice/pages/Pedidos";
 import { MelhorEnvioCallback } from "./backoffice/pages/MelhorEnvioCallback";
 
 import { StoreHome } from "./store/pages/store-home/StoreHome";
-import { ProductDetails } from "./store/pages/ProductDetails";
+import { ProductDetails } from "./store/pages/product-details/ProductDetails";
 import { PoliticaReembolso } from "./store/pages/policies/PoliticaReembolso";
 import { TermosDeUso } from "./store/pages/policies/TermosDeUso";
 import { Login } from "./pages/Login";
