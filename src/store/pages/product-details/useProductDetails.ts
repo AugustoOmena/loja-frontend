@@ -20,6 +20,8 @@ export const SIZE_GUIDE_MODA_PRAIA = [
   { tamanho: "GG", num: "48-50", busto: "106-114", cintura: "90-99", quadril: "121-131" },
 ];
 
+const EMPTY_IMAGES: string[] = [];
+
 export interface UseProductDetailsProps {
   previewProduct?: Product;
 }
@@ -28,21 +30,20 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const EMPTY_IMAGES: string[] = [];
 
-  // Estados de seleção explícita pelo usuário
+  // Estados de seleção explícita do usuário
   const [userSelectedImage, setUserSelectedImage] = useState<string | null>(null);
   const [userSelectedColor, setUserSelectedColor] = useState<string | null>(null);
   const [userSelectedSize, setUserSelectedSize] = useState<string | null>(null);
 
-  // Estados de interface (drawers / acordeões)
+  // Estados de interface
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isSizeGuideHovered, setIsSizeGuideHovered] = useState(false);
   const [descAccordionOpen, setDescAccordionOpen] = useState(false);
   const [materialAccordionOpen, setMaterialAccordionOpen] = useState(false);
   const [estampaAccordionOpen, setEstampaAccordionOpen] = useState(false);
 
-  // Busca do Produto (ignora se estiver em preview)
+  // Busca do Produto (ignora se estiver em pré-visualização)
   const {
     data: fetchedProduct,
     isLoading: isQueryLoading,
@@ -62,13 +63,13 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
   const product = previewProduct || fetchedProduct;
   const isLoading = !previewProduct && isQueryLoading;
 
-  // Cálculos de estoque e disponibilidade
+  // Disponibilidade e Cores
   const stockBySize = useMemo(() => getStockBySize(product), [product]);
   const hasStockBySize = useMemo(() => hasStockBySizeHelper(product), [product]);
   const availableColors = useMemo(() => getAvailableColors(product), [product]);
   const hasColors = availableColors.length > 0;
 
-  // Estado derivado para Cor Selecionada (SEM setState em useEffect)
+  // Cor ativa calculada
   const selectedColor = useMemo(() => {
     if (!hasColors || availableColors.length === 0) return null;
     if (userSelectedColor && availableColors.includes(userSelectedColor)) {
@@ -77,7 +78,7 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     return availableColors[0] ?? null;
   }, [hasColors, availableColors, userSelectedColor]);
 
-  // Lista de tamanhos válidos para a cor selecionada
+  // Tamanhos disponíveis para a cor selecionada
   const availableSizes = useMemo(() => {
     if (!product) return [];
     if (hasColors && selectedColor) {
@@ -89,7 +90,7 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
       .map(([size]) => size);
   }, [product, hasColors, selectedColor, hasStockBySize, stockBySize]);
 
-  // Estado derivado para Tamanho Selecionado (SEM setState em useEffect)
+  // Tamanho ativo calculado
   const selectedSize = useMemo(() => {
     if (availableSizes.length === 0) return null;
     if (userSelectedSize && availableSizes.includes(userSelectedSize)) {
@@ -98,11 +99,45 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     return availableSizes[0] ?? null;
   }, [availableSizes, userSelectedSize]);
 
-  // Lista de imagens e imagem ativa (SEM setState em useEffect)
+  // Galeria filtrada: Fotos da cor selecionada + Fotos gerais do anúncio
   const images = useMemo(() => {
-    return product?.images && product.images.length > 0 ? product.images : EMPTY_IMAGES;
-  }, [product]);
+    if (!product) return EMPTY_IMAGES;
 
+    const colorImages: string[] = [];
+
+    // 1. Coleta as imagens da variante que correspondem à cor escolhida
+    if (selectedColor && product.variants?.length) {
+      product.variants.forEach((v) => {
+        const matchesColor =
+          v.color && v.color.trim().toLowerCase() === selectedColor.trim().toLowerCase();
+
+        if (matchesColor) {
+          if (v.images && v.images.length > 0) {
+            v.images.forEach((img) => {
+              if (img && !colorImages.includes(img)) colorImages.push(img);
+            });
+          } else if (v.image && !colorImages.includes(v.image)) {
+            colorImages.push(v.image);
+          }
+        }
+      });
+    }
+
+    // 2. Coleta as imagens gerais do produto
+    const generalImages = product.images || [];
+
+    // 3. Combina: fotos da cor selecionada primeiro, seguidas pelas imagens gerais sem duplicatas
+    const combined = [...colorImages];
+    generalImages.forEach((img) => {
+      if (img && !combined.includes(img)) {
+        combined.push(img);
+      }
+    });
+
+    return combined.length > 0 ? combined : EMPTY_IMAGES;
+  }, [product, selectedColor]);
+
+  // Imagem principal em destaque
   const mainImage = useMemo(() => {
     if (userSelectedImage && images.includes(userSelectedImage)) {
       return userSelectedImage;
@@ -115,7 +150,7 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     return hasStockBySize ? availableSizes.length > 0 : totalQty > 0;
   }, [hasStockBySize, availableSizes.length, totalQty]);
 
-  // Navegação da galeria (Próximo / Anterior)
+  // Navegação do carrossel
   const currentIndex = mainImage ? Math.max(0, images.indexOf(mainImage)) : 0;
   const hasMultipleImages = images.length > 1;
 
@@ -179,9 +214,11 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     addToCart(product, sizeToAdd, maxQuantity, colorToAdd);
   };
 
+  // Ao trocar de cor: reseta a foto clicada e o tamanho para alinhar com a nova cor
   const handleSelectColor = (color: string) => {
     setUserSelectedColor(color);
     setUserSelectedSize(null);
+    setUserSelectedImage(null);
   };
 
   const handleSelectSize = (size: string) => {
