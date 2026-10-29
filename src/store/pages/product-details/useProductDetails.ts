@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getProductById } from "../../../services/firebaseProductService";
 import { useCart } from "../../../contexts/CartContext";
-import type { Product } from "../../../types";
+import type { Product, ProductVariant } from "../../../types";
 import {
   getProductQuantity,
   getStockBySize,
@@ -22,16 +22,80 @@ export const SIZE_GUIDE_MODA_PRAIA = [
 
 const EMPTY_IMAGES: string[] = [];
 
+type RawProductPayload = Partial<Product> & {
+    image?: string;
+    images?: unknown;
+    variants?: unknown;
+  };
+  
+  // Normaliza o produto vindo do Firebase para garantir Arrays nativos e campos consistentes
+  function normalizeProduct(raw?: RawProductPayload | null): Product | null {
+    if (!raw) return null;
+  
+    // 1. Normaliza imagens gerais do produto
+    let images: string[] = [];
+    if (Array.isArray(raw.images)) {
+      images = (raw.images as string[]).filter(Boolean);
+    } else if (raw.images && typeof raw.images === "object") {
+      images = Object.values(raw.images as Record<string, string>).filter(Boolean);
+    } else if (typeof raw.image === "string" && raw.image) {
+      images = [raw.image];
+    }
+  
+    // 2. Normaliza variantes (converte objetos indexados do Firebase em Array)
+    let rawVariants: unknown[] = [];
+    if (Array.isArray(raw.variants)) {
+      rawVariants = raw.variants;
+    } else if (raw.variants && typeof raw.variants === "object") {
+      rawVariants = Object.values(raw.variants as Record<string, unknown>);
+    }
+  
+    const variants: ProductVariant[] = rawVariants.map((item) => {
+      const v = item as Record<string, unknown>;
+  
+      let variantImages: string[] = [];
+      if (Array.isArray(v.images)) {
+        variantImages = (v.images as string[]).filter(Boolean);
+      } else if (v.images && typeof v.images === "object") {
+        variantImages = Object.values(v.images as Record<string, string>).filter(Boolean);
+      } else if (typeof v.image === "string" && v.image) {
+        variantImages = [v.image];
+      }
+  
+      const qty = Number(v.stock_quantity ?? v.stock ?? 0);
+  
+      return {
+        color: String(v.color || "").trim(),
+        size: String(v.size || "").trim(),
+        stock_quantity: qty,
+        sku: typeof v.sku === "string" ? v.sku : undefined,
+        image: variantImages[0] || (typeof v.image === "string" ? v.image : undefined),
+        images: variantImages,
+      };
+    });
+  
+    return {
+      ...(raw as Product),
+      name: raw.name ?? "",
+      price: Number(raw.price ?? 0),
+      size: raw.size ?? null,
+      category: raw.category ?? "",
+      images,
+      variants,
+    };
+  }
+
 export interface UseProductDetailsProps {
   previewProduct?: Product;
 }
 
 export function useProductDetails({ previewProduct }: UseProductDetailsProps = {}) {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
-  // Estados de seleção explícita do usuário
+  // Estados de seleção manual do usuário
   const [userSelectedImage, setUserSelectedImage] = useState<string | null>(null);
   const [userSelectedColor, setUserSelectedColor] = useState<string | null>(null);
   const [userSelectedSize, setUserSelectedSize] = useState<string | null>(null);
@@ -43,7 +107,7 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
   const [materialAccordionOpen, setMaterialAccordionOpen] = useState(false);
   const [estampaAccordionOpen, setEstampaAccordionOpen] = useState(false);
 
-  // Busca do Produto (ignora se estiver em pré-visualização)
+  // Busca no Firebase
   const {
     data: fetchedProduct,
     isLoading: isQueryLoading,
@@ -60,7 +124,11 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     staleTime: 1000 * 60 * 5,
   });
 
-  const product = previewProduct || fetchedProduct;
+  // Produto com garantia de integridade estrutural
+  const product = useMemo(() => {
+    return normalizeProduct(previewProduct || fetchedProduct);
+  }, [previewProduct, fetchedProduct]);
+
   const isLoading = !previewProduct && isQueryLoading;
 
   // Disponibilidade e Cores
@@ -69,14 +137,27 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
   const availableColors = useMemo(() => getAvailableColors(product), [product]);
   const hasColors = availableColors.length > 0;
 
+  // Cor inicial vinda da URL (?cor=AZUL)
+  const colorFromUrl = searchParams.get("cor") || searchParams.get("color");
+
   // Cor ativa calculada
   const selectedColor = useMemo(() => {
     if (!hasColors || availableColors.length === 0) return null;
+
+    // 1. Escolha manual pelo usuário
     if (userSelectedColor && availableColors.includes(userSelectedColor)) {
       return userSelectedColor;
     }
+    // 2. Parâmetro da URL (ex: clique vindo da vitrine filtrada)
+    if (colorFromUrl) {
+      const match = availableColors.find(
+        (c) => c.trim().toLowerCase() === colorFromUrl.trim().toLowerCase()
+      );
+      if (match) return match;
+    }
+    // 3. Fallback: primeira cor disponível com estoque
     return availableColors[0] ?? null;
-  }, [hasColors, availableColors, userSelectedColor]);
+  }, [hasColors, availableColors, userSelectedColor, colorFromUrl]);
 
   // Tamanhos disponíveis para a cor selecionada
   const availableSizes = useMemo(() => {
@@ -99,14 +180,14 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     return availableSizes[0] ?? null;
   }, [availableSizes, userSelectedSize]);
 
-  // Galeria filtrada: Fotos da cor selecionada + Fotos gerais do anúncio
+  // Galeria filtrada por cor
   const images = useMemo(() => {
     if (!product) return EMPTY_IMAGES;
 
     const colorImages: string[] = [];
 
-    // 1. Coleta as imagens da variante que correspondem à cor escolhida
-    if (selectedColor && product.variants?.length) {
+    // 1. Fotos da cor selecionada cadastradas nas variantes
+    if (selectedColor && product.variants && product.variants.length > 0) {
       product.variants.forEach((v) => {
         const matchesColor =
           v.color && v.color.trim().toLowerCase() === selectedColor.trim().toLowerCase();
@@ -123,10 +204,8 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
       });
     }
 
-    // 2. Coleta as imagens gerais do produto
+    // 2. Fotos gerais da galeria do produto (anexadas após as fotos da cor)
     const generalImages = product.images || [];
-
-    // 3. Combina: fotos da cor selecionada primeiro, seguidas pelas imagens gerais sem duplicatas
     const combined = [...colorImages];
     generalImages.forEach((img) => {
       if (img && !combined.includes(img)) {
@@ -150,7 +229,7 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     return hasStockBySize ? availableSizes.length > 0 : totalQty > 0;
   }, [hasStockBySize, availableSizes.length, totalQty]);
 
-  // Navegação do carrossel
+  // Controles de navegação do carrossel
   const currentIndex = mainImage ? Math.max(0, images.indexOf(mainImage)) : 0;
   const hasMultipleImages = images.length > 1;
 
@@ -214,11 +293,10 @@ export function useProductDetails({ previewProduct }: UseProductDetailsProps = {
     addToCart(product, sizeToAdd, maxQuantity, colorToAdd);
   };
 
-  // Ao trocar de cor: reseta a foto clicada e o tamanho para alinhar com a nova cor
   const handleSelectColor = (color: string) => {
     setUserSelectedColor(color);
     setUserSelectedSize(null);
-    setUserSelectedImage(null);
+    setUserSelectedImage(null); // Reseta para a primeira foto da nova cor assumir o destaque
   };
 
   const handleSelectSize = (size: string) => {

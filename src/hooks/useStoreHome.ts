@@ -228,7 +228,9 @@ export function useStoreHome() {
 
   const handleProductClick = (productId: number) => {
     sessionStorage.setItem(STORE_HOME_SCROLL_KEY, String(window.scrollY));
-    navigate(`/produto/${productId}`);
+    const activeColor = filters.colors.length === 1 ? filters.colors[0] : "";
+    const query = activeColor ? `?cor=${encodeURIComponent(activeColor)}` : "";
+    navigate(`/produto/${productId}${query}`);
   };
 
   const handleProfileClick = () => {
